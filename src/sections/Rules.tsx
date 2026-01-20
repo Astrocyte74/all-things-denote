@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, Star, ChevronDown, ChevronRight } from 'lucide-react';
+import { Camera, Users, Heart, Smartphone, ChevronDown, ChevronRight } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 
 interface RulesProps {
@@ -11,7 +11,7 @@ const iconMap: Record<string, React.ReactNode> = {
   '📸': <Camera className="w-6 h-6" />,
   '👥': <Users className="w-6 h-6" />,
   '❤️': <Heart className="w-6 h-6" />,
-  '⭐': <Star className="w-6 h-6" />
+  '📱': <Smartphone className="w-6 h-6" />
 };
 
 export function Rules({ isVisible, collapsed = false }: RulesProps) {

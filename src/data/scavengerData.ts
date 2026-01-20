@@ -18,6 +18,12 @@ export const rules: Rule[] = [
     title: 'Be Respectful',
     description: 'Be respectful to store employees and other shoppers.',
     icon: '❤️'
+  },
+  {
+    id: 'rule-4',
+    title: 'Dual Phone Mode',
+    description: 'Optional: Use one phone in display mode and include it in photos taken with a second phone. This helps track which challenge you\'re completing!',
+    icon: '📱'
   }
 ];
 
