@@ -100,7 +100,7 @@ export function Header({ onStart }: HeaderProps) {
         </h1>
         
         <p className="text-lg md:text-xl text-gray-600 mb-6 animate-fade-in-up animation-delay-200">
-          Olds Ward Youth Activity • Find, Photo, Share
+          Finding Gospel Truths in Everyday Things • Find • Photo • Share
         </p>
 
         <blockquote className="max-w-2xl mx-auto mb-8 animate-fade-in-up animation-delay-300">
