@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw } from 'lucide-react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
@@ -176,21 +176,14 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         ref={swipeRef}
         className={`fixed inset-0 bg-gradient-to-br ${colors.from} ${colors.to} z-50 flex flex-col`}
       >
-        {/* Header */}
-        <div className="bg-black/30 p-4 flex items-center justify-between">
-          <div className="text-white">
-            <h2 className="text-xl font-bold">{category.title}</h2>
-            <p className="text-sm text-white/80">
-              Challenge {flatIndex + 1} of {allChallenges.length} • Path {selectedPathId}
-            </p>
-          </div>
-          <button
-            onClick={exitDisplayMode}
-            className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Exit Display Mode
-          </button>
-        </div>
+        {/* Floating Exit Button */}
+        <button
+          onClick={exitDisplayMode}
+          className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/30 text-white p-3 rounded-full transition-colors"
+          title="Exit Display Mode"
+        >
+          <X className="w-6 h-6" />
+        </button>
 
         {/* Single Challenge Display */}
         <div className="flex-1 p-4 flex items-center justify-center overflow-y-auto">
@@ -253,34 +246,45 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="bg-black/30 p-4 flex items-center justify-between">
-          <button
-            onClick={() => navigateDisplayMode('prev')}
-            disabled={flatIndex === 0}
-            className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-xl transition-colors"
-          >
-            <ChevronLeft className="w-8 h-8" />
-          </button>
-
-          <div className="flex items-center gap-2">
-            {allChallenges.map((_, index) => (
-              <div
-                key={index}
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  index === flatIndex ? 'bg-white' : 'bg-white/30'
-                }`}
-              />
-            ))}
+        {/* Navigation Footer with Info */}
+        <div className="bg-black/30 p-4">
+          {/* Info Row */}
+          <div className="flex items-center justify-between mb-3 text-white text-sm">
+            <span className="font-medium">{category.title}</span>
+            <span className="text-white/80">
+              Challenge {flatIndex + 1} of {allChallenges.length} • Path {selectedPathId}
+            </span>
           </div>
 
-          <button
-            onClick={() => navigateDisplayMode('next')}
-            disabled={flatIndex === allChallenges.length - 1}
-            className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-xl transition-colors"
-          >
-            <ChevronRight className="w-8 h-8" />
-          </button>
+          {/* Navigation Row */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigateDisplayMode('prev')}
+              disabled={flatIndex === 0}
+              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-xl transition-colors"
+            >
+              <ChevronLeft className="w-8 h-8" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              {allChallenges.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    index === flatIndex ? 'bg-white' : 'bg-white/30'
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => navigateDisplayMode('next')}
+              disabled={flatIndex === allChallenges.length - 1}
+              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-xl transition-colors"
+            >
+              <ChevronRight className="w-8 h-8" />
+            </button>
+          </div>
         </div>
       </div>
     );
