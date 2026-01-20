@@ -3,8 +3,8 @@ import type { Category, Rule, BonusItem } from '@/types';
 export const rules: Rule[] = [
   {
     id: 'rule-1',
-    title: 'Photos Only',
-    description: 'Take photos of products only. Do not include other shoppers or people in your photos.',
+    title: 'Photo Guidelines',
+    description: 'Take photos of products only. Do not include other shoppers or people in your photos. Optional: Use dual phone mode - tap the ⛶ icon on any challenge to enter display mode, then include that phone in photos taken with a second phone to track your progress.',
     icon: '📸'
   },
   {
@@ -18,12 +18,6 @@ export const rules: Rule[] = [
     title: 'Be Respectful',
     description: 'Be respectful to store employees and other shoppers.',
     icon: '❤️'
-  },
-  {
-    id: 'rule-4',
-    title: 'Dual Phone Mode',
-    description: 'Optional: Use one phone in display mode (tap the ⛶ icon on any challenge) and include it in photos taken with a second phone. This helps track which challenge you\'re completing!',
-    icon: '📱'
   }
 ];
 

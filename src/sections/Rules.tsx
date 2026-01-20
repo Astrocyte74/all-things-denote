@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, Smartphone, ChevronDown, ChevronRight } from 'lucide-react';
+import { Camera, Users, Heart, ChevronDown, ChevronRight } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 
 interface RulesProps {
@@ -10,12 +10,11 @@ interface RulesProps {
 const iconMap: Record<string, React.ReactNode> = {
   '📸': <Camera className="w-6 h-6" />,
   '👥': <Users className="w-6 h-6" />,
-  '❤️': <Heart className="w-6 h-6" />,
-  '📱': <Smartphone className="w-6 h-6" />
+  '❤️': <Heart className="w-6 h-6" />
 };
 
 export function Rules({ isVisible, collapsed = false }: RulesProps) {
-  const [openRule, setOpenRule] = useState<string | null>(null);
+  const [openRule, setOpenRule] = useState<string | null>(isVisible ? 'rule-1' : null);
   const [isAnimated, setIsAnimated] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!collapsed);
 
