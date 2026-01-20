@@ -9,12 +9,18 @@ export const rules: Rule[] = [
   },
   {
     id: 'rule-2',
+    title: 'No Running',
+    description: 'Walk, don\'t run. Safety first!',
+    icon: '🚶'
+  },
+  {
+    id: 'rule-3',
     title: 'Stay Together',
     description: 'Stay with your group at all times. Safety in numbers!',
     icon: '👥'
   },
   {
-    id: 'rule-3',
+    id: 'rule-4',
     title: 'Be Respectful',
     description: 'Be respectful to store employees and other shoppers.',
     icon: '❤️'
