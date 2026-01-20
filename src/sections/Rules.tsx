@@ -45,13 +45,13 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
   // Collapsed state - just show a small header
   if (collapsed && !isExpanded) {
     return (
-      <section className="py-8 bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 md:px-8">
+      <section className="py-6 bg-gray-50 border-t border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 md:px-8 text-center">
           <button
             onClick={toggleExpand}
-            className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-gray-700 transition-colors py-2"
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors text-sm"
           >
-            <span className="text-sm">Show Game Rules</span>
+            Show Game Rules
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

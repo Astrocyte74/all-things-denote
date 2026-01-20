@@ -67,20 +67,18 @@ function App() {
         />
       )}
 
-      {/* Rules */}
-      {(appState === 'rules' || appState === 'hunt') && (
+      {/* Rules (shown at top during rules phase) */}
+      {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={appState === 'rules'} collapsed={appState === 'hunt'} />
-          {appState === 'rules' && (
-            <div className="py-8 bg-gray-50 text-center">
-              <button
-                onClick={handleStartHunt}
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-              >
-                Start the Hunt with Path {selectedPathId}!
-              </button>
-            </div>
-          )}
+          <Rules isVisible={true} collapsed={false} />
+          <div className="py-8 bg-gray-50 text-center">
+            <button
+              onClick={handleStartHunt}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+            >
+              Start the Hunt with Path {selectedPathId}!
+            </button>
+          </div>
         </div>
       )}
 
@@ -97,6 +95,8 @@ function App() {
           />
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} />
           <Footer />
+          {/* Collapsed rules at bottom during hunt */}
+          <Rules isVisible={false} collapsed={true} />
         </>
       )}
     </div>
