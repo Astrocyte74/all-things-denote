@@ -33,6 +33,13 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
     }
   }, [collapsed]);
 
+  // When expanding from collapsed state, trigger animation
+  useEffect(() => {
+    if (isExpanded && collapsed) {
+      setTimeout(() => setIsAnimated(true), 50);
+    }
+  }, [isExpanded, collapsed]);
+
   const toggleRule = (id: string) => {
     setOpenRule(openRule === id ? null : id);
   };
