@@ -149,9 +149,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     threshold: 50
   });
 
-  // Gospel analogies show when: bonus is unlocked OR challenge is completed OR user knows the secret
-  const shouldShowAnalogies = (challengeId: string) => {
-    return bonusUnlocked || completedChallenges.has(challengeId) || showAnalogiesEarly;
+  // Gospel analogies show when: bonus is unlocked OR user knows the secret (long press)
+  const shouldShowAnalogies = () => {
+    return bonusUnlocked || showAnalogiesEarly;
   };
 
   // Display mode component
@@ -159,7 +159,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const { category, challengeIndex, allChallenges, flatIndex } = displayModeChallenge;
     const challenge = category.challenges[challengeIndex];
     const isCompleted = completedChallenges.has(challenge.id);
-    const showAnalogies = shouldShowAnalogies(challenge.id);
+    const showAnalogies = shouldShowAnalogies();
 
     // Get gradient colors for this category
     const colorMap: Record<string, { from: string; to: string }> = {
@@ -243,9 +243,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               <div className="bg-gray-100 rounded-2xl p-6 text-center">
                 <p className="text-gray-500 italic text-2xl">
                   Think about the gospel connection...
-                </p>
-                <p className="text-gray-400 text-lg mt-2">
-                  Complete this challenge to reveal the answer!
                 </p>
               </div>
             )}
@@ -440,7 +437,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                     <div className="p-6 space-y-4">
                       {category.challenges.map((challenge, challengeIndex) => {
                         const isCompleted = completedChallenges.has(challenge.id);
-                        const showAnalogies = shouldShowAnalogies(challenge.id);
+                        const showAnalogies = shouldShowAnalogies();
 
                         return (
                           <div
@@ -506,7 +503,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                     ) : (
                                       <div className="flex items-start gap-2 text-sm text-gray-400 italic">
                                         <span className="flex-shrink-0">💭</span>
-                                        <span>{isCompleted ? 'Gospel connection revealed!' : 'Complete this challenge to reveal the connection'}</span>
+                                        <span>Think about the gospel connection...</span>
                                       </div>
                                     )}
                                   </div>
