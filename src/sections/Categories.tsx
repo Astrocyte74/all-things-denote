@@ -193,15 +193,31 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               <div className="inline-block bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 font-black px-8 py-6 rounded-3xl mb-6 shadow-lg">
                 <span className="text-7xl md:text-8xl">#{challenge.number}</span>
               </div>
-              <h3 className="text-3xl font-bold text-gray-900 mb-2">
+              <h3 className="text-3xl font-bold text-gray-900 mb-4">
                 {challenge.title}
               </h3>
-              {isCompleted && (
-                <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-lg font-semibold">
-                  <Check className="w-5 h-5" />
-                  Completed!
-                </div>
-              )}
+
+              {/* Completion Toggle Button */}
+              <button
+                onClick={() => toggleChallenge(challenge.id)}
+                className={`inline-flex items-center gap-3 px-6 py-3 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 ${
+                  isCompleted
+                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 border-2 border-gray-200'
+                }`}
+              >
+                {isCompleted ? (
+                  <>
+                    <Check className="w-6 h-6" />
+                    Completed!
+                  </>
+                ) : (
+                  <>
+                    <div className="w-6 h-6 rounded-full border-2 border-current" />
+                    Mark as Complete
+                  </>
+                )}
+              </button>
             </div>
 
             {showAnalogies ? (
