@@ -573,17 +573,17 @@ function ProgressBar({ completed, total, onTripleTap, bonusUnlocked, showAnalogi
         >
           <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
-
-        {/* Hint - only shows when bonus is unlocked */}
-        {bonusUnlocked && (
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="text-xs text-gray-600 bg-white/90 px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
-              <Map className="w-3 h-3" />
-              Triple tap to reveal all gospel analogies
-            </span>
-          </div>
-        )}
       </div>
+
+      {/* Hint - shows automatically when bonus is unlocked (not just hover) */}
+      {bonusUnlocked && !showAnalogies && (
+        <div className="text-center mt-2">
+          <span className="text-xs text-gray-500 bg-white/90 px-3 py-1.5 rounded-full shadow-sm inline-flex items-center gap-1 border border-gray-200">
+            <Map className="w-3 h-3" />
+            Triple tap progress bar to reveal all gospel analogies
+          </span>
+        </div>
+      )}
 
       {/* Hide link when analogies are showing */}
       {showAnalogies && (
