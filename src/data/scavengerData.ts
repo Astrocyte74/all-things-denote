@@ -22,7 +22,7 @@ export const rules: Rule[] = [
   {
     id: 'rule-4',
     title: 'Dual Phone Mode',
-    description: 'Optional: Use one phone in display mode and include it in photos taken with a second phone. This helps track which challenge you\'re completing!',
+    description: 'Optional: Use one phone in display mode (tap the ⛶ icon on any challenge) and include it in photos taken with a second phone. This helps track which challenge you\'re completing!',
     icon: '📱'
   }
 ];
