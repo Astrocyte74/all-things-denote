@@ -4,7 +4,7 @@ export const rules: Rule[] = [
   {
     id: 'rule-1',
     title: 'Photos Only',
-    description: 'Take photos only (no faces of strangers). Respect others\' privacy.',
+    description: 'Take photos of products only. Do not include other shoppers or people in your photos.',
     icon: '📸'
   },
   {
@@ -18,12 +18,6 @@ export const rules: Rule[] = [
     title: 'Be Respectful',
     description: 'Be respectful to store employees and other shoppers.',
     icon: '❤️'
-  },
-  {
-    id: 'rule-4',
-    title: 'Bonus Points',
-    description: 'Bonus points if your group can explain the gospel connection clearly!',
-    icon: '⭐'
   }
 ];
 
