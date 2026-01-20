@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X } from 'lucide-react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, EyeOff } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
-import { useLongPress } from '@/hooks/useLongPress';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useSwipe } from '@/hooks/useSwipe';
+import { useTripleTap } from '@/hooks/useTripleTap';
 
 interface CategoriesProps {
   isVisible: boolean;
@@ -94,6 +94,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   const handleResetProgress = () => {
     clearCompletedChallenges();
+    if (showAnalogiesEarly) {
+      toggleAnalogiesEarly();
+    }
     setShowResetConfirm(false);
   };
 
@@ -327,12 +330,13 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             Complete all 15 challenges with your group
           </p>
 
-          {/* Progress Bar with Long Press (shows instruction when bonus unlocked) */}
-          <LongPressProgressBar
+          {/* Progress Bar with Triple Tap (shows instruction when bonus unlocked) */}
+          <ProgressBar
             completed={totalProgress.completed}
             total={totalProgress.total}
-            onLongPress={toggleAnalogiesEarly}
+            onTripleTap={toggleAnalogiesEarly}
             bonusUnlocked={bonusUnlocked}
+            showAnalogies={showAnalogiesEarly}
           />
         </div>
 
@@ -534,18 +538,20 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   );
 }
 
-// Long Press Progress Bar Component
-interface LongPressProgressBarProps {
+// Progress Bar Component
+interface ProgressBarProps {
   completed: number;
   total: number;
-  onLongPress: () => void;
+  onTripleTap: () => void;
   bonusUnlocked: boolean;
+  showAnalogies: boolean;
 }
 
-function LongPressProgressBar({ completed, total, onLongPress, bonusUnlocked }: LongPressProgressBarProps) {
-  const longPressHandlers = useLongPress({
-    onLongPress,
-    threshold: 800
+function ProgressBar({ completed, total, onTripleTap, bonusUnlocked, showAnalogies }: ProgressBarProps) {
+  const progressBarRef = useTripleTap<HTMLDivElement>({
+    onTripleTap,
+    tapThreshold: 3,
+    timeThreshold: 500
   });
 
   const percentage = total > 0 ? (completed / total) * 100 : 0;
@@ -557,9 +563,9 @@ function LongPressProgressBar({ completed, total, onLongPress, bonusUnlocked }: 
         <span>{completed} / {total}</span>
       </div>
       <div
+        ref={progressBarRef}
         className="h-4 bg-gray-200 rounded-full overflow-hidden cursor-pointer relative group"
-        {...longPressHandlers}
-        title={bonusUnlocked ? "Long press to toggle gospel analogies" : ""}
+        title={bonusUnlocked ? "Triple tap to toggle gospel analogies" : ""}
       >
         <div
           className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500 ease-out relative"
@@ -573,11 +579,24 @@ function LongPressProgressBar({ completed, total, onLongPress, bonusUnlocked }: 
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
             <span className="text-xs text-gray-600 bg-white/90 px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
               <Map className="w-3 h-3" />
-              Long press to reveal all gospel analogies
+              Triple tap to reveal all gospel analogies
             </span>
           </div>
         )}
       </div>
+
+      {/* Hide link when analogies are showing */}
+      {showAnalogies && (
+        <div className="text-center mt-2">
+          <button
+            onClick={onTripleTap}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 mx-auto"
+          >
+            <EyeOff className="w-3 h-3" />
+            Hide gospel analogies
+          </button>
+        </div>
+      )}
     </div>
   );
 }
