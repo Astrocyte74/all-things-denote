@@ -175,17 +175,17 @@ export const categories: Category[] = [
       {
         id: 'challenge-14',
         number: 14,
-        title: 'A map, globe, or travel item',
-        photoTarget: 'Atlas, luggage, GPS device.',
+        title: 'Something that helps you find your way',
+        photoTarget: 'GPS, maps, shopping cart, address book.',
         gospelConnection: 'How is life a journey back to Heavenly Father?',
         completed: false
       },
       {
         id: 'challenge-15',
         number: 15,
-        title: 'Something that\'s been repaired or restored',
-        photoTarget: 'Fix-it kits, refurbished items.',
-        gospelConnection: 'How does repentance restore us?',
+        title: 'Something meant to fix or repair',
+        photoTarget: 'Glue, tape, tools, repair kits.',
+        gospelConnection: 'How does the Atonement fix and heal us?',
         completed: false
       }
     ]
