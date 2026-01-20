@@ -24,7 +24,7 @@ export const rules: Rule[] = [
 export const categories: Category[] = [
   {
     id: 'faith',
-    title: 'Faith & Discipleship',
+    title: 'Faith & Light',
     icon: 'Lightbulb',
     color: 'from-blue-500 to-cyan-400',
     challenges: [
@@ -90,7 +90,7 @@ export const categories: Category[] = [
   },
   {
     id: 'service',
-    title: 'Service & Christlike Attributes',
+    title: "Christ's Love",
     icon: 'Heart',
     color: 'from-red-500 to-orange-400',
     challenges: [
@@ -154,7 +154,7 @@ export const categories: Category[] = [
   },
   {
     id: 'community',
-    title: 'Community & the Plan of Salvation',
+    title: 'The Plan of Salvation',
     icon: 'Globe',
     color: 'from-yellow-500 to-amber-400',
     challenges: [
