@@ -99,9 +99,16 @@ export function Header({ onStart }: HeaderProps) {
           <span className="text-blue-600">Scavenger Hunt</span>
         </h1>
         
-        <p className="text-lg md:text-xl text-gray-600 mb-8 animate-fade-in-up animation-delay-200">
-          LDS Youth Activity • Find, Photo, Share
+        <p className="text-lg md:text-xl text-gray-600 mb-6 animate-fade-in-up animation-delay-200">
+          Olds Ward Youth Activity • Find, Photo, Share
         </p>
+
+        <blockquote className="max-w-2xl mx-auto mb-8 animate-fade-in-up animation-delay-300">
+          <p className="text-base md:text-lg text-gray-500 italic leading-relaxed">
+            "All things denote there is a God; yea, even the earth, and all things that are upon the face of it..."
+          </p>
+          <cite className="text-sm text-gray-400 not-italic mt-2 block">— Alma 30:44</cite>
+        </blockquote>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-400">
           <Button 

@@ -30,8 +30,8 @@ export const rules: Rule[] = [
 export const categories: Category[] = [
   {
     id: 'faith',
-    title: '🌱 Faith & Discipleship',
-    icon: '💡',
+    title: 'Faith & Discipleship',
+    icon: 'Lightbulb',
     color: 'from-blue-500 to-cyan-400',
     challenges: [
       {
@@ -64,8 +64,8 @@ export const categories: Category[] = [
   },
   {
     id: 'choices',
-    title: '🧭 Choices & Agency',
-    icon: '🎯',
+    title: 'Choices & Agency',
+    icon: 'Target',
     color: 'from-purple-500 to-pink-400',
     challenges: [
       {
@@ -96,8 +96,8 @@ export const categories: Category[] = [
   },
   {
     id: 'service',
-    title: '❤️ Service & Christlike Attributes',
-    icon: '🤲',
+    title: 'Service & Christlike Attributes',
+    icon: 'Heart',
     color: 'from-red-500 to-orange-400',
     challenges: [
       {
@@ -128,8 +128,8 @@ export const categories: Category[] = [
   },
   {
     id: 'scriptures',
-    title: '📖 Scriptures & Spiritual Growth',
-    icon: '📚',
+    title: 'Scriptures & Spiritual Growth',
+    icon: 'BookOpen',
     color: 'from-green-500 to-emerald-400',
     challenges: [
       {
@@ -160,8 +160,8 @@ export const categories: Category[] = [
   },
   {
     id: 'community',
-    title: '🌍 Community & the Plan of Salvation',
-    icon: '🌎',
+    title: 'Community & the Plan of Salvation',
+    icon: 'Globe',
     color: 'from-yellow-500 to-amber-400',
     challenges: [
       {

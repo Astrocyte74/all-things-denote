@@ -1,11 +1,20 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, type LucideIcon } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
+
+// Map icon names to Lucide components
+const iconMap: Record<string, LucideIcon> = {
+  Lightbulb,
+  Target,
+  Heart,
+  BookOpen,
+  Globe
+};
 
 interface CategoriesProps {
   isVisible: boolean;
@@ -253,7 +262,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             {/* Instructions */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 text-lg">
-                📱 Hold this phone up for the other phone's camera
+                📱 When taking photos, include this phone in the shot!
               </p>
               <p className="text-gray-500 text-base mt-2">
                 Swipe or use arrows to navigate between challenges
@@ -407,7 +416,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl">{category.icon}</span>
+                        <div className="text-white">
+                          {iconMap[category.icon] ? React.createElement(iconMap[category.icon], { className: "w-6 h-6" }) : null}
+                        </div>
                         <h3 className="text-xl font-bold text-white">
                           {category.title}
                         </h3>
