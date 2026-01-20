@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, Star, ChevronDown } from 'lucide-react';
+import { Camera, Users, Heart, Star, ChevronDown, ChevronRight } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 
 interface RulesProps {
   isVisible: boolean;
+  collapsed?: boolean;
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -13,9 +14,10 @@ const iconMap: Record<string, React.ReactNode> = {
   '⭐': <Star className="w-6 h-6" />
 };
 
-export function Rules({ isVisible }: RulesProps) {
+export function Rules({ isVisible, collapsed = false }: RulesProps) {
   const [openRule, setOpenRule] = useState<string | null>(null);
   const [isAnimated, setIsAnimated] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(!collapsed);
 
   useEffect(() => {
     if (isVisible) {
@@ -23,17 +25,58 @@ export function Rules({ isVisible }: RulesProps) {
     }
   }, [isVisible]);
 
+  // Auto-collapse when collapsed prop changes
+  useEffect(() => {
+    if (collapsed) {
+      setIsExpanded(false);
+      setOpenRule(null);
+    }
+  }, [collapsed]);
+
   const toggleRule = (id: string) => {
     setOpenRule(openRule === id ? null : id);
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+    setOpenRule(null);
+  };
+
+  // Collapsed state - just show a small header
+  if (collapsed && !isExpanded) {
+    return (
+      <section className="py-8 bg-white border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 md:px-8">
+          <button
+            onClick={toggleExpand}
+            className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-gray-700 transition-colors py-2"
+          >
+            <span className="text-sm">Show Game Rules</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  // Expanded state
   return (
     <section className="py-16 md:py-24 bg-white relative">
       <div className="max-w-4xl mx-auto px-4 md:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Game Rules
-          </h2>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+              Game Rules
+            </h2>
+            {collapsed && (
+              <button
+                onClick={toggleExpand}
+                className="text-sm text-blue-600 hover:text-blue-700 underline"
+              >
+                Hide
+              </button>
+            )}
+          </div>
           <p className="text-gray-600 text-lg">
             Follow these guidelines to keep the hunt fun and respectful
           </p>
@@ -44,8 +87,8 @@ export function Rules({ isVisible }: RulesProps) {
             <div
               key={rule.id}
               className={`transform transition-all duration-500 ${
-                isAnimated 
-                  ? 'translate-x-0 opacity-100' 
+                isAnimated
+                  ? 'translate-x-0 opacity-100'
                   : '-translate-x-8 opacity-0'
               }`}
               style={{ transitionDelay: `${index * 100}ms` }}
@@ -58,26 +101,26 @@ export function Rules({ isVisible }: RulesProps) {
               >
                 <div className="p-6 flex items-center gap-4">
                   <div className={`p-3 rounded-xl transition-colors duration-300 ${
-                    openRule === rule.id 
-                      ? 'bg-blue-100 text-blue-600' 
+                    openRule === rule.id
+                      ? 'bg-blue-100 text-blue-600'
                       : 'bg-gray-100 text-gray-600'
                   }`}>
                     {iconMap[rule.icon]}
                   </div>
-                  
+
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">
                       {rule.title}
                     </h3>
                   </div>
-                  
-                  <ChevronDown 
+
+                  <ChevronDown
                     className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
                       openRule === rule.id ? 'rotate-180' : ''
                     }`}
                   />
                 </div>
-                
+
                 <div className={`overflow-hidden transition-all duration-300 ${
                   openRule === rule.id ? 'max-h-40' : 'max-h-0'
                 }`}>

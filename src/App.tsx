@@ -70,7 +70,7 @@ function App() {
       {/* Rules */}
       {(appState === 'rules' || appState === 'hunt') && (
         <div ref={rulesRef}>
-          <Rules isVisible={appState === 'rules'} />
+          <Rules isVisible={appState === 'rules'} collapsed={appState === 'hunt'} />
           {appState === 'rules' && (
             <div className="py-8 bg-gray-50 text-center">
               <button
