@@ -30,13 +30,13 @@ export function BonusSection({ isVisible, isUnlocked }: BonusSectionProps) {
       
       <div className="max-w-6xl mx-auto px-4 md:px-8 relative z-10">
         <div className="text-center mb-12">
-          {/* Info message about long press */}
+          {/* Info message about triple tap */}
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 max-w-2xl mx-auto">
             <div className="flex items-center gap-3">
               <Info className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div className="text-left">
                 <p className="text-green-800 font-medium">
-                  💡 Leader Tip: Long press the progress bar to reveal all gospel analogies!
+                  💡 Tip: Triple tap the progress bar to reveal all gospel analogies!
                 </p>
                 <p className="text-green-600 text-sm mt-1">
                   This helps when youth are ready to discuss their insights.
