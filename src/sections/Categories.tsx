@@ -196,7 +196,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         <div className="flex-1 p-4 flex items-center justify-center overflow-y-auto">
           <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-2xl w-full mx-4 my-4">
             {/* EXTRA LARGE Challenge Number */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-8">
               <div className="inline-block bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 font-black px-8 py-6 rounded-3xl mb-6 shadow-lg">
                 <span className="text-7xl md:text-8xl">#{challenge.number}</span>
               </div>
@@ -209,13 +209,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                   Completed!
                 </div>
               )}
-            </div>
-
-            <div className="mb-8">
-              <p className="text-gray-600 text-2xl mb-4">📸 Find:</p>
-              <p className="text-gray-900 text-3xl font-bold leading-tight">
-                {challenge.title}
-              </p>
             </div>
 
             {showAnalogies ? (
