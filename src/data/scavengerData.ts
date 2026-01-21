@@ -4,7 +4,7 @@ export const rules: Rule[] = [
   {
     id: 'rule-1',
     title: 'Photo Guidelines',
-    description: 'Take photos of products only. Do not include other shoppers or people in your photos. Optional: Use dual phone mode - tap the ⛶ icon on any challenge to enter display mode, then include that phone in photos taken with a second phone to track your progress.',
+    description: 'Take photos of products only. Do not include other shoppers or people in your photos.\n\n📱 Dual Phone Mode (recommended): One person opens the app and taps the ⛶ icon to enter Display Mode. This shows the challenge on screen. The second person takes photos of each item WITH the Display Mode phone visible in the shot. This makes it easy to see which challenge you\'re completing!\n\n💡 Tip: You can mark challenges complete from either phone!',
     icon: '📸'
   },
   {
