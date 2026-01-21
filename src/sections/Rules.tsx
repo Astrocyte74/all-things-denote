@@ -132,9 +132,21 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
                   openRule === rule.id ? 'max-h-40' : 'max-h-0'
                 }`}>
                   <div className="px-6 pb-6 pt-0">
-                    <p className="text-gray-600 leading-relaxed">
-                      {rule.description}
-                    </p>
+                    <div className="text-gray-600 leading-relaxed space-y-2">
+                      {rule.description.split('\n\n').map((section, sectionIdx) => (
+                        <div key={sectionIdx}>
+                          {section.startsWith('•') || section.startsWith('📱') ? (
+                            <ul className="list-disc ml-4 space-y-1">
+                              {section.split('\n').map((item, itemIdx) => (
+                                <li key={itemIdx}>{item.replace(/^[•]\s*/, '')}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p>{section}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
