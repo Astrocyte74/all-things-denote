@@ -8,7 +8,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
-import { getPhotoCount, getPhotosByChallenge } from '@/lib/photoStorage';
+import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
 // Map icon names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -38,6 +38,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
+  const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
 
   // Reorder ALL challenges based on selected path and regroup into categories
@@ -95,13 +96,16 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const loadChallengePhotos = async () => {
       const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
       const photoCountMap: Record<string, number> = {};
+      const photosMap: Record<string, StoredPhoto[]> = {};
 
       for (const challenge of allChallenges) {
         const photos = await getPhotosByChallenge(challenge.id);
         photoCountMap[challenge.id] = photos.length;
+        photosMap[challenge.id] = photos;
       }
 
       setChallengePhotoCounts(photoCountMap);
+      setChallengePhotos(photosMap);
     };
 
     loadChallengePhotos();
@@ -112,16 +116,19 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const count = await getPhotoCount();
     setPhotoCount(count);
 
-    // Update challenge photo counts
+    // Update challenge photo counts and photos
     const photoCountMap: Record<string, number> = {};
+    const photosMap: Record<string, StoredPhoto[]> = {};
     const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
 
     for (const challenge of allChallenges) {
       const photos = await getPhotosByChallenge(challenge.id);
       photoCountMap[challenge.id] = photos.length;
+      photosMap[challenge.id] = photos;
     }
 
     setChallengePhotoCounts(photoCountMap);
+    setChallengePhotos(photosMap);
   }, [orderedCategoryData]);
 
   // Check if all challenges are complete
@@ -615,6 +622,40 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* Photo Thumbnails */}
+                                  {(challengePhotos[challenge.id] ?? []).length > 0 && (
+                                    <div className="mt-3 flex gap-2 flex-wrap">
+                                      {(challengePhotos[challenge.id] ?? []).slice(0, 4).map((photo, idx) => (
+                                        <button
+                                          key={photo.id}
+                                          onClick={() => {
+                                            setGalleryFilterChallengeId(challenge.id);
+                                            setGalleryOpen(true);
+                                          }}
+                                          className="w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
+                                          title={`View ${challenge.title} photo ${idx + 1}`}
+                                        >
+                                          <img
+                                            src={photo.imageData}
+                                            alt={`Photo ${idx + 1}`}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </button>
+                                      ))}
+                                      {(challengePhotos[challenge.id] ?? []).length > 4 && (
+                                        <button
+                                          onClick={() => {
+                                            setGalleryFilterChallengeId(challenge.id);
+                                            setGalleryOpen(true);
+                                          }}
+                                          className="w-16 h-16 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0"
+                                        >
+                                          +{(challengePhotos[challenge.id] ?? []).length - 4}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Action Buttons */}
