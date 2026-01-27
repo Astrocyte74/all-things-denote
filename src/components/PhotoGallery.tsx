@@ -19,6 +19,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<string | null>(filterChallengeId || null);
+  const [photoToDelete, setPhotoToDelete] = useState<StoredPhoto | null>(null); // For delete confirmation
 
   // Swipe navigation for slideshow
   const swipeRef = useSwipe<HTMLDivElement>({
@@ -58,11 +59,18 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     }
   }, [isOpen, currentFilter]);
 
-  const handleDelete = async (photoId: string) => {
+  const handleDelete = (photo: StoredPhoto) => {
+    // Show confirmation dialog
+    setPhotoToDelete(photo);
+  };
+
+  const confirmDelete = async () => {
+    if (!photoToDelete) return;
+
     try {
-      await deletePhoto(photoId);
+      await deletePhoto(photoToDelete.id);
       // Remove from state
-      const newPhotos = photos.filter(p => p.id !== photoId);
+      const newPhotos = photos.filter(p => p.id !== photoToDelete.id);
       setPhotos(newPhotos);
 
       // Update selected index if needed
@@ -90,7 +98,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     } catch (error) {
       console.error('Failed to delete photo:', error);
       toast.error('Failed to delete photo');
+    } finally {
+      setPhotoToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setPhotoToDelete(null);
   };
 
   const navigatePhoto = (direction: 1 | -1) => {
@@ -285,7 +299,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => handleDelete(photo.id)}
+                          onClick={() => handleDelete(photo)}
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -364,7 +378,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
               variant="destructive"
               size="icon"
               className="shadow-lg"
-              onClick={() => getSelectedPhoto() && handleDelete(getSelectedPhoto()!.id)}
+              onClick={() => getSelectedPhoto() && handleDelete(getSelectedPhoto()!)}
             >
               <Trash2 className="w-5 h-5" />
             </Button>
@@ -379,6 +393,35 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
               <div className="text-white font-bold text-lg">
                 {selectedPhotoIndex + 1} / {photos.length}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {photoToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Photo?</h3>
+            <p className="text-gray-600 mb-2">
+              This will permanently delete the photo for:
+            </p>
+            <p className="text-purple-600 font-semibold mb-6">
+              #{photoToDelete.challengeNumber} {photoToDelete.challengeTitle}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
