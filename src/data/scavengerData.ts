@@ -3,26 +3,20 @@ import type { Category, Rule, BonusItem } from '@/types';
 export const rules: Rule[] = [
   {
     id: 'rule-1',
-    title: 'Photo Guidelines',
-    description: '• Take photos of products only – no other shoppers or people in photos\n\n📱 Dual Phone Mode (recommended):\n• One person: Open the app and tap the ⛶ fullscreen icon on any challenge\n• This enters Display Mode and shows the challenge on screen\n• Second person: Take photos of each item WITH the Display Mode phone visible in the shot\n• This makes it easy to see which challenge you\'re completing!\n\n💡 Tip: You can mark challenges complete from either phone!',
+    title: 'Photo Hunt',
+    description: '• Use the camera button to snap photos of each item\n• Photos automatically tag with challenge info\n• Work together - one navigates, one shoots',
     icon: '📸'
   },
   {
     id: 'rule-2',
-    title: 'No Running',
-    description: 'Walk, don\'t run. Safety first!',
+    title: 'Safety First',
+    description: '• Walk, don\'t run\n• Stay with your group at all times\n• Be aware of your surroundings',
     icon: '🚶'
   },
   {
     id: 'rule-3',
-    title: 'Stay Together',
-    description: 'Stay with your group at all times. Safety in numbers!',
-    icon: '👥'
-  },
-  {
-    id: 'rule-4',
     title: 'Be Respectful',
-    description: 'Be respectful to store employees and other shoppers.',
+    description: '• Be kind to store employees and other shoppers\n• Don\'t block aisles or disturb products\n• Have fun and be a good example',
     icon: '❤️'
   }
 ];

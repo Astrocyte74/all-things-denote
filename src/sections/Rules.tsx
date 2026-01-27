@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, ChevronDown, ChevronRight, PersonStanding } from 'lucide-react';
+import { Camera, Users, Heart } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 
 interface RulesProps {
@@ -8,14 +8,19 @@ interface RulesProps {
 }
 
 const iconMap: Record<string, React.ReactNode> = {
-  '📸': <Camera className="w-6 h-6" />,
-  '🚶': <PersonStanding className="w-6 h-6" />,
-  '👥': <Users className="w-6 h-6" />,
-  '❤️': <Heart className="w-6 h-6" />
+  '📸': <Camera className="w-12 h-12" strokeWidth={1.5} />,
+  '🚶': <Camera className="w-12 h-12" strokeWidth={1.5} />,
+  '👥': <Users className="w-12 h-12" strokeWidth={1.5} />,
+  '❤️': <Heart className="w-12 h-12" strokeWidth={1.5} />
+};
+
+const colorMap: Record<string, string> = {
+  'rule-1': 'from-purple-500 to-pink-400',
+  'rule-2': 'from-blue-500 to-cyan-400',
+  'rule-3': 'from-orange-500 to-red-400'
 };
 
 export function Rules({ isVisible, collapsed = false }: RulesProps) {
-  const [openRule, setOpenRule] = useState<string | null>(isVisible ? 'rule-1' : null);
   const [isAnimated, setIsAnimated] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!collapsed);
 
@@ -29,7 +34,6 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
   useEffect(() => {
     if (collapsed) {
       setIsExpanded(false);
-      setOpenRule(null);
     }
   }, [collapsed]);
 
@@ -40,13 +44,8 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
     }
   }, [isExpanded, collapsed]);
 
-  const toggleRule = (id: string) => {
-    setOpenRule(openRule === id ? null : id);
-  };
-
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
-    setOpenRule(null);
   };
 
   // Collapsed state - just show a small header
@@ -59,21 +58,22 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
             className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors text-sm"
           >
             Show Game Rules
-            <ChevronRight className="w-4 h-4" />
+            <span className="text-lg">↓</span>
           </button>
         </div>
       </section>
     );
   }
 
-  // Expanded state
+  // Expanded state - show all 3 cards
   return (
-    <section className="py-16 md:py-24 bg-white relative">
-      <div className="max-w-4xl mx-auto px-4 md:px-8">
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              Game Rules
+    <section className="py-12 bg-white">
+      <div className="max-w-6xl mx-auto px-4 md:px-8">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <h2 className="text-3xl font-bold text-gray-900">
+              How to Play
             </h2>
             {collapsed && (
               <button
@@ -84,70 +84,46 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
               </button>
             )}
           </div>
-          <p className="text-gray-600 text-lg">
-            Follow these guidelines to keep the hunt fun and respectful
+          <p className="text-gray-600">
+            Three simple rules for a great scavenger hunt!
           </p>
         </div>
 
-        <div className="space-y-4">
+        {/* Three Cards */}
+        <div className="grid md:grid-cols-3 gap-6">
           {rules.map((rule, index) => (
             <div
               key={rule.id}
-              className={`transform transition-all duration-500 ${
+              className={`transform transition-all duration-700 ${
                 isAnimated
-                  ? 'translate-x-0 opacity-100'
-                  : '-translate-x-8 opacity-0'
+                  ? 'translate-y-0 opacity-100'
+                  : 'translate-y-8 opacity-0'
               }`}
-              style={{ transitionDelay: `${index * 100}ms` }}
+              style={{ transitionDelay: `${index * 150}ms` }}
             >
-              <div
-                className={`bg-gradient-to-r from-gray-50 to-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer ${
-                  openRule === rule.id ? 'shadow-lg' : ''
-                }`}
-                onClick={() => toggleRule(rule.id)}
-              >
-                <div className="p-6 flex items-center gap-4">
-                  <div className={`p-3 rounded-xl transition-colors duration-300 ${
-                    openRule === rule.id
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {iconMap[rule.icon]}
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {rule.title}
-                    </h3>
-                  </div>
-
-                  <ChevronDown
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
-                      openRule === rule.id ? 'rotate-180' : ''
-                    }`}
-                  />
+              <div className={`bg-gradient-to-br ${colorMap[rule.id]} rounded-3xl p-8 text-white h-full flex flex-col items-center text-center shadow-lg hover:shadow-xl transition-shadow`}>
+                {/* Large Icon */}
+                <div className="mb-6 bg-white/20 backdrop-blur-sm rounded-2xl p-4">
+                  {iconMap[rule.icon]}
                 </div>
 
-                <div className={`overflow-hidden transition-all duration-300 ${
-                  openRule === rule.id ? 'max-h-40' : 'max-h-0'
-                }`}>
-                  <div className="px-6 pb-6 pt-0">
-                    <div className="text-gray-600 leading-relaxed space-y-2">
-                      {rule.description.split('\n\n').map((section, sectionIdx) => (
-                        <div key={sectionIdx}>
-                          {section.startsWith('•') || section.startsWith('📱') ? (
-                            <ul className="list-disc ml-4 space-y-1">
-                              {section.split('\n').map((item, itemIdx) => (
-                                <li key={itemIdx}>{item.replace(/^[•]\s*/, '')}</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p>{section}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                {/* Title */}
+                <h3 className="text-2xl font-bold mb-6">
+                  {rule.title}
+                </h3>
+
+                {/* Bullet Points */}
+                <div className="flex-1 flex flex-col justify-center">
+                  <ul className="space-y-3 text-left">
+                    {rule.description.split('\n').map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-yellow-300 font-bold mt-1">✓</span>
+                        <span className="text-sm leading-relaxed">
+                          {item.replace(/^[•]\s*/, '')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>
