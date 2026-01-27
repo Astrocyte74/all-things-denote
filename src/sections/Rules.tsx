@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Camera, Users, Heart, Map, Smartphone } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
+import { PATHS } from '@/data/paths';
 import qrCode from '/qr.png';
 
 interface RulesProps {
@@ -129,25 +130,17 @@ export function Rules({ isVisible, collapsed = false, onChangePath }: RulesProps
                     </p>
                   </div>
                 ) : rule.id === 'rule-4' && onChangePath ? (
-                  <div className="flex-1 flex flex-col justify-center gap-3">
-                    <button
-                      onClick={onChangePath}
-                      className="bg-white hover:bg-gray-50 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm hover:shadow text-center"
-                    >
-                      Path 1
-                    </button>
-                    <button
-                      onClick={onChangePath}
-                      className="bg-white hover:bg-gray-50 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm hover:shadow text-center"
-                    >
-                      Path 2
-                    </button>
-                    <button
-                      onClick={onChangePath}
-                      className="bg-white hover:bg-gray-50 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm hover:shadow text-center"
-                    >
-                      Path 3
-                    </button>
+                  <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto max-h-48">
+                    {PATHS.map((path) => (
+                      <button
+                        key={path.id}
+                        onClick={onChangePath}
+                        className="bg-white hover:bg-gray-50 text-green-700 font-semibold py-2 px-3 rounded-xl transition-colors shadow-sm hover:shadow text-left"
+                      >
+                        <div className="text-sm font-bold">{path.name}</div>
+                        <div className="text-xs text-green-600 opacity-80">{path.description}</div>
+                      </button>
+                    ))}
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col justify-center">

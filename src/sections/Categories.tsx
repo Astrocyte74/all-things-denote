@@ -321,7 +321,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             {/* Instructions */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 text-lg">
-                📱 When taking photos, include this phone in the shot!
+                View each challenge fullscreen for easy reference
               </p>
               <p className="text-gray-500 text-base mt-2">
                 Swipe or use arrows to navigate between challenges
@@ -341,7 +341,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           </div>
 
           {/* Navigation Row */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => navigateDisplayMode('prev')}
               disabled={flatIndex === 0}
@@ -350,16 +350,12 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               <ChevronLeft className="w-8 h-8" />
             </button>
 
-            <div className="flex items-center gap-2">
-              {allChallenges.map((_, index) => (
-                <div
-                  key={index}
-                  className={`w-3 h-3 rounded-full transition-colors ${
-                    index === flatIndex ? 'bg-white' : 'bg-white/30'
-                  }`}
-                />
-              ))}
-            </div>
+            <PhotoCapture
+              challenge={currentChallenge}
+              category={category}
+              onCaptureComplete={toggleChallenge}
+              onPhotoSaved={handlePhotoSaved}
+            />
 
             <button
               onClick={() => navigateDisplayMode('next')}
