@@ -56,7 +56,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         // Set canvas dimensions (higher resolution for better quality)
         const maxWidth = 1920;
         const maxHeight = 1920;
-        const frameHeight = 280; // Frame overlay height - increased to accommodate path row
+        const frameHeight = 200; // Frame overlay height - reduced for simpler layout
         const padding = 24; // Padding on sides
 
         let width = img.width;
@@ -93,35 +93,28 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
 
-        // Row 0: Team Path (centered at top)
+        const availableWidth = width - (padding * 2);
+        let currentY = height + 20; // Start position with top padding
+
+        // Row 1: Team Path (centered, larger) - only if pathId provided
         if (pathId) {
-          const fontSize0 = Math.max(32, Math.floor(width * 0.04));
-          ctx.font = `bold ${fontSize0}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          const fontSizePath = Math.max(48, Math.floor(width * 0.07)); // Larger path text
+          ctx.font = `bold ${fontSizePath}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
           ctx.textAlign = 'center';
-          ctx.fillText(`Path ${pathId}`, width / 2, height + 20);
-          ctx.textAlign = 'left'; // Reset for other rows
+          ctx.fillText(`Path ${pathId}`, width / 2, currentY);
+          ctx.textAlign = 'left';
+          currentY += fontSizePath + 12; // Move down after path
         }
 
-        // Row 1: Category icon + name
-        const categoryIcon = iconEmojiMap[category.icon] || '📸';
-        const fontSize1 = Math.max(36, Math.floor(width * 0.055)); // Responsive but with minimum
-        ctx.font = `${fontSize1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        const row1Y = height + (pathId ? 60 : 24); // Move down if path is shown
-        ctx.fillText(`${categoryIcon} ${category.title}`, padding, row1Y);
-
         // Row 2: Challenge number + title (with wrapping support)
-        const fontSize2 = Math.max(42, Math.floor(width * 0.065)); // Responsive but with minimum
-        ctx.font = `bold ${fontSize2}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        const fontSizeTitle = Math.max(48, Math.floor(width * 0.07)); // Larger title text
+        ctx.font = `bold ${fontSizeTitle}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
-        ctx.textAlign = 'left';
 
         const titleText = `#${challenge.number} ${challenge.title}`;
-        const availableWidth = width - (padding * 2);
         const words = titleText.split(' ');
         let line = '';
-        let lineCount = 0;
         const lines: string[] = [];
 
         // Wrap text to fit within max width
@@ -133,7 +126,6 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
           if (testWidth > availableWidth && i > 0) {
             lines.push(line);
             line = words[i] + ' ';
-            lineCount++;
           } else {
             line = testLine;
           }
@@ -141,23 +133,10 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         lines.push(line);
 
         // Draw each line of the title
-        let currentY = row1Y + fontSize1 + 10;
         for (let i = 0; i < lines.length; i++) {
           ctx.fillText(lines[i].trim(), padding, currentY);
-          currentY += fontSize2 + 4; // Line height
+          currentY += fontSizeTitle + 6; // Line height with spacing
         }
-
-        // Row 3: Date (right-aligned, below wrapped title)
-        const fontSize3 = Math.max(28, Math.floor(width * 0.04)); // Responsive but with minimum
-        ctx.font = `${fontSize3}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.textAlign = 'right';
-        const dateStr = new Date().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        });
-        ctx.fillText(dateStr, width - padding, currentY + 8);
 
         // Export canvas to blob and save to IndexedDB
         canvas.toBlob(async (blob) => {
