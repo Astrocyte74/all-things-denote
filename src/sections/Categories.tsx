@@ -8,7 +8,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
-import { getPhotoCount, hasPhotoForChallenge, getPhotosByChallenge } from '@/lib/photoStorage';
+import { getPhotoCount, hasPhotoForChallenge } from '@/lib/photoStorage';
 
 // Map icon names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -38,6 +38,45 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
   const [challengesWithPhotos, setChallengesWithPhotos] = useState<Set<string>>(new Set());
+
+  // Reorder ALL challenges based on selected path and regroup into categories
+  const orderedCategoryData = useMemo(() => {
+    if (pathOrder.length === 0) return categories;
+
+    // Flatten all challenges and reorder them
+    const allChallenges = categories.flatMap(cat => cat.challenges);
+    const orderedChallenges = pathOrder.map(num => allChallenges[num - 1]).filter(Boolean);
+
+    // Group challenges by category, but reorder categories based on first challenge in path
+    const categoryGroups: Record<string, Challenge[]> = {};
+
+    orderedChallenges.forEach(challenge => {
+      const category = categories.find(cat => cat.challenges.some(c => c.id === challenge.id));
+      if (category) {
+        if (!categoryGroups[category.id]) {
+          categoryGroups[category.id] = [];
+        }
+        categoryGroups[category.id].push(challenge);
+      }
+    });
+
+    // Build result array with categories ordered by their first challenge in the path
+    const result: CategoryType[] = [];
+    const processedCategories = new Set<string>();
+
+    orderedChallenges.forEach(challenge => {
+      const category = categories.find(cat => cat.challenges.some(c => c.id === challenge.id));
+      if (category && !processedCategories.has(category.id)) {
+        result.push({
+          ...category,
+          challenges: categoryGroups[category.id]!
+        });
+        processedCategories.add(category.id);
+      }
+    });
+
+    return result;
+  }, [pathOrder]);
 
   useEffect(() => {
     if (isVisible) {
@@ -87,45 +126,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
     setChallengesWithPhotos(photoSet);
   }, [orderedCategoryData]);
-
-  // Reorder ALL challenges based on selected path and regroup into categories
-  const orderedCategoryData = useMemo(() => {
-    if (pathOrder.length === 0) return categories;
-
-    // Flatten all challenges and reorder them
-    const allChallenges = categories.flatMap(cat => cat.challenges);
-    const orderedChallenges = pathOrder.map(num => allChallenges[num - 1]).filter(Boolean);
-
-    // Group challenges by category, but reorder categories based on first challenge in path
-    const categoryGroups: Record<string, Challenge[]> = {};
-
-    orderedChallenges.forEach(challenge => {
-      const category = categories.find(cat => cat.challenges.some(c => c.id === challenge.id));
-      if (category) {
-        if (!categoryGroups[category.id]) {
-          categoryGroups[category.id] = [];
-        }
-        categoryGroups[category.id].push(challenge);
-      }
-    });
-
-    // Build result array with categories ordered by their first challenge in the path
-    const result: CategoryType[] = [];
-    const processedCategories = new Set<string>();
-
-    orderedChallenges.forEach(challenge => {
-      const category = categories.find(cat => cat.challenges.some(c => c.id === challenge.id));
-      if (category && !processedCategories.has(category.id)) {
-        result.push({
-          ...category,
-          challenges: categoryGroups[category.id]!
-        });
-        processedCategories.add(category.id);
-      }
-    });
-
-    return result;
-  }, [pathOrder]);
 
   // Check if all challenges are complete
   useEffect(() => {
