@@ -318,6 +318,45 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               </div>
             )}
 
+            {/* Photo Thumbnails for this challenge */}
+            {(challengePhotos[challenge.id] ?? []).length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-3 text-center">
+                  Photos for this challenge
+                </p>
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {(challengePhotos[challenge.id] ?? []).slice(0, 4).map((photo, idx) => (
+                    <button
+                      key={photo.id}
+                      onClick={() => {
+                        setGalleryFilterChallengeId(challenge.id);
+                        setGalleryOpen(true);
+                      }}
+                      className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
+                      title={`View photo ${idx + 1}`}
+                    >
+                      <img
+                        src={photo.imageData}
+                        alt={`Photo ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                  {(challengePhotos[challenge.id] ?? []).length > 4 && (
+                    <button
+                      onClick={() => {
+                        setGalleryFilterChallengeId(challenge.id);
+                        setGalleryOpen(true);
+                      }}
+                      className="w-20 h-20 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 border-2 border-dashed border-gray-300"
+                    >
+                      +{(challengePhotos[challenge.id] ?? []).length - 4}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Instructions */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 text-lg">
@@ -355,6 +394,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               category={category}
               onCaptureComplete={toggleChallenge}
               onPhotoSaved={handlePhotoSaved}
+              variant="display"
             />
 
             <button

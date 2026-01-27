@@ -9,6 +9,7 @@ interface PhotoCaptureProps {
   category: Category;
   onCaptureComplete?: (challengeId: string) => void;
   onPhotoSaved?: () => void; // Callback when photo is saved to gallery
+  variant?: 'default' | 'display';
 }
 
 // Icon mapping for rendering category icons
@@ -29,7 +30,7 @@ const categoryColors: Record<string, { from: string; to: string }> = {
   'community': { from: '#EAB308', to: '#F59E0B' }   // yellow-500 to amber-400
 };
 
-export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default' }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoCapture = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,11 +217,15 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
       />
       <button
         onClick={triggerCapture}
-        className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
+        className={`flex-shrink-0 rounded-lg transition-colors ${
+          variant === 'display'
+            ? 'bg-white hover:bg-gray-100 text-purple-600 p-4 shadow-lg hover:shadow-xl'
+            : 'text-gray-400 hover:text-gray-600 p-2'
+        }`}
         title="Take Photo"
         aria-label="Take photo for this challenge"
       >
-        <Camera className="w-5 h-5" />
+        <Camera className={`w-6 h-6 ${variant === 'display' ? 'w-8 h-8' : 'w-5 h-5'}`} />
       </button>
     </>
   );
