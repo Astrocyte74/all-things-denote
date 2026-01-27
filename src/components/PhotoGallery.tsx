@@ -199,15 +199,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
           {/* Header */}
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-gray-900">Photo Gallery</h2>
+              <h2 className="text-xl font-bold text-gray-900">Photo Gallery ({photos.length})</h2>
               <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
                 <X className="w-6 h-6" />
               </Button>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              <p className="text-sm text-gray-500">{photos.length} photo{photos.length !== 1 ? 's' : ''}</p>
-
               {/* Filter and Sort dropdowns */}
               {allPhotosForFilter.length > 0 && (
                 <>
