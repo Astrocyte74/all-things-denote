@@ -241,7 +241,10 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                         alt={photo.challengeTitle}
                         className="w-full h-full object-cover"
                       />
-                      {/* Photo already has overlay burned in - no UI overlay needed */}
+                      {/* Challenge number badge overlay */}
+                      <div className="absolute top-2 left-2 bg-purple-600 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg">
+                        #{photo.challengeNumber}
+                      </div>
                     </div>
 
                     {/* Actions bar */}
