@@ -164,13 +164,6 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
               // Save to IndexedDB
               await savePhoto(storedPhoto);
 
-              // Show success toast (short duration, top position to avoid blocking camera)
-              toast.success('Photo saved to gallery!', {
-                description: `Challenge #${challenge.number} marked complete`,
-                duration: 2000,
-                position: 'top-center'
-              });
-
               // Mark challenge as complete
               if (onCaptureComplete) {
                 onCaptureComplete(challenge.id);
