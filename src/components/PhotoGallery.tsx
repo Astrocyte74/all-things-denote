@@ -65,6 +65,14 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     }
   }, [isOpen, currentFilter, sortBy]);
 
+  // Reset filter and sort when gallery opens to default values
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentFilter(filterChallengeId || null);
+      setSortBy('newest');
+    }
+  }, [isOpen, filterChallengeId]);
+
   const handleDelete = (photo: StoredPhoto) => {
     // Show confirmation dialog
     setPhotoToDelete(photo);
