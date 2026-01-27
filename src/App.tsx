@@ -80,7 +80,7 @@ function App() {
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} />
+          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} />
           <div className="py-8 bg-gray-50 text-center">
             <button
               onClick={handleStartHunt}
@@ -116,7 +116,7 @@ function App() {
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} />
           <Footer />
           {/* Collapsed rules at bottom during hunt */}
-          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} />
+          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} />
 
           {/* Path Selection Modal */}
           {pathSelectionOpen && (

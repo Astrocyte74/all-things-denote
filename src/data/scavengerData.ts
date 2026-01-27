@@ -22,7 +22,7 @@ export const rules: Rule[] = [
   {
     id: 'rule-4',
     title: 'Choose Your Path',
-    description: '• Each team should pick a different path (1, 2, or 3)\n• Tap "Change Path" at the top to switch\n• Different paths = different challenge orders',
+    description: '• Each team should pick a different path (A, B, C, D, E, or F)\n• Tap "Change Path" to switch your path\n• Different paths = different challenge orders',
     icon: '🗺️'
   },
   {

@@ -8,6 +8,7 @@ interface RulesProps {
   isVisible: boolean;
   collapsed?: boolean;
   onChangePath?: () => void;
+  currentPathId?: string;
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -27,7 +28,7 @@ const colorMap: Record<string, string> = {
   'rule-5': 'from-indigo-500 to-purple-400'
 };
 
-export function Rules({ isVisible, collapsed = false, onChangePath }: RulesProps) {
+export function Rules({ isVisible, collapsed = false, onChangePath, currentPathId = 'A' }: RulesProps) {
   const [isAnimated, setIsAnimated] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!collapsed);
 
@@ -130,17 +131,24 @@ export function Rules({ isVisible, collapsed = false, onChangePath }: RulesProps
                     </p>
                   </div>
                 ) : rule.id === 'rule-4' && onChangePath ? (
-                  <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto max-h-48">
-                    {PATHS.map((path) => (
-                      <button
-                        key={path.id}
-                        onClick={onChangePath}
-                        className="bg-white hover:bg-gray-50 text-green-700 font-semibold py-2 px-3 rounded-xl transition-colors shadow-sm hover:shadow text-left"
-                      >
-                        <div className="text-sm font-bold">{path.name}</div>
-                        <div className="text-xs text-green-600 opacity-80">{path.description}</div>
-                      </button>
-                    ))}
+                  <div className="flex-1 flex flex-col justify-center items-center gap-4">
+                    {/* Current Path Display */}
+                    <div className="text-center">
+                      <div className="text-white/80 text-sm mb-2">Your Path</div>
+                      <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-8 py-4 inline-block">
+                        <span className="text-white font-black text-5xl font-bold">
+                          {currentPathId}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Change Path Button */}
+                    <button
+                      onClick={onChangePath}
+                      className="bg-white hover:bg-gray-100 text-green-700 font-bold py-3 px-6 rounded-xl transition-colors shadow-lg hover:shadow-xl"
+                    >
+                      Change Path
+                    </button>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col justify-center">
