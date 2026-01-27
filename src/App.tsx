@@ -19,6 +19,7 @@ function App() {
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
+  const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
 
   const handleStart = () => {
@@ -43,7 +44,13 @@ function App() {
   };
 
   const handleChangePath = () => {
-    setAppState('path-selection');
+    setPathSelectionOpen(true);
+  };
+
+  const handlePathSelected = (pathId: string) => {
+    setSelectedPathId(pathId);
+    setPathSelectionOpen(false);
+    // Stay in current state, don't change to rules
   };
 
   const handleStartHunt = () => {
@@ -111,6 +118,18 @@ function App() {
           <Footer />
           {/* Collapsed rules at bottom during hunt */}
           <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} />
+
+          {/* Path Selection Modal */}
+          {pathSelectionOpen && (
+            <div className="fixed inset-0 bg-black/60 z-50">
+              <div className="h-full overflow-y-auto">
+                <PathSelection
+                  onPathSelected={handlePathSelected}
+                  isVisible={true}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
 

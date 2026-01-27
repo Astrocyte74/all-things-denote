@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, Map, Smartphone } from 'lucide-react';
+import { Camera, Users, Heart, Map, Smartphone, PersonStanding } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 import { PATHS } from '@/data/paths';
 import qrCode from '/qr.png';
@@ -12,7 +12,7 @@ interface RulesProps {
 
 const iconMap: Record<string, React.ReactNode> = {
   '📸': <Camera className="w-12 h-12" strokeWidth={1.5} />,
-  '🚶': <Camera className="w-12 h-12" strokeWidth={1.5} />,
+  '🚶': <PersonStanding className="w-12 h-12" strokeWidth={1.5} />,
   '👥': <Users className="w-12 h-12" strokeWidth={1.5} />,
   '❤️': <Heart className="w-12 h-12" strokeWidth={1.5} />,
   '🗺️': <Map className="w-12 h-12" strokeWidth={1.5} />,
