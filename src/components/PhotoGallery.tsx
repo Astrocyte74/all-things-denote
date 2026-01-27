@@ -20,6 +20,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
   const [loading, setLoading] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<string | null>(filterChallengeId || null);
   const [photoToDelete, setPhotoToDelete] = useState<StoredPhoto | null>(null); // For delete confirmation
+  const [sortBy, setSortBy] = useState<'newest' | 'challenge'>('newest'); // Sort order
 
   // Swipe navigation for slideshow
   const swipeRef = useSwipe<HTMLDivElement>({
@@ -31,7 +32,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
   const loadPhotos = async () => {
     setLoading(true);
     try {
-      // Get all photos first (for filter options)
+      // Get all photos first (for filter options
       const allPhotos = await getAllPhotos();
       setAllPhotosForFilter(allPhotos.sort((a, b) => b.timestamp - a.timestamp));
 
@@ -41,8 +42,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
         filteredPhotos = allPhotos.filter(p => p.challengeId === currentFilter);
       }
 
-      // Sort by timestamp (newest first)
-      setPhotos(filteredPhotos.sort((a, b) => b.timestamp - a.timestamp));
+      // Sort based on selected sort option
+      if (sortBy === 'newest') {
+        setPhotos(filteredPhotos.sort((a, b) => b.timestamp - a.timestamp));
+      } else {
+        // Sort by challenge number (ascending)
+        setPhotos(filteredPhotos.sort((a, b) => a.challengeNumber - b.challengeNumber));
+      }
       onPhotoCountChange?.(allPhotos.length);
     } catch (error) {
       console.error('Failed to load photos:', error);
@@ -52,12 +58,12 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     }
   };
 
-  // Load photos when gallery opens or filter changes
+  // Load photos when gallery opens, filter changes, or sort changes
   useEffect(() => {
     if (isOpen) {
       loadPhotos();
     }
-  }, [isOpen, currentFilter]);
+  }, [isOpen, currentFilter, sortBy]);
 
   const handleDelete = (photo: StoredPhoto) => {
     // Show confirmation dialog
@@ -200,23 +206,35 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
 
               {/* Filter dropdown */}
               {allPhotosForFilter.length > 0 && (
-                <select
-                  value={currentFilter || 'all'}
-                  onChange={(e) => setCurrentFilter(e.target.value === 'all' ? null : e.target.value)}
-                  className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 flex-shrink-0"
-                >
-                  <option value="all">All photos</option>
-                  {Array.from(
-                    new Map(allPhotosForFilter.map(p => [p.challengeId, { id: p.challengeId, number: p.challengeNumber, title: p.challengeTitle }]))
-                      .values()
-                  )
-                    .sort((a, b) => a.number - b.number)
-                    .map(challenge => (
-                      <option key={challenge.id} value={challenge.id}>
-                        #{challenge.number} {challenge.title}
-                      </option>
-                    ))}
-                </select>
+                <>
+                  <select
+                    value={currentFilter || 'all'}
+                    onChange={(e) => setCurrentFilter(e.target.value === 'all' ? null : e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 flex-shrink-0"
+                  >
+                    <option value="all">All photos</option>
+                    {Array.from(
+                      new Map(allPhotosForFilter.map(p => [p.challengeId, { id: p.challengeId, number: p.challengeNumber, title: p.challengeTitle }]))
+                        .values()
+                    )
+                      .sort((a, b) => a.number - b.number)
+                      .map(challenge => (
+                        <option key={challenge.id} value={challenge.id}>
+                          #{challenge.number} {challenge.title}
+                        </option>
+                      ))}
+                  </select>
+
+                  {/* Sort dropdown */}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'newest' | 'challenge')}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 flex-shrink-0"
+                  >
+                    <option value="newest">Sort: Newest</option>
+                    <option value="challenge">Sort: Challenge #</option>
+                  </select>
+                </>
               )}
             </div>
 
