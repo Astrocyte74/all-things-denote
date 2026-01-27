@@ -9,6 +9,7 @@ interface PhotoGalleryProps {
   isOpen: boolean;
   onClose: () => void;
   onPhotoCountChange?: (count: number) => void;
+  filterChallengeId?: string | null; // If provided, only show photos for this challenge
 }
 
 // Icon emoji mapping
@@ -20,10 +21,12 @@ const iconEmojiMap: Record<string, string> = {
   'Globe': '🌍'
 };
 
-export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalleryProps) {
+export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, filterChallengeId }: PhotoGalleryProps) {
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
+  const [allPhotosForFilter, setAllPhotosForFilter] = useState<StoredPhoto[]>([]); // All photos for filter dropdown
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [currentFilter, setCurrentFilter] = useState<string | null>(filterChallengeId || null);
 
   // Swipe navigation for slideshow
   const swipeRef = useSwipe<HTMLDivElement>({
@@ -32,19 +35,21 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
     threshold: 50
   });
 
-  // Load photos when gallery opens
-  useEffect(() => {
-    if (isOpen) {
-      loadPhotos();
-    }
-  }, [isOpen]);
-
   const loadPhotos = async () => {
     setLoading(true);
     try {
+      // Get all photos first (for filter options)
       const allPhotos = await getAllPhotos();
+      setAllPhotosForFilter(allPhotos.sort((a, b) => b.timestamp - a.timestamp));
+
+      // Filter by challenge if a filter is set
+      let filteredPhotos = allPhotos;
+      if (currentFilter) {
+        filteredPhotos = allPhotos.filter(p => p.challengeId === currentFilter);
+      }
+
       // Sort by timestamp (newest first)
-      setPhotos(allPhotos.sort((a, b) => b.timestamp - a.timestamp));
+      setPhotos(filteredPhotos.sort((a, b) => b.timestamp - a.timestamp));
       onPhotoCountChange?.(allPhotos.length);
     } catch (error) {
       console.error('Failed to load photos:', error);
@@ -53,6 +58,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
       setLoading(false);
     }
   };
+
+  // Load photos when gallery opens or filter changes
+  useEffect(() => {
+    if (isOpen) {
+      loadPhotos();
+    }
+  }, [isOpen, currentFilter]);
 
   const handleDelete = async (photoId: string) => {
     try {
@@ -169,11 +181,33 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
       <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
-            <div>
+          <div className="flex items-center justify-between p-4 border-b gap-4">
+            <div className="flex-1">
               <h2 className="text-xl font-bold text-gray-900">Photo Gallery</h2>
-              <p className="text-sm text-gray-500">{photos.length} photo{photos.length !== 1 ? 's' : ''} captured</p>
+              <p className="text-sm text-gray-500">{photos.length} photo{photos.length !== 1 ? 's' : ''}</p>
             </div>
+
+            {/* Filter dropdown */}
+            {allPhotosForFilter.length > 0 && (
+              <select
+                value={currentFilter || 'all'}
+                onChange={(e) => setCurrentFilter(e.target.value === 'all' ? null : e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="all">All photos</option>
+                {Array.from(
+                  new Map(allPhotosForFilter.map(p => [p.challengeId, { id: p.challengeId, number: p.challengeNumber, title: p.challengeTitle }]))
+                    .values()
+                )
+                  .sort((a, b) => a.number - b.number)
+                  .map(challenge => (
+                    <option key={challenge.id} value={challenge.id}>
+                      #{challenge.number} {challenge.title}
+                    </option>
+                  ))}
+              </select>
+            )}
+
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="w-5 h-5" />
             </Button>
@@ -312,27 +346,16 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
             <ChevronRight className="w-8 h-8" />
           </button>
 
-          {/* Photo info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6">
+          {/* Photo counter overlay */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">{iconEmojiMap[getSelectedPhoto()!.categoryIcon] || '📸'}</span>
-                <span className="text-white/80">{getSelectedPhoto()!.categoryTitle}</span>
-              </div>
               <div className="text-white/60 text-sm">
+                Tap to download or share
+              </div>
+              <div className="text-white/80 text-sm font-medium">
                 {selectedPhotoIndex + 1} / {photos.length}
               </div>
             </div>
-            <h3 className="text-white text-xl font-bold">
-              #{getSelectedPhoto()!.challengeNumber} {getSelectedPhoto()!.challengeTitle}
-            </h3>
-            <p className="text-white/60 text-sm mt-1">
-              {new Date(getSelectedPhoto()!.timestamp).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              })}
-            </p>
           </div>
 
           {/* Action buttons */}

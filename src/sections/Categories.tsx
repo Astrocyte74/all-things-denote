@@ -8,7 +8,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
-import { getPhotoCount, hasPhotoForChallenge } from '@/lib/photoStorage';
+import { getPhotoCount, getPhotosByChallenge } from '@/lib/photoStorage';
 
 // Map icon names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -37,7 +37,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
-  const [challengesWithPhotos, setChallengesWithPhotos] = useState<Set<string>>(new Set());
+  const [challengePhotoCounts, setChallengePhotoCounts] = useState<Map<string, number>>(new Map());
+  const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
 
   // Reorder ALL challenges based on selected path and regroup into categories
   const orderedCategoryData = useMemo(() => {
@@ -89,20 +90,18 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     getPhotoCount().then(setPhotoCount);
   }, []);
 
-  // Load which challenges have photos
+  // Load photo counts per challenge
   useEffect(() => {
     const loadChallengePhotos = async () => {
       const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
-      const photoSet = new Set<string>();
+      const photoCountMap = new Map<string, number>();
 
       for (const challenge of allChallenges) {
-        const hasPhoto = await hasPhotoForChallenge(challenge.id);
-        if (hasPhoto) {
-          photoSet.add(challenge.id);
-        }
+        const photos = await getPhotosByChallenge(challenge.id);
+        photoCountMap.set(challenge.id, photos.length);
       }
 
-      setChallengesWithPhotos(photoSet);
+      setChallengePhotoCounts(photoCountMap);
     };
 
     loadChallengePhotos();
@@ -113,18 +112,16 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const count = await getPhotoCount();
     setPhotoCount(count);
 
-    // Update challenges with photos
-    const photoSet = new Set<string>();
+    // Update challenge photo counts
+    const photoCountMap = new Map<string, number>();
     const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
 
     for (const challenge of allChallenges) {
-      const hasPhoto = await hasPhotoForChallenge(challenge.id);
-      if (hasPhoto) {
-        photoSet.add(challenge.id);
-      }
+      const photos = await getPhotosByChallenge(challenge.id);
+      photoCountMap.set(challenge.id, photos.length);
     }
 
-    setChallengesWithPhotos(photoSet);
+    setChallengePhotoCounts(photoCountMap);
   }, [orderedCategoryData]);
 
   // Check if all challenges are complete
@@ -366,8 +363,12 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       {/* Photo Gallery Modal */}
       <PhotoGallery
         isOpen={galleryOpen}
-        onClose={() => setGalleryOpen(false)}
+        onClose={() => {
+          setGalleryOpen(false);
+          setGalleryFilterChallengeId(null);
+        }}
         onPhotoCountChange={setPhotoCount}
+        filterChallengeId={galleryFilterChallengeId}
       />
       </>
     );
@@ -410,7 +411,10 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           {/* Photo Gallery Button */}
           <div className="mt-4">
             <button
-              onClick={() => setGalleryOpen(true)}
+              onClick={() => {
+                setGalleryFilterChallengeId(null);
+                setGalleryOpen(true);
+              }}
               className="inline-flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded-full font-medium transition-colors"
             >
               <Images className="w-5 h-5" />
@@ -569,15 +573,18 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                     }`}>
                                       {challenge.title}
                                     </h4>
-                                    {/* Photo indicator */}
-                                    {challengesWithPhotos.has(challenge.id) && (
+                                    {/* Photo indicator with count */}
+                                    {challengePhotoCounts.get(challenge.id) > 0 && (
                                       <button
-                                        onClick={() => setGalleryOpen(true)}
+                                        onClick={() => {
+                                          setGalleryFilterChallengeId(challenge.id);
+                                          setGalleryOpen(true);
+                                        }}
                                         className="inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs px-2 py-1 rounded-full transition-colors"
-                                        title="View photo in gallery"
+                                        title={`View ${challengePhotoCounts.get(challenge.id)} photo${challengePhotoCounts.get(challenge.id) !== 1 ? 's' : ''} in gallery`}
                                       >
                                         <Camera className="w-3 h-3" />
-                                        <span>Photo</span>
+                                        <span>{challengePhotoCounts.get(challenge.id)} photo{challengePhotoCounts.get(challenge.id) !== 1 ? 's' : ''}</span>
                                       </button>
                                     )}
                                   </div>
@@ -647,10 +654,14 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     {/* Photo Gallery Modal */}
     <PhotoGallery
       isOpen={galleryOpen}
-      onClose={() => setGalleryOpen(false)}
+      onClose={() => {
+        setGalleryOpen(false);
+        setGalleryFilterChallengeId(null);
+      }}
       onPhotoCountChange={setPhotoCount}
+      filterChallengeId={galleryFilterChallengeId}
     />
-    </>
+  </>
   );
 }
 
