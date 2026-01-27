@@ -54,7 +54,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         // Set canvas dimensions (higher resolution for better quality)
         const maxWidth = 1920;
         const maxHeight = 1920;
-        const frameHeight = 180; // Frame overlay height - increased for better text visibility
+        const frameHeight = 240; // Frame overlay height - increased for larger text
         const padding = 24; // Padding on sides
 
         let width = img.width;
