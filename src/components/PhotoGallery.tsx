@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Trash2, Image as ImageIcon, ExternalLink, Grid, List, Calendar } from 'lucide-react';
+import { X, Download, Trash2, Image as ImageIcon, ExternalLink, Grid, List, Calendar, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAllPhotos, deletePhoto, getPhotoCount, type StoredPhoto } from '@/lib/photoStorage';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<StoredPhoto | null>(null);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'large'>('grid');
 
   // Load photos when gallery opens
   useEffect(() => {
@@ -170,6 +170,17 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
                 >
                   <List className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => setViewMode('large')}
+                  className={`p-2 transition-colors ${
+                    viewMode === 'large'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                  title="Large view"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose}>
                 <X className="w-5 h-5" />
@@ -242,6 +253,81 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
                       <p className="text-white text-xs font-medium truncate">
                         #{photo.challengeNumber} {photo.challengeTitle}
                       </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : viewMode === 'large' ? (
+              // Large view - bigger single column cards
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {photos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                  >
+                    {/* Photo - larger, taller aspect ratio */}
+                    <div
+                      className="aspect-[4/3] bg-gray-100 cursor-pointer relative group"
+                      onClick={() => setSelectedPhoto(photo)}
+                    >
+                      <img
+                        src={photo.imageData}
+                        alt={photo.challengeTitle}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Challenge badge - always visible */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">
+                            {iconEmojiMap[photo.categoryIcon] || '📸'}
+                          </span>
+                          <span className="text-white/80 text-sm">{photo.categoryTitle}</span>
+                        </div>
+                        <h3 className="text-white font-bold text-lg">
+                          #{photo.challengeNumber} {photo.challengeTitle}
+                        </h3>
+                      </div>
+                    </div>
+
+                    {/* Actions bar */}
+                    <div className="p-4 flex items-center justify-between border-t bg-gray-50">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(photo.timestamp).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDownload(photo)}
+                          title="Download"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleShare(photo)}
+                          title="Share"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleDelete(photo.id)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
