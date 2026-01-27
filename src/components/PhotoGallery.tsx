@@ -197,20 +197,24 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
         <div className="fixed inset-0 bg-black/80 z-[55] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b gap-2">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-xl font-bold text-gray-900 truncate">Photo Gallery</h2>
-                <p className="text-sm text-gray-500">{photos.length} photo{photos.length !== 1 ? 's' : ''}</p>
-              </div>
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-bold text-gray-900">Photo Gallery</h2>
+              <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
+                <X className="w-6 h-6" />
+              </Button>
+            </div>
 
-              {/* Filter dropdown */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <p className="text-sm text-gray-500">{photos.length} photo{photos.length !== 1 ? 's' : ''}</p>
+
+              {/* Filter and Sort dropdowns */}
               {allPhotosForFilter.length > 0 && (
                 <>
                   <select
                     value={currentFilter || 'all'}
                     onChange={(e) => setCurrentFilter(e.target.value === 'all' ? null : e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 flex-shrink-0"
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="all">All photos</option>
                     {Array.from(
@@ -229,7 +233,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'newest' | 'challenge')}
-                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 flex-shrink-0"
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="newest">Sort: Newest</option>
                     <option value="challenge">Sort: Challenge #</option>
@@ -237,10 +241,6 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                 </>
               )}
             </div>
-
-            <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0 ml-2">
-              <X className="w-6 h-6" />
-            </Button>
           </div>
 
           {/* Content */}
