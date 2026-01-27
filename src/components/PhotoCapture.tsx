@@ -107,7 +107,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         ctx.textAlign = 'left';
 
         const titleText = `#${challenge.number} ${challenge.title}`;
-        const maxWidth = width - (padding * 2);
+        const availableWidth = width - (padding * 2);
         const words = titleText.split(' ');
         let line = '';
         let lineCount = 0;
@@ -119,7 +119,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
           const metrics = ctx.measureText(testLine);
           const testWidth = metrics.width;
 
-          if (testWidth > maxWidth && i > 0) {
+          if (testWidth > availableWidth && i > 0) {
             lines.push(line);
             line = words[i] + ' ';
             lineCount++;
