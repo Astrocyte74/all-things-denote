@@ -50,7 +50,6 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         const frameHeight = 300; // More height for 2 lines of text
         const padding = 24; // Padding on sides
         const topPadding = 12; // Minimal top padding
-        const bottomPadding = 16; // Bottom padding to prevent cutoff
         const lineHeight = 1.1; // Tighter line height
 
         let width = img.width;
