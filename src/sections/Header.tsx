@@ -94,7 +94,7 @@ export function Header({ onStart }: HeaderProps) {
         }}
       >
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-4 animate-fade-in-up">
-          Walmart Photo
+          Gospel Analogies
           <br />
           <span className="text-blue-600">Scavenger Hunt</span>
         </h1>
