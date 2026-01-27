@@ -100,14 +100,43 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         const row1Y = height + 24;
         ctx.fillText(`${categoryIcon} ${category.title}`, padding, row1Y);
 
-        // Row 2: Challenge number + title
+        // Row 2: Challenge number + title (with wrapping support)
         const fontSize2 = Math.max(42, Math.floor(width * 0.065)); // Responsive but with minimum
         ctx.font = `bold ${fontSize2}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
-        const row2Y = row1Y + fontSize1 + 10;
-        ctx.fillText(`#${challenge.number} ${challenge.title}`, padding, row2Y);
+        ctx.textAlign = 'left';
 
-        // Row 3: Date (right-aligned)
+        const titleText = `#${challenge.number} ${challenge.title}`;
+        const maxWidth = width - (padding * 2);
+        const words = titleText.split(' ');
+        let line = '';
+        let lineCount = 0;
+        const lines: string[] = [];
+
+        // Wrap text to fit within max width
+        for (let i = 0; i < words.length; i++) {
+          const testLine = line + words[i] + ' ';
+          const metrics = ctx.measureText(testLine);
+          const testWidth = metrics.width;
+
+          if (testWidth > maxWidth && i > 0) {
+            lines.push(line);
+            line = words[i] + ' ';
+            lineCount++;
+          } else {
+            line = testLine;
+          }
+        }
+        lines.push(line);
+
+        // Draw each line of the title
+        let currentY = row1Y + fontSize1 + 10;
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i].trim(), padding, currentY);
+          currentY += fontSize2 + 4; // Line height
+        }
+
+        // Row 3: Date (right-aligned, below wrapped title)
         const fontSize3 = Math.max(28, Math.floor(width * 0.04)); // Responsive but with minimum
         ctx.font = `${fontSize3}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -117,7 +146,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
           day: 'numeric',
           year: 'numeric'
         });
-        ctx.fillText(dateStr, width - padding, row2Y + fontSize2 + 12);
+        ctx.fillText(dateStr, width - padding, currentY + 8);
 
         // Export canvas to blob and save to IndexedDB
         canvas.toBlob(async (blob) => {

@@ -130,7 +130,7 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
                     </p>
                   </div>
                 ) : rule.id === 'rule-4' && onChangePath ? (
-                  <div className="flex-1 flex flex-col justify-center items-center gap-4">
+                  <div className="flex-1 flex flex-col justify-center items-center gap-3">
                     {/* Current Path Display */}
                     <div className="text-center">
                       <div className="text-white/80 text-sm mb-2">Your Path</div>
@@ -140,6 +140,12 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
                         </span>
                       </div>
                     </div>
+
+                    {/* Description */}
+                    <p className="text-white/90 text-xs text-center px-4">
+                      Different paths = different challenge orders.
+                      Each team should pick a different path!
+                    </p>
 
                     {/* Change Path Button */}
                     <button
