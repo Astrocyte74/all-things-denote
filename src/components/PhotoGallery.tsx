@@ -312,16 +312,6 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             <X className="w-6 h-6" />
           </button>
 
-          {/* Photo info overlay at top */}
-          <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 pt-6">
-            <div className="text-center">
-              {getSelectedPhoto()!.pathId && (
-                <div className="text-white/90 text-xl font-bold mb-1">Path {getSelectedPhoto()!.pathId}</div>
-              )}
-              <div className="text-white font-semibold text-lg">#{getSelectedPhoto()!.challengeNumber} {getSelectedPhoto()!.challengeTitle}</div>
-            </div>
-          </div>
-
           {/* Previous button */}
           <button
             onClick={() => navigatePhoto(-1)}
