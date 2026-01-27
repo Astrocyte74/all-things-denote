@@ -700,6 +700,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         setGalleryFilterChallengeId(null);
       }}
       onPhotoCountChange={setPhotoCount}
+      onPhotoDeleted={handlePhotoSaved}
       filterChallengeId={galleryFilterChallengeId}
     />
   </>

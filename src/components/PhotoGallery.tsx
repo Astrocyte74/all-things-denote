@@ -9,6 +9,7 @@ interface PhotoGalleryProps {
   isOpen: boolean;
   onClose: () => void;
   onPhotoCountChange?: (count: number) => void;
+  onPhotoDeleted?: () => void; // Callback when a photo is deleted
   filterChallengeId?: string | null; // If provided, only show photos for this challenge
 }
 
@@ -21,7 +22,7 @@ const iconEmojiMap: Record<string, string> = {
   'Globe': '🌍'
 };
 
-export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, filterChallengeId }: PhotoGalleryProps) {
+export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDeleted, filterChallengeId }: PhotoGalleryProps) {
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [allPhotosForFilter, setAllPhotosForFilter] = useState<StoredPhoto[]>([]); // All photos for filter dropdown
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -87,6 +88,9 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, filterChalle
       // Update photo count
       const newCount = await getPhotoCount();
       onPhotoCountChange?.(newCount);
+
+      // Notify parent component
+      onPhotoDeleted?.();
 
       // If no photos left, close gallery
       if (photos.length === 1) {
@@ -261,13 +265,18 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, filterChalle
 
                     {/* Actions bar */}
                     <div className="p-4 flex items-center justify-between border-t bg-gray-50">
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(photo.timestamp).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(photo.timestamp).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </div>
+                        <div className="text-xs text-purple-600">
+                          Tap photo to view full screen
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button
