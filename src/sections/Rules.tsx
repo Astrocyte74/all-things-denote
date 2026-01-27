@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart } from 'lucide-react';
+import { Camera, Users, Heart, Map } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 
 interface RulesProps {
@@ -11,13 +11,15 @@ const iconMap: Record<string, React.ReactNode> = {
   '📸': <Camera className="w-12 h-12" strokeWidth={1.5} />,
   '🚶': <Camera className="w-12 h-12" strokeWidth={1.5} />,
   '👥': <Users className="w-12 h-12" strokeWidth={1.5} />,
-  '❤️': <Heart className="w-12 h-12" strokeWidth={1.5} />
+  '❤️': <Heart className="w-12 h-12" strokeWidth={1.5} />,
+  '🗺️': <Map className="w-12 h-12" strokeWidth={1.5} />
 };
 
 const colorMap: Record<string, string> = {
   'rule-1': 'from-purple-500 to-pink-400',
   'rule-2': 'from-blue-500 to-cyan-400',
-  'rule-3': 'from-orange-500 to-red-400'
+  'rule-3': 'from-orange-500 to-red-400',
+  'rule-4': 'from-green-500 to-emerald-400'
 };
 
 export function Rules({ isVisible, collapsed = false }: RulesProps) {
@@ -85,12 +87,12 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
             )}
           </div>
           <p className="text-gray-600">
-            Three simple rules for a great scavenger hunt!
+            Four simple rules for a great scavenger hunt!
           </p>
         </div>
 
-        {/* Three Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
+        {/* Four Cards - 2x2 Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
           {rules.map((rule, index) => (
             <div
               key={rule.id}

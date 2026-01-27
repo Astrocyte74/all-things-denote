@@ -5,6 +5,7 @@ import { Rules } from '@/sections/Rules';
 import { Categories } from '@/sections/Categories';
 import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
+import { StickyHuntHeader } from '@/components/StickyHuntHeader';
 import { getPathById } from '@/data/paths';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Toaster } from '@/components/ui/sonner';
@@ -16,6 +17,8 @@ function App() {
   const [appState, setAppState] = useState<AppState>('landing');
   const [selectedPathId, setSelectedPathId] = usePersistedState<string>('selectedPathId', '');
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
   const rulesRef = useRef<HTMLDivElement>(null);
 
   const handleStart = () => {
@@ -86,6 +89,14 @@ function App() {
       {/* Hunt */}
       {appState === 'hunt' && selectedPath && (
         <>
+          {/* Sticky Header */}
+          <StickyHuntHeader
+            pathId={selectedPathId}
+            onChangePath={handleChangePath}
+            onOpenGallery={() => setGalleryOpen(true)}
+            photoCount={photoCount}
+          />
+
           <Categories
             isVisible={true}
             selectedPathId={selectedPathId}
@@ -93,6 +104,9 @@ function App() {
             onAllComplete={handleAllCategoriesComplete}
             onChangePath={handleChangePath}
             bonusUnlocked={bonusUnlocked}
+            galleryOpen={galleryOpen}
+            setGalleryOpen={setGalleryOpen}
+            onPhotoCountChange={setPhotoCount}
           />
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} />
           <Footer />

@@ -18,6 +18,12 @@ export const rules: Rule[] = [
     title: 'Be Respectful',
     description: '• Be kind to store employees and other shoppers\n• Don\'t block aisles or disturb products\n• Have fun and be a good example',
     icon: '❤️'
+  },
+  {
+    id: 'rule-4',
+    title: 'Choose Your Path',
+    description: '• Each team should pick a different path (1, 2, or 3)\n• Tap "Change Path" at the top to switch\n• Different paths = different challenge orders',
+    icon: '🗺️'
   }
 ];
 

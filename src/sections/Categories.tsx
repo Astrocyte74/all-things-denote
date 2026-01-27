@@ -26,17 +26,18 @@ interface CategoriesProps {
   onAllComplete: () => void;
   onChangePath: () => void;
   bonusUnlocked: boolean;
+  galleryOpen: boolean;
+  setGalleryOpen: (open: boolean) => void;
+  onPhotoCountChange: (count: number) => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, onChangePath, bonusUnlocked }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, onChangePath, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange }: CategoriesProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [completedChallenges, setCompletedChallenges, clearCompletedChallenges] = usePersistedState<Set<string>>('completedChallenges', new Set());
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
   const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle('showAnalogiesEarly', false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [galleryOpen, setGalleryOpen] = useState(false);
-  const [photoCount, setPhotoCount] = useState(0);
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
@@ -88,8 +89,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   // Load photo count on mount
   useEffect(() => {
-    getPhotoCount().then(setPhotoCount);
-  }, []);
+    getPhotoCount().then(onPhotoCountChange);
+  }, [onPhotoCountChange]);
 
   // Load photo counts per challenge
   useEffect(() => {
@@ -114,7 +115,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   // Handle photo saved callback
   const handlePhotoSaved = useCallback(async () => {
     const count = await getPhotoCount();
-    setPhotoCount(count);
+    onPhotoCountChange(count);
 
     // Update challenge photo counts and photos
     const photoCountMap: Record<string, number> = {};
