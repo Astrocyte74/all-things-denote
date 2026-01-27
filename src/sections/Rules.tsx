@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Camera, Users, Heart, Map, Smartphone } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
-import qrCode from '@/qr.png';
+import qrCode from '/qr.png';
 
 interface RulesProps {
   isVisible: boolean;
   collapsed?: boolean;
+  onChangePath?: () => void;
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -25,7 +26,7 @@ const colorMap: Record<string, string> = {
   'rule-5': 'from-indigo-500 to-purple-400'
 };
 
-export function Rules({ isVisible, collapsed = false }: RulesProps) {
+export function Rules({ isVisible, collapsed = false, onChangePath }: RulesProps) {
   const [isAnimated, setIsAnimated] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!collapsed);
 
@@ -117,7 +118,7 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
                   {rule.title}
                 </h3>
 
-                {/* QR Code for Invite Friends card, Bullet Points for others */}
+                {/* Special content for Invite Friends (QR) and Choose Your Path (buttons) */}
                 {rule.id === 'rule-5' ? (
                   <div className="flex-1 flex flex-col items-center justify-center">
                     <div className="bg-white p-3 rounded-2xl mb-4">
@@ -126,6 +127,27 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
                     <p className="text-sm text-white/90 text-center max-w-xs">
                       Scan this code with your phone camera to join the scavenger hunt!
                     </p>
+                  </div>
+                ) : rule.id === 'rule-4' && onChangePath ? (
+                  <div className="flex-1 flex flex-col justify-center gap-3">
+                    <button
+                      onClick={onChangePath}
+                      className="bg-white hover:bg-gray-50 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm hover:shadow text-center"
+                    >
+                      Path 1
+                    </button>
+                    <button
+                      onClick={onChangePath}
+                      className="bg-white hover:bg-gray-50 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm hover:shadow text-center"
+                    >
+                      Path 2
+                    </button>
+                    <button
+                      onClick={onChangePath}
+                      className="bg-white hover:bg-gray-50 text-green-700 font-bold py-3 px-4 rounded-xl transition-colors shadow-sm hover:shadow text-center"
+                    >
+                      Path 3
+                    </button>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col justify-center">

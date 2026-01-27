@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import qrCode from '@/qr.png';
+import qrCode from '/qr.png';
 
 interface ShareModalProps {
   isOpen: boolean;

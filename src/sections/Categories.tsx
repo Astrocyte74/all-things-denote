@@ -397,20 +397,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     <>
     <section className="pt-24 pb-16 md:pt-32 md:pb-24 bg-gradient-to-b from-gray-50 to-white relative">
       <div className="max-w-6xl mx-auto px-4 md:px-8">
-        {/* Header with Path Info */}
+        {/* Header */}
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full">
-              <Map className="w-5 h-5" />
-              <span className="font-semibold">Path {selectedPathId}</span>
-            </div>
-            <button
-              onClick={onChangePath}
-              className="text-sm text-blue-600 hover:text-blue-700 underline"
-            >
-              Change Path
-            </button>
-          </div>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
             The Hunt Begins!
           </h2>
@@ -426,25 +414,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             bonusUnlocked={bonusUnlocked}
             showAnalogies={showAnalogiesEarly}
           />
-
-          {/* Photo Gallery Button */}
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                setGalleryFilterChallengeId(null);
-                setGalleryOpen(true);
-              }}
-              className="inline-flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded-full font-medium transition-colors"
-            >
-              <Images className="w-5 h-5" />
-              <span>View Gallery</span>
-              {photoCount > 0 && (
-                <span className="bg-purple-700 text-white text-xs px-2 py-0.5 rounded-full">
-                  {photoCount}
-                </span>
-              )}
-            </button>
-          </div>
         </div>
 
         {/* Reset Button */}
