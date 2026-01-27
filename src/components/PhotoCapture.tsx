@@ -47,8 +47,10 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         // Set canvas dimensions (higher resolution for better quality)
         const maxWidth = 1920;
         const maxHeight = 1920;
-        const frameHeight = 200; // Frame overlay height - reduced for simpler layout
+        const frameHeight = 240; // Increased height for better text fit
         const padding = 24; // Padding on sides
+        const topPadding = 16; // Reduced top padding
+        const lineHeight = 1.2; // Line height multiplier
 
         let width = img.width;
         let height = img.height;
@@ -85,21 +87,21 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         ctx.textBaseline = 'top';
 
         const availableWidth = width - (padding * 2);
-        let currentY = height + 20; // Start position with top padding
+        let currentY = height + topPadding; // Start with minimal top padding
 
-        // Row 1: Team Path (centered, larger) - only if pathId provided
+        // Row 1: Team Path (centered, at the very top) - only if pathId provided
         if (pathId) {
-          const fontSizePath = Math.max(48, Math.floor(width * 0.07)); // Larger path text
+          const fontSizePath = Math.max(40, Math.floor(width * 0.055)); // Slightly smaller path text
           ctx.font = `bold ${fontSizePath}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
           ctx.textAlign = 'center';
           ctx.fillText(`Path ${pathId}`, width / 2, currentY);
           ctx.textAlign = 'left';
-          currentY += fontSizePath + 12; // Move down after path
+          currentY += fontSizePath + 8; // Compact spacing after path
         }
 
         // Row 2: Challenge number + title (with wrapping support)
-        const fontSizeTitle = Math.max(48, Math.floor(width * 0.07)); // Larger title text
+        const fontSizeTitle = Math.max(44, Math.floor(width * 0.06)); // Slightly smaller for better fit
         ctx.font = `bold ${fontSizeTitle}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
 
@@ -123,10 +125,11 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         }
         lines.push(line);
 
-        // Draw each line of the title
+        // Draw each line of the title with proper line height
+        const titleLineHeight = Math.floor(fontSizeTitle * lineHeight);
         for (let i = 0; i < lines.length; i++) {
           ctx.fillText(lines[i].trim(), padding, currentY);
-          currentY += fontSizeTitle + 6; // Line height with spacing
+          currentY += titleLineHeight;
         }
 
         // Export canvas to blob and save to IndexedDB
