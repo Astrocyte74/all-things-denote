@@ -1,7 +1,7 @@
 // IndexedDB storage for scavenger hunt photos
 
 const DB_NAME = 'ScavengerHuntPhotos';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented for pathId field
 const STORE_NAME = 'photos';
 
 export interface StoredPhoto {
@@ -13,6 +13,7 @@ export interface StoredPhoto {
   categoryTitle: string;
   categoryIcon: string;
   categoryColor: string;
+  pathId?: string; // Team path (A, B, C, etc.) - optional for backward compatibility
   imageData: string; // base64 encoded image
   timestamp: number;
 }
