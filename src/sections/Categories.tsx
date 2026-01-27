@@ -389,7 +389,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               <ChevronLeft className="w-8 h-8" />
             </button>
 
-            <PhotoCapture
+            <PhotoCapture pathId={selectedPathId}
               challenge={challenge}
               category={category}
               onCaptureComplete={toggleChallenge}
@@ -680,7 +680,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                   </button>
 
                                   {/* Photo Capture Button */}
-                                  <PhotoCapture
+                                  <PhotoCapture pathId={selectedPathId}
                                     challenge={challenge}
                                     category={category}
                                     onCaptureComplete={toggleChallenge}

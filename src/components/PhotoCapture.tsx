@@ -10,6 +10,7 @@ interface PhotoCaptureProps {
   onCaptureComplete?: (challengeId: string) => void;
   onPhotoSaved?: () => void; // Callback when photo is saved to gallery
   variant?: 'default' | 'display';
+  pathId?: string;
 }
 
 // Icon mapping for rendering category icons
@@ -30,7 +31,7 @@ const categoryColors: Record<string, { from: string; to: string }> = {
   'community': { from: '#EAB308', to: '#F59E0B' }   // yellow-500 to amber-400
 };
 
-export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default' }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoCapture = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +56,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         // Set canvas dimensions (higher resolution for better quality)
         const maxWidth = 1920;
         const maxHeight = 1920;
-        const frameHeight = 240; // Frame overlay height - increased for larger text
+        const frameHeight = 280; // Frame overlay height - increased to accommodate path row
         const padding = 24; // Padding on sides
 
         let width = img.width;
@@ -92,12 +93,22 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
 
+        // Row 0: Team Path (centered at top)
+        if (pathId) {
+          const fontSize0 = Math.max(32, Math.floor(width * 0.04));
+          ctx.font = `bold ${fontSize0}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.textAlign = 'center';
+          ctx.fillText(`Path ${pathId}`, width / 2, height + 20);
+          ctx.textAlign = 'left'; // Reset for other rows
+        }
+
         // Row 1: Category icon + name
         const categoryIcon = iconEmojiMap[category.icon] || '📸';
         const fontSize1 = Math.max(36, Math.floor(width * 0.055)); // Responsive but with minimum
         ctx.font = `${fontSize1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        const row1Y = height + 24;
+        const row1Y = height + (pathId ? 60 : 24); // Move down if path is shown
         ctx.fillText(`${categoryIcon} ${category.title}`, padding, row1Y);
 
         // Row 2: Challenge number + title (with wrapping support)
