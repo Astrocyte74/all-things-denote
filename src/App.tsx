@@ -49,7 +49,13 @@ function App() {
   };
 
   const handleChangePath = () => {
-    setPathSelectionOpen(true);
+    // If we're in the rules/setup phase, go to path-selection screen
+    if (appState === 'rules' || appState === 'landing') {
+      setAppState('path-selection');
+    } else {
+      // If we're in the hunt, open the modal overlay
+      setPathSelectionOpen(true);
+    }
   };
 
   const handleStartHunt = () => {
