@@ -38,6 +38,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
   const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle('showAnalogiesEarly', false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
@@ -89,7 +90,10 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   // Load photo count on mount
   useEffect(() => {
-    getPhotoCount().then(onPhotoCountChange);
+    getPhotoCount().then(count => {
+      setPhotoCount(count);
+      onPhotoCountChange(count);
+    });
   }, [onPhotoCountChange]);
 
   // Load photo counts per challenge
@@ -115,6 +119,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   // Handle photo saved callback
   const handlePhotoSaved = useCallback(async () => {
     const count = await getPhotoCount();
+    setPhotoCount(count);
     onPhotoCountChange(count);
 
     // Update challenge photo counts and photos
@@ -130,7 +135,13 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
     setChallengePhotoCounts(photoCountMap);
     setChallengePhotos(photosMap);
-  }, [orderedCategoryData]);
+  }, [orderedCategoryData, onPhotoCountChange]);
+
+  // Handle gallery photo count change
+  const handleGalleryPhotoCountChange = useCallback((count: number) => {
+    setPhotoCount(count);
+    onPhotoCountChange(count);
+  }, [onPhotoCountChange]);
 
   // Check if all challenges are complete
   useEffect(() => {
@@ -375,7 +386,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           setGalleryOpen(false);
           setGalleryFilterChallengeId(null);
         }}
-        onPhotoCountChange={setPhotoCount}
+        onPhotoCountChange={handleGalleryPhotoCountChange}
         filterChallengeId={galleryFilterChallengeId}
       />
       </>
@@ -700,7 +711,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         setGalleryOpen(false);
         setGalleryFilterChallengeId(null);
       }}
-      onPhotoCountChange={setPhotoCount}
+      onPhotoCountChange={handleGalleryPhotoCountChange}
       onPhotoDeleted={handlePhotoSaved}
       filterChallengeId={galleryFilterChallengeId}
     />
