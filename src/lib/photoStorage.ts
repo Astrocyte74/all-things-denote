@@ -13,6 +13,7 @@ export interface StoredPhoto {
   categoryTitle: string;
   categoryIcon: string;
   categoryColor: string;
+  pathId: string;
   imageData: string; // base64 encoded image
   timestamp: number;
 }
