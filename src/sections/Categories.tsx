@@ -37,7 +37,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
-  const [challengePhotoCounts, setChallengePhotoCounts] = useState<Map<string, number>>(() => new Map());
+  const [challengePhotoCounts, setChallengePhotoCounts] = useState<Map<string, number>>(() => new Map<string, number>());
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
 
   // Reorder ALL challenges based on selected path and regroup into categories
@@ -94,7 +94,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   useEffect(() => {
     const loadChallengePhotos = async () => {
       const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
-      const photoCountMap: Map<string, number> = new Map();
+      const photoCountMap: Map<string, number> = new Map<string, number>();
 
       for (const challenge of allChallenges) {
         const photos = await getPhotosByChallenge(challenge.id);
@@ -113,7 +113,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     setPhotoCount(count);
 
     // Update challenge photo counts
-    const photoCountMap: Map<string, number> = new Map();
+    const photoCountMap: Map<string, number> = new Map<string, number>();
     const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
 
     for (const challenge of allChallenges) {
