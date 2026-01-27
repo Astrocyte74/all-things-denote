@@ -6,6 +6,7 @@ import { useToggle } from '@/hooks/useToggle';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
+import { PhotoCapture } from '@/components/PhotoCapture';
 
 // Map icon names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -524,14 +525,24 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                   </div>
                                 </div>
 
-                                {/* Display Mode Button */}
-                                <button
-                                  onClick={() => enterDisplayMode(category, challengeIndex)}
-                                  className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
-                                  title="Display Mode"
-                                >
-                                  <Maximize2 className="w-5 h-5" />
-                                </button>
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-1">
+                                  {/* Display Mode Button */}
+                                  <button
+                                    onClick={() => enterDisplayMode(category, challengeIndex)}
+                                    className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
+                                    title="Display Mode"
+                                  >
+                                    <Maximize2 className="w-5 h-5" />
+                                  </button>
+
+                                  {/* Photo Capture Button */}
+                                  <PhotoCapture
+                                    challenge={challenge}
+                                    category={category}
+                                    onCaptureComplete={toggleChallenge}
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>

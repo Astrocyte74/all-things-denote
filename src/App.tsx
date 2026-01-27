@@ -7,6 +7,7 @@ import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
 import { getPathById } from '@/data/paths';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 
 type AppState = 'landing' | 'path-selection' | 'rules' | 'hunt';
@@ -99,6 +100,9 @@ function App() {
           <Rules isVisible={false} collapsed={true} />
         </>
       )}
+
+      {/* Toast notifications */}
+      <Toaster />
     </div>
   );
 }
