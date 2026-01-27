@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, type LucideIcon } from 'lucide-react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, Images, type LucideIcon } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
@@ -7,6 +7,8 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
 import { PhotoCapture } from '@/components/PhotoCapture';
+import { PhotoGallery } from '@/components/PhotoGallery';
+import { getPhotoCount } from '@/lib/photoStorage';
 
 // Map icon names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -33,12 +35,24 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
   const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle('showAnalogiesEarly', false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [photoCount, setPhotoCount] = useState(0);
 
   useEffect(() => {
     if (isVisible) {
       setTimeout(() => setIsAnimated(true), 200);
     }
   }, [isVisible]);
+
+  // Load photo count on mount
+  useEffect(() => {
+    getPhotoCount().then(setPhotoCount);
+  }, []);
+
+  // Handle photo saved callback
+  const handlePhotoSaved = useCallback(() => {
+    getPhotoCount().then(setPhotoCount);
+  }, []);
 
   // Reorder ALL challenges based on selected path and regroup into categories
   const orderedCategoryData = useMemo(() => {
@@ -348,6 +362,22 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             bonusUnlocked={bonusUnlocked}
             showAnalogies={showAnalogiesEarly}
           />
+
+          {/* Photo Gallery Button */}
+          <div className="mt-4">
+            <button
+              onClick={() => setGalleryOpen(true)}
+              className="inline-flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded-full font-medium transition-colors"
+            >
+              <Images className="w-5 h-5" />
+              <span>View Gallery</span>
+              {photoCount > 0 && (
+                <span className="bg-purple-700 text-white text-xs px-2 py-0.5 rounded-full">
+                  {photoCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Reset Button */}
@@ -541,6 +571,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                     challenge={challenge}
                                     category={category}
                                     onCaptureComplete={toggleChallenge}
+                                    onPhotoSaved={handlePhotoSaved}
                                   />
                                 </div>
                               </div>
@@ -557,6 +588,13 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         </div>
       </div>
     </section>
+
+    {/* Photo Gallery Modal */}
+    <PhotoGallery
+      isOpen={galleryOpen}
+      onClose={() => setGalleryOpen(false)}
+      onPhotoCountChange={setPhotoCount}
+    />
   );
 }
 

@@ -2,11 +2,13 @@ import { useRef, useCallback } from 'react';
 import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Category, Challenge } from '@/types';
+import { savePhoto, type StoredPhoto } from '@/lib/photoStorage';
 
 interface PhotoCaptureProps {
   challenge: Challenge;
   category: Category;
   onCaptureComplete?: (challengeId: string) => void;
+  onPhotoSaved?: () => void; // Callback when photo is saved to gallery
 }
 
 // Icon mapping for rendering category icons
@@ -27,7 +29,7 @@ const categoryColors: Record<string, { from: string; to: string }> = {
   'community': { from: '#EAB308', to: '#F59E0B' }   // yellow-500 to amber-400
 };
 
-export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoCapture = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,71 +118,68 @@ export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCa
         });
         ctx.fillText(dateStr, width - padding, row2Y + fontSize2 + 10);
 
-        // Export canvas to blob and trigger download
+        // Export canvas to blob and save to IndexedDB
         canvas.toBlob(async (blob) => {
-          if (blob) {
-            // Format filename: scavenger-hunt-#[number]-[title].jpg
-            const sanitizedTitle = challenge.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            const filename = `scavenger-hunt-${challenge.number}-${sanitizedTitle}.jpg`;
-
-            // Try Web Share API first (better for mobile - can save to Photos)
-            if (navigator.share && navigator.canShare && blob instanceof File) {
-              try {
-                const file = new File([blob], filename, { type: 'image/jpeg' });
-                if (navigator.canShare({ files: [file] })) {
-                  await navigator.share({
-                    files: [file],
-                    title: `Challenge #${challenge.number}`,
-                    text: challenge.title
-                  });
-                  // Success - user shared/saved the photo
-                  toast.success('Photo saved!', {
-                    description: `Challenge #${challenge.number} marked complete`
-                  });
-                  if (onCaptureComplete) {
-                    onCaptureComplete(challenge.id);
-                  }
-                  URL.revokeObjectURL(imageUrl);
-                  return;
-                }
-              } catch (shareError) {
-                // Share was cancelled or failed, fall through to download
-                if ((shareError as Error).name !== 'AbortError') {
-                  console.log('Share failed, falling back to download:', shareError);
-                }
-              }
-            }
-
-            // Fallback: Create download link
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-
-            // Trigger download
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Cleanup
-            URL.revokeObjectURL(url);
-
-            // Show success toast
-            toast.success('Photo downloaded!', {
-              description: `Check your Downloads folder. Challenge #${challenge.number} marked complete`
-            });
-
-            // Mark challenge as complete
-            if (onCaptureComplete) {
-              onCaptureComplete(challenge.id);
-            }
-          } else {
-            toast.error('Failed to save photo');
+          if (!blob) {
+            toast.error('Failed to process photo');
+            URL.revokeObjectURL(imageUrl);
+            return;
           }
 
-          // Cleanup original image URL
-          URL.revokeObjectURL(imageUrl);
-        }, 'image/jpeg', 0.95);
+          try {
+            // Convert blob to base64 for storage
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              const base64data = reader.result as string;
+
+              // Create stored photo object
+              const storedPhoto: StoredPhoto = {
+                id: `${challenge.id}-${Date.now()}`,
+                challengeId: challenge.id,
+                challengeNumber: challenge.number,
+                challengeTitle: challenge.title,
+                categoryId: category.id,
+                categoryTitle: category.title,
+                categoryIcon: category.icon,
+                categoryColor: category.color,
+                imageData: base64data,
+                timestamp: Date.now()
+              };
+
+              // Save to IndexedDB
+              await savePhoto(storedPhoto);
+
+              // Show success toast
+              toast.success('Photo saved to gallery!', {
+                description: `Challenge #${challenge.number} marked complete`
+              });
+
+              // Mark challenge as complete
+              if (onCaptureComplete) {
+                onCaptureComplete(challenge.id);
+              }
+
+              // Notify parent component
+              if (onPhotoSaved) {
+                onPhotoSaved();
+              }
+
+              // Cleanup
+              URL.revokeObjectURL(imageUrl);
+            };
+
+            reader.onerror = () => {
+              toast.error('Failed to process photo');
+              URL.revokeObjectURL(imageUrl);
+            };
+
+            reader.readAsDataURL(blob);
+          } catch (error) {
+            console.error('Failed to save photo:', error);
+            toast.error('Failed to save photo to gallery');
+            URL.revokeObjectURL(imageUrl);
+          }
+        }, 'image/jpeg', 0.92); // Slightly lower quality for storage
       };
 
       img.onerror = () => {
@@ -198,7 +197,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCa
 
     // Reset file input so same file can be selected again
     event.target.value = '';
-  }, [challenge, category, onCaptureComplete]);
+  }, [challenge, category, onCaptureComplete, onPhotoSaved]);
 
   const triggerCapture = () => {
     fileInputRef.current?.click();
