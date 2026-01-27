@@ -36,21 +36,20 @@ function App() {
 
   const handlePathSelected = (pathId: string) => {
     setSelectedPathId(pathId);
-    setAppState('rules');
-    // Scroll to rules section
-    setTimeout(() => {
-      rulesRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    setPathSelectionOpen(false);
+
+    // If we're in initial flow (landing/path-selection), go to rules
+    if (appState === 'landing' || appState === 'path-selection') {
+      setAppState('rules');
+      setTimeout(() => {
+        rulesRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+    // If we're in hunt mode, stay there (modal closes, game continues)
   };
 
   const handleChangePath = () => {
     setPathSelectionOpen(true);
-  };
-
-  const handlePathSelected = (pathId: string) => {
-    setSelectedPathId(pathId);
-    setPathSelectionOpen(false);
-    // Stay in current state, don't change to rules
   };
 
   const handleStartHunt = () => {
