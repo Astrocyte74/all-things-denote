@@ -47,10 +47,11 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         // Set canvas dimensions (higher resolution for better quality)
         const maxWidth = 1920;
         const maxHeight = 1920;
-        const frameHeight = 240; // Increased height for better text fit
+        const frameHeight = 300; // More height for 2 lines of text
         const padding = 24; // Padding on sides
-        const topPadding = 16; // Reduced top padding
-        const lineHeight = 1.2; // Line height multiplier
+        const topPadding = 12; // Minimal top padding
+        const bottomPadding = 16; // Bottom padding to prevent cutoff
+        const lineHeight = 1.1; // Tighter line height
 
         let width = img.width;
         let height = img.height;
@@ -91,17 +92,17 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
 
         // Row 1: Team Path (centered, at the very top) - only if pathId provided
         if (pathId) {
-          const fontSizePath = Math.max(40, Math.floor(width * 0.055)); // Slightly smaller path text
+          const fontSizePath = Math.max(32, Math.floor(width * 0.035)); // Much smaller for better fit
           ctx.font = `bold ${fontSizePath}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
           ctx.textAlign = 'center';
           ctx.fillText(`Path ${pathId}`, width / 2, currentY);
           ctx.textAlign = 'left';
-          currentY += fontSizePath + 8; // Compact spacing after path
+          currentY += fontSizePath + 4; // Tight spacing after path
         }
 
         // Row 2: Challenge number + title (with wrapping support)
-        const fontSizeTitle = Math.max(44, Math.floor(width * 0.06)); // Slightly smaller for better fit
+        const fontSizeTitle = Math.max(36, Math.floor(width * 0.04)); // Smaller for better fit
         ctx.font = `bold ${fontSizeTitle}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
 
