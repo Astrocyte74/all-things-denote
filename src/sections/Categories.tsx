@@ -351,7 +351,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             </button>
 
             <PhotoCapture
-              challenge={currentChallenge}
+              challenge={challenge}
               category={category}
               onCaptureComplete={toggleChallenge}
               onPhotoSaved={handlePhotoSaved}
