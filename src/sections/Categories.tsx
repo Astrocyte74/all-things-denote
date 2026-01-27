@@ -199,6 +199,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const colors = colorMap[category.id] || { from: 'from-gray-600', to: 'to-gray-800' };
 
     return (
+      <>
       <div
         ref={swipeRef}
         className={`fixed inset-0 bg-gradient-to-br ${colors.from} ${colors.to} z-50 flex flex-col`}
@@ -327,10 +328,19 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           </div>
         </div>
       </div>
+
+      {/* Photo Gallery Modal */}
+      <PhotoGallery
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        onPhotoCountChange={setPhotoCount}
+      />
+      </>
     );
   }
 
   return (
+    <>
     <section className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white relative">
       <div className="max-w-6xl mx-auto px-4 md:px-8">
         {/* Header with Path Info */}
@@ -595,6 +605,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       onClose={() => setGalleryOpen(false)}
       onPhotoCountChange={setPhotoCount}
     />
+    </>
   );
 }
 
