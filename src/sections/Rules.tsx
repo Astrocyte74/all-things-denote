@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, Map } from 'lucide-react';
+import { Camera, Users, Heart, Map, Smartphone } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
+import qrCode from '@/qr.png';
 
 interface RulesProps {
   isVisible: boolean;
@@ -12,14 +13,16 @@ const iconMap: Record<string, React.ReactNode> = {
   '🚶': <Camera className="w-12 h-12" strokeWidth={1.5} />,
   '👥': <Users className="w-12 h-12" strokeWidth={1.5} />,
   '❤️': <Heart className="w-12 h-12" strokeWidth={1.5} />,
-  '🗺️': <Map className="w-12 h-12" strokeWidth={1.5} />
+  '🗺️': <Map className="w-12 h-12" strokeWidth={1.5} />,
+  '📱': <Smartphone className="w-12 h-12" strokeWidth={1.5} />
 };
 
 const colorMap: Record<string, string> = {
   'rule-1': 'from-purple-500 to-pink-400',
   'rule-2': 'from-blue-500 to-cyan-400',
   'rule-3': 'from-orange-500 to-red-400',
-  'rule-4': 'from-green-500 to-emerald-400'
+  'rule-4': 'from-green-500 to-emerald-400',
+  'rule-5': 'from-indigo-500 to-purple-400'
 };
 
 export function Rules({ isVisible, collapsed = false }: RulesProps) {
@@ -87,12 +90,12 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
             )}
           </div>
           <p className="text-gray-600">
-            Four simple rules for a great scavenger hunt!
+            Five simple rules for a great scavenger hunt!
           </p>
         </div>
 
-        {/* Four Cards - 2x2 Grid */}
-        <div className="grid md:grid-cols-2 gap-6">
+        {/* Five Cards - 3 on top, 2 centered on bottom */}
+        <div className="grid md:grid-cols-3 gap-6">
           {rules.map((rule, index) => (
             <div
               key={rule.id}
@@ -114,19 +117,30 @@ export function Rules({ isVisible, collapsed = false }: RulesProps) {
                   {rule.title}
                 </h3>
 
-                {/* Bullet Points */}
-                <div className="flex-1 flex flex-col justify-center">
-                  <ul className="space-y-3 text-left">
-                    {rule.description.split('\n').map((item, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <span className="text-yellow-300 font-bold mt-1">✓</span>
-                        <span className="text-sm leading-relaxed">
-                          {item.replace(/^[•]\s*/, '')}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {/* QR Code for Invite Friends card, Bullet Points for others */}
+                {rule.id === 'rule-5' ? (
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    <div className="bg-white p-3 rounded-2xl mb-4">
+                      <img src={qrCode} alt="Scan to join" className="w-32 h-32" />
+                    </div>
+                    <p className="text-sm text-white/90 text-center max-w-xs">
+                      Scan this code with your phone camera to join the scavenger hunt!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col justify-center">
+                    <ul className="space-y-3 text-left">
+                      {rule.description.split('\n').map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-yellow-300 font-bold mt-1">✓</span>
+                          <span className="text-sm leading-relaxed">
+                            {item.replace(/^[•]\s*/, '')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           ))}

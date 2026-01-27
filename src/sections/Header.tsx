@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ShoppingCart, Smile, Lightbulb } from 'lucide-react';
+import { Camera, ShoppingCart, Smile, Lightbulb, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ShareModal } from '@/components/ShareModal';
 
 interface HeaderProps {
   onStart: () => void;
@@ -9,6 +10,7 @@ interface HeaderProps {
 export function Header({ onStart }: HeaderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -36,6 +38,15 @@ export function Header({ onStart }: HeaderProps) {
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-yellow-50 animate-gradient-pulse" />
       
       {/* Floating decorative elements */}
+
+      {/* Share Button - Top Right */}
+      <button
+        onClick={() => setShareModalOpen(true)}
+        className="absolute top-4 right-4 md:top-8 md:right-8 bg-white hover:bg-gray-50 text-indigo-600 p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-20"
+        title="Share this scavenger hunt"
+      >
+        <Share2 className="w-6 h-6" />
+      </button>
       <div 
         className="absolute top-20 left-10 md:left-20 w-16 h-16 md:w-24 md:h-24 opacity-80"
         style={{
@@ -130,6 +141,9 @@ export function Header({ onStart }: HeaderProps) {
           />
         </svg>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
     </section>
   );
 }

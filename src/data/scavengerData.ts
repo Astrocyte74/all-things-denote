@@ -24,6 +24,12 @@ export const rules: Rule[] = [
     title: 'Choose Your Path',
     description: '• Each team should pick a different path (1, 2, or 3)\n• Tap "Change Path" at the top to switch\n• Different paths = different challenge orders',
     icon: '🗺️'
+  },
+  {
+    id: 'rule-5',
+    title: 'Invite Friends',
+    description: '• Scan the QR code to share this scavenger hunt\n• Each team needs at least one phone with the app\n• More teams = more fun!',
+    icon: '📱'
   }
 ];
 
