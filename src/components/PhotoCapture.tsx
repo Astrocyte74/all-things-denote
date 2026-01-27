@@ -52,7 +52,8 @@ export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCa
         // Set canvas dimensions (higher resolution for better quality)
         const maxWidth = 1920;
         const maxHeight = 1920;
-        const frameHeight = 140; // Frame overlay height
+        const frameHeight = 180; // Frame overlay height - increased for better text visibility
+        const padding = 24; // Padding on sides
 
         let width = img.width;
         let height = img.height;
@@ -90,21 +91,21 @@ export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCa
 
         // Row 1: Category icon + name
         const categoryIcon = iconEmojiMap[category.icon] || '📸';
-        const fontSize1 = Math.floor(width * 0.045);
+        const fontSize1 = Math.max(28, Math.floor(width * 0.04)); // Responsive but with minimum
         ctx.font = `${fontSize1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        const row1Y = height + 20;
-        ctx.fillText(`${categoryIcon} ${category.title}`, 20, row1Y);
+        const row1Y = height + 24;
+        ctx.fillText(`${categoryIcon} ${category.title}`, padding, row1Y);
 
         // Row 2: Challenge number + title
-        const fontSize2 = Math.floor(width * 0.055);
+        const fontSize2 = Math.max(32, Math.floor(width * 0.048)); // Responsive but with minimum
         ctx.font = `bold ${fontSize2}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
-        const row2Y = row1Y + fontSize1 + 10;
-        ctx.fillText(`#${challenge.number} ${challenge.title}`, 20, row2Y);
+        const row2Y = row1Y + fontSize1 + 8;
+        ctx.fillText(`#${challenge.number} ${challenge.title}`, padding, row2Y);
 
         // Row 3: Date (right-aligned)
-        const fontSize3 = Math.floor(width * 0.035);
+        const fontSize3 = Math.max(22, Math.floor(width * 0.032)); // Responsive but with minimum
         ctx.font = `${fontSize3}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.textAlign = 'right';
@@ -113,19 +114,48 @@ export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCa
           day: 'numeric',
           year: 'numeric'
         });
-        ctx.fillText(dateStr, width - 20, row2Y + fontSize2 + 15);
+        ctx.fillText(dateStr, width - padding, row2Y + fontSize2 + 10);
 
         // Export canvas to blob and trigger download
-        canvas.toBlob((blob) => {
+        canvas.toBlob(async (blob) => {
           if (blob) {
-            // Create download link
+            // Format filename: scavenger-hunt-#[number]-[title].jpg
+            const sanitizedTitle = challenge.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const filename = `scavenger-hunt-${challenge.number}-${sanitizedTitle}.jpg`;
+
+            // Try Web Share API first (better for mobile - can save to Photos)
+            if (navigator.share && navigator.canShare && blob instanceof File) {
+              try {
+                const file = new File([blob], filename, { type: 'image/jpeg' });
+                if (navigator.canShare({ files: [file] })) {
+                  await navigator.share({
+                    files: [file],
+                    title: `Challenge #${challenge.number}`,
+                    text: challenge.title
+                  });
+                  // Success - user shared/saved the photo
+                  toast.success('Photo saved!', {
+                    description: `Challenge #${challenge.number} marked complete`
+                  });
+                  if (onCaptureComplete) {
+                    onCaptureComplete(challenge.id);
+                  }
+                  URL.revokeObjectURL(imageUrl);
+                  return;
+                }
+              } catch (shareError) {
+                // Share was cancelled or failed, fall through to download
+                if ((shareError as Error).name !== 'AbortError') {
+                  console.log('Share failed, falling back to download:', shareError);
+                }
+              }
+            }
+
+            // Fallback: Create download link
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-
-            // Format filename: scavenger-hunt-#[number]-[title].jpg
-            const sanitizedTitle = challenge.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            link.download = `scavenger-hunt-${challenge.number}-${sanitizedTitle}.jpg`;
+            link.download = filename;
 
             // Trigger download
             document.body.appendChild(link);
@@ -136,8 +166,8 @@ export function PhotoCapture({ challenge, category, onCaptureComplete }: PhotoCa
             URL.revokeObjectURL(url);
 
             // Show success toast
-            toast.success('Photo saved!', {
-              description: `Challenge #${challenge.number} marked complete`
+            toast.success('Photo downloaded!', {
+              description: `Check your Downloads folder. Challenge #${challenge.number} marked complete`
             });
 
             // Mark challenge as complete
