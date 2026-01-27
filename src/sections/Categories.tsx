@@ -395,7 +395,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   return (
     <>
-    <section className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white relative">
+    <section className="pt-24 pb-16 md:pt-32 md:pb-24 bg-gradient-to-b from-gray-50 to-white relative">
       <div className="max-w-6xl mx-auto px-4 md:px-8">
         {/* Header with Path Info */}
         <div className="text-center mb-12">
