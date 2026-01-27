@@ -153,7 +153,6 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
                 categoryTitle: category.title,
                 categoryIcon: category.icon,
                 categoryColor: category.color,
-                pathId: pathId || 'A',
                 imageData: base64data,
                 timestamp: Date.now()
               };

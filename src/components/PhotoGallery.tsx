@@ -240,15 +240,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                         alt={photo.challengeTitle}
                         className="w-full h-full object-cover"
                       />
-                      {/* Challenge badge - always visible */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 pb-4">
-                        <div className="text-center mb-1">
-                          <span className="text-white/98 text-xl font-black">Path {photo.pathId}</span>
-                        </div>
-                        <h3 className="text-white font-bold text-base leading-tight">
-                          #{photo.challengeNumber} {photo.challengeTitle}
-                        </h3>
-                      </div>
+                      {/* Photo already has overlay burned in - no UI overlay needed */}
                     </div>
 
                     {/* Actions bar */}
@@ -345,26 +337,20 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             <ChevronRight className="w-8 h-8" />
           </button>
 
-          {/* Photo info overlay at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pb-6">
-            <div className="text-center mb-1">
-              <span className="text-white text-2xl font-black">Path {getSelectedPhoto()!.pathId}</span>
-            </div>
-            <h3 className="text-white font-bold text-lg text-center leading-tight mb-2">
-              #{getSelectedPhoto()!.challengeNumber} {getSelectedPhoto()!.challengeTitle}
-            </h3>
+          {/* Photo counter overlay */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
             <div className="flex items-center justify-between">
-              <div className="text-white/60 text-xs">
-                Tap buttons to download or share
+              <div className="text-white/60 text-sm">
+                Tap to download or share
               </div>
-              <div className="text-white/80 text-xs font-medium">
+              <div className="text-white/80 text-sm font-medium">
                 {selectedPhotoIndex + 1} / {photos.length}
               </div>
             </div>
           </div>
 
-          {/* Action buttons - positioned above the info overlay */}
-          <div className="absolute bottom-[140px] right-6 flex gap-2">
+          {/* Action buttons */}
+          <div className="absolute bottom-6 right-6 flex gap-2">
             <Button
               variant="secondary"
               size="icon"
@@ -390,8 +376,8 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             </Button>
           </div>
 
-          {/* Dot indicators - positioned above the info overlay */}
-          <div className="absolute bottom-[120px] left-1/2 -translate-x-1/2 flex items-center gap-2">
+          {/* Dot indicators */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
             {photos.map((_, index) => (
               <div
                 key={index}
