@@ -102,7 +102,6 @@ function App() {
             selectedPathId={selectedPathId}
             pathOrder={selectedPath.order}
             onAllComplete={handleAllCategoriesComplete}
-            onChangePath={handleChangePath}
             bonusUnlocked={bonusUnlocked}
             galleryOpen={galleryOpen}
             setGalleryOpen={setGalleryOpen}
