@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Camera, Users, Heart, Map, Smartphone, PersonStanding } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
-import { PATHS } from '@/data/paths';
 import qrCode from '/qr.png';
 
 interface RulesProps {
