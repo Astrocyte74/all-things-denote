@@ -37,7 +37,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
-  const [challengePhotoCounts, setChallengePhotoCounts] = useState<Map<string, number>>(() => new Map() as Map<string, number>);
+  const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
 
   // Reorder ALL challenges based on selected path and regroup into categories
@@ -94,11 +94,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   useEffect(() => {
     const loadChallengePhotos = async () => {
       const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
-      const photoCountMap = new Map() as Map<string, number>;
+      const photoCountMap: Record<string, number> = {};
 
       for (const challenge of allChallenges) {
         const photos = await getPhotosByChallenge(challenge.id);
-        photoCountMap.set(challenge.id, photos.length);
+        photoCountMap[challenge.id] = photos.length;
       }
 
       setChallengePhotoCounts(photoCountMap);
@@ -113,12 +113,12 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     setPhotoCount(count);
 
     // Update challenge photo counts
-    const photoCountMap = new Map() as Map<string, number>;
+    const photoCountMap: Record<string, number> = {};
     const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
 
     for (const challenge of allChallenges) {
       const photos = await getPhotosByChallenge(challenge.id);
-      photoCountMap.set(challenge.id, photos.length);
+      photoCountMap[challenge.id] = photos.length;
     }
 
     setChallengePhotoCounts(photoCountMap);
@@ -574,17 +574,17 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                       {challenge.title}
                                     </h4>
                                     {/* Photo indicator with count */}
-                                    {(challengePhotoCounts.get(challenge.id) ?? 0) > 0 && (
+                                    {(challengePhotoCounts[challenge.id] ?? 0) > 0 && (
                                       <button
                                         onClick={() => {
                                           setGalleryFilterChallengeId(challenge.id);
                                           setGalleryOpen(true);
                                         }}
                                         className="inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs px-2 py-1 rounded-full transition-colors"
-                                        title={`View ${challengePhotoCounts.get(challenge.id) ?? 0} photo${(challengePhotoCounts.get(challenge.id) ?? 0) !== 1 ? 's' : ''} in gallery`}
+                                        title={`View ${challengePhotoCounts[challenge.id] ?? 0} photo${(challengePhotoCounts[challenge.id] ?? 0) !== 1 ? 's' : ''} in gallery`}
                                       >
                                         <Camera className="w-3 h-3" />
-                                        <span>{challengePhotoCounts.get(challenge.id) ?? 0} photo{(challengePhotoCounts.get(challenge.id) ?? 0) !== 1 ? 's' : ''}</span>
+                                        <span>{challengePhotoCounts[challenge.id] ?? 0} photo{(challengePhotoCounts[challenge.id] ?? 0) !== 1 ? 's' : ''}</span>
                                       </button>
                                     )}
                                   </div>
