@@ -11,15 +11,6 @@ interface PhotoCaptureProps {
   onPhotoSaved?: () => void; // Callback when photo is saved to gallery
   variant?: 'default' | 'display';
   pathId?: string;
-}
-
-// Icon mapping for rendering category icons
-const iconEmojiMap: Record<string, string> = {
-  'Lightbulb': '💡',
-  'Target': '🎯',
-  'Heart': '❤️',
-  'BookOpen': '📖',
-  'Globe': '🌍'
 };
 
 // Category color mapping for canvas gradients
