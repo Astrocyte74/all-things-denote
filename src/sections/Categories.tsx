@@ -8,7 +8,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
-import { getPhotoCount } from '@/lib/photoStorage';
+import { getPhotoCount, hasPhotoForChallenge, getPhotosByChallenge } from '@/lib/photoStorage';
 
 // Map icon names to Lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -37,6 +37,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
+  const [challengesWithPhotos, setChallengesWithPhotos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isVisible) {
@@ -49,10 +50,43 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     getPhotoCount().then(setPhotoCount);
   }, []);
 
+  // Load which challenges have photos
+  useEffect(() => {
+    const loadChallengePhotos = async () => {
+      const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
+      const photoSet = new Set<string>();
+
+      for (const challenge of allChallenges) {
+        const hasPhoto = await hasPhotoForChallenge(challenge.id);
+        if (hasPhoto) {
+          photoSet.add(challenge.id);
+        }
+      }
+
+      setChallengesWithPhotos(photoSet);
+    };
+
+    loadChallengePhotos();
+  }, [orderedCategoryData]);
+
   // Handle photo saved callback
-  const handlePhotoSaved = useCallback(() => {
-    getPhotoCount().then(setPhotoCount);
-  }, []);
+  const handlePhotoSaved = useCallback(async () => {
+    const count = await getPhotoCount();
+    setPhotoCount(count);
+
+    // Update challenges with photos
+    const photoSet = new Set<string>();
+    const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
+
+    for (const challenge of allChallenges) {
+      const hasPhoto = await hasPhotoForChallenge(challenge.id);
+      if (hasPhoto) {
+        photoSet.add(challenge.id);
+      }
+    }
+
+    setChallengesWithPhotos(photoSet);
+  }, [orderedCategoryData]);
 
   // Reorder ALL challenges based on selected path and regroup into categories
   const orderedCategoryData = useMemo(() => {
@@ -526,7 +560,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                 </button>
 
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     <span className="bg-blue-100 text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
                                       #{challenge.number}
                                     </span>
@@ -535,6 +569,17 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                     }`}>
                                       {challenge.title}
                                     </h4>
+                                    {/* Photo indicator */}
+                                    {challengesWithPhotos.has(challenge.id) && (
+                                      <button
+                                        onClick={() => setGalleryOpen(true)}
+                                        className="inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs px-2 py-1 rounded-full transition-colors"
+                                        title="View photo in gallery"
+                                      >
+                                        <Camera className="w-3 h-3" />
+                                        <span>Photo</span>
+                                      </button>
+                                    )}
                                   </div>
 
                                   <div className="space-y-2 ml-0">

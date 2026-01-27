@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Trash2, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { X, Download, Trash2, Image as ImageIcon, ExternalLink, Grid, List, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAllPhotos, deletePhoto, getPhotoCount, type StoredPhoto } from '@/lib/photoStorage';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<StoredPhoto | null>(null);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Load photos when gallery opens
   useEffect(() => {
@@ -144,9 +145,36 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
               <h2 className="text-xl font-bold text-gray-900">Photo Gallery</h2>
               <p className="text-sm text-gray-500">{photos.length} photo{photos.length !== 1 ? 's' : ''} captured</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* View toggle buttons */}
+              <div className="flex items-center border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 transition-colors ${
+                    viewMode === 'grid'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                  title="Grid view"
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 transition-colors ${
+                    viewMode === 'list'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                  title="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
 
           {/* Content */}
@@ -161,7 +189,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
                 <p className="text-lg font-medium">No photos yet</p>
                 <p className="text-sm">Take photos to see them here!</p>
               </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {photos.map((photo) => (
                   <div
@@ -214,6 +242,80 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange }: PhotoGalle
                       <p className="text-white text-xs font-medium truncate">
                         #{photo.challengeNumber} {photo.challengeTitle}
                       </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // List view
+              <div className="space-y-3">
+                {photos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="flex items-center gap-4 bg-gray-50 rounded-xl overflow-hidden hover:bg-gray-100 transition-colors"
+                  >
+                    {/* Thumbnail */}
+                    <div
+                      className="flex-shrink-0 w-24 h-24 bg-gray-200 cursor-pointer"
+                      onClick={() => setSelectedPhoto(photo)}
+                    >
+                      <img
+                        src={photo.imageData}
+                        alt={photo.challengeTitle}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">
+                          {iconEmojiMap[photo.categoryIcon] || '📸'}
+                        </span>
+                        <span className="text-xs text-gray-500">{photo.categoryTitle}</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 truncate">
+                        #{photo.challengeNumber} {photo.challengeTitle}
+                      </h3>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(photo.timestamp).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 pr-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleDownload(photo)}
+                        title="Download"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleShare(photo)}
+                        title="Share"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => handleDelete(photo.id)}
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
