@@ -93,21 +93,21 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
 
         // Row 1: Category icon + name
         const categoryIcon = iconEmojiMap[category.icon] || '📸';
-        const fontSize1 = Math.max(28, Math.floor(width * 0.04)); // Responsive but with minimum
+        const fontSize1 = Math.max(36, Math.floor(width * 0.055)); // Responsive but with minimum
         ctx.font = `${fontSize1}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         const row1Y = height + 24;
         ctx.fillText(`${categoryIcon} ${category.title}`, padding, row1Y);
 
         // Row 2: Challenge number + title
-        const fontSize2 = Math.max(32, Math.floor(width * 0.048)); // Responsive but with minimum
+        const fontSize2 = Math.max(42, Math.floor(width * 0.065)); // Responsive but with minimum
         ctx.font = `bold ${fontSize2}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
-        const row2Y = row1Y + fontSize1 + 8;
+        const row2Y = row1Y + fontSize1 + 10;
         ctx.fillText(`#${challenge.number} ${challenge.title}`, padding, row2Y);
 
         // Row 3: Date (right-aligned)
-        const fontSize3 = Math.max(22, Math.floor(width * 0.032)); // Responsive but with minimum
+        const fontSize3 = Math.max(28, Math.floor(width * 0.04)); // Responsive but with minimum
         ctx.font = `${fontSize3}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.textAlign = 'right';
@@ -116,7 +116,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
           day: 'numeric',
           year: 'numeric'
         });
-        ctx.fillText(dateStr, width - padding, row2Y + fontSize2 + 10);
+        ctx.fillText(dateStr, width - padding, row2Y + fontSize2 + 12);
 
         // Export canvas to blob and save to IndexedDB
         canvas.toBlob(async (blob) => {
