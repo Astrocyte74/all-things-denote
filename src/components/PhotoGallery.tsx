@@ -172,9 +172,10 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
 
   return (
     <>
-      {/* Gallery Modal */}
-      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Gallery Modal - hidden when in full-screen mode */}
+      {selectedPhotoIndex === null && (
+        <div className="fixed inset-0 bg-black/80 z-[55] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b gap-2">
             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -294,7 +295,8 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             )}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Full Screen Slideshow Viewer */}
       {selectedPhotoIndex !== null && getSelectedPhoto() && (
@@ -337,24 +339,12 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             <ChevronRight className="w-8 h-8" />
           </button>
 
-          {/* Photo counter overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-white/60 text-sm">
-                Tap to download or share
-              </div>
-              <div className="text-white/80 text-sm font-medium">
-                {selectedPhotoIndex + 1} / {photos.length}
-              </div>
-            </div>
-          </div>
-
           {/* Action buttons */}
-          <div className="absolute bottom-6 right-6 flex gap-2">
+          <div className="absolute bottom-20 right-6 flex gap-2 z-20">
             <Button
               variant="secondary"
               size="icon"
-              className="bg-white/90 hover:bg-white"
+              className="bg-white/90 hover:bg-white shadow-lg"
               onClick={() => getSelectedPhoto() && handleDownload(getSelectedPhoto()!)}
             >
               <Download className="w-5 h-5" />
@@ -362,7 +352,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             <Button
               variant="secondary"
               size="icon"
-              className="bg-white/90 hover:bg-white"
+              className="bg-white/90 hover:bg-white shadow-lg"
               onClick={() => getSelectedPhoto() && handleShare(getSelectedPhoto()!)}
             >
               <ExternalLink className="w-5 h-5" />
@@ -370,22 +360,23 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             <Button
               variant="destructive"
               size="icon"
+              className="shadow-lg"
               onClick={() => getSelectedPhoto() && handleDelete(getSelectedPhoto()!.id)}
             >
               <Trash2 className="w-5 h-5" />
             </Button>
           </div>
 
-          {/* Dot indicators */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2">
-            {photos.map((_, index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full transition-colors ${
-                  index === selectedPhotoIndex ? 'bg-white' : 'bg-white/30'
-                }`}
-              />
-            ))}
+          {/* Photo counter overlay */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pb-8">
+            <div className="flex items-center justify-between">
+              <div className="text-white/60 text-sm">
+                Swipe to navigate
+              </div>
+              <div className="text-white font-bold text-lg">
+                {selectedPhotoIndex + 1} / {photos.length}
+              </div>
+            </div>
           </div>
         </div>
       )}

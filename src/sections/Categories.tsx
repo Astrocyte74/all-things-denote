@@ -331,6 +331,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                       onClick={() => {
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
+                        setDisplayModeChallenge(null); // Exit display mode when opening gallery
                       }}
                       className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
                       title={`View photo ${idx + 1}`}
@@ -347,6 +348,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                       onClick={() => {
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
+                        setDisplayModeChallenge(null); // Exit display mode when opening gallery
                       }}
                       className="w-20 h-20 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 border-2 border-dashed border-gray-300"
                     >
