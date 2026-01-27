@@ -60,6 +60,8 @@ function App() {
 
   const handleStartHunt = () => {
     setAppState('hunt');
+    // Scroll to top when starting the hunt
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleAllCategoriesComplete = () => {
