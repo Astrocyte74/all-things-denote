@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Users, Heart, Map, Smartphone, PersonStanding } from 'lucide-react';
+import { Camera, ChevronDown, ChevronUp, Heart, Map, PersonStanding, Smartphone, Users } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 import qrCode from '/qr.png';
 
@@ -29,20 +29,14 @@ const colorMap: Record<string, string> = {
 
 export function Rules({ isVisible, collapsed = false, onChangePath, currentPathId = 'A' }: RulesProps) {
   const [isAnimated, setIsAnimated] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(!collapsed);
+  const [isExpandedState, setIsExpandedState] = useState(!collapsed);
+  const isExpanded = collapsed ? isExpandedState : true;
 
   useEffect(() => {
     if (isVisible) {
       setTimeout(() => setIsAnimated(true), 100);
     }
   }, [isVisible]);
-
-  // Auto-collapse when collapsed prop changes
-  useEffect(() => {
-    if (collapsed) {
-      setIsExpanded(false);
-    }
-  }, [collapsed]);
 
   // When expanding from collapsed state, trigger animation
   useEffect(() => {
@@ -52,7 +46,7 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
   }, [isExpanded, collapsed]);
 
   const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
+    setIsExpandedState(!isExpanded);
   };
 
   // Collapsed state - just show a small header
@@ -65,7 +59,7 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
             className="inline-flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors text-sm"
           >
             Show Game Rules
-            <span className="text-lg">↓</span>
+            <ChevronDown className="h-4 w-4" />
           </button>
         </div>
       </section>
@@ -85,9 +79,10 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
             {collapsed && (
               <button
                 onClick={toggleExpand}
-                className="text-sm text-blue-600 hover:text-blue-700 underline"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-semibold text-blue-600 hover:bg-blue-50 hover:text-blue-700"
               >
                 Hide
+                <ChevronUp className="h-4 w-4" />
               </button>
             )}
           </div>
@@ -108,9 +103,9 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
               }`}
               style={{ transitionDelay: `${index * 150}ms` }}
             >
-              <div className={`bg-gradient-to-br ${colorMap[rule.id]} rounded-3xl p-8 text-white h-full flex flex-col items-center text-center shadow-lg hover:shadow-xl transition-shadow`}>
+              <div className={`bg-gradient-to-br ${colorMap[rule.id]} rounded-lg p-8 text-white h-full flex flex-col items-center text-center shadow-lg hover:shadow-xl transition-shadow`}>
                 {/* Large Icon */}
-                <div className="mb-6 bg-white/20 backdrop-blur-sm rounded-2xl p-4">
+                <div className="mb-6 bg-white/20 backdrop-blur-sm rounded-lg p-4">
                   {iconMap[rule.icon]}
                 </div>
 
@@ -122,7 +117,7 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
                 {/* Special content for Invite Friends (QR) and Choose Your Path (buttons) */}
                 {rule.id === 'rule-5' ? (
                   <div className="flex-1 flex flex-col items-center justify-center">
-                    <div className="bg-white p-3 rounded-2xl mb-4">
+                    <div className="bg-white p-3 rounded-lg mb-4">
                       <img src={qrCode} alt="Scan to join" className="w-32 h-32" />
                     </div>
                     <p className="text-sm text-white/90 text-center max-w-xs">
@@ -134,8 +129,8 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
                     {/* Current Path Display */}
                     <div className="text-center">
                       <div className="text-white/80 text-sm mb-2">Your Path</div>
-                      <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-8 py-4 inline-block">
-                        <span className="text-white font-black text-5xl font-bold">
+                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-8 py-4 inline-block">
+                        <span className="text-white font-black text-5xl">
                           {currentPathId}
                         </span>
                       </div>
@@ -150,7 +145,7 @@ export function Rules({ isVisible, collapsed = false, onChangePath, currentPathI
                     {/* Change Path Button */}
                     <button
                       onClick={onChangePath}
-                      className="bg-white hover:bg-gray-100 text-green-700 font-bold py-3 px-6 rounded-xl transition-colors shadow-lg hover:shadow-xl"
+                      className="bg-white hover:bg-gray-100 text-green-700 font-bold py-3 px-6 rounded-lg transition-colors shadow-lg hover:shadow-xl"
                     >
                       Change Path
                     </button>

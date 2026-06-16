@@ -92,7 +92,7 @@ function App() {
           <div className="py-8 bg-gray-50 text-center">
             <button
               onClick={handleStartHunt}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Start the Hunt with Path {selectedPathId}!
             </button>

@@ -207,7 +207,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
 
     // Reset file input so same file can be selected again
     event.target.value = '';
-  }, [challenge, category, onCaptureComplete, onPhotoSaved]);
+  }, [challenge, category, onCaptureComplete, onPhotoSaved, pathId]);
 
   const triggerCapture = () => {
     fileInputRef.current?.click();

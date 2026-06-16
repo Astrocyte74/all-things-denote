@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, ShoppingCart, Smile, Lightbulb, Share2 } from 'lucide-react';
+import { ArrowRight, Camera, Lightbulb, Share2, ShoppingCart, Smile, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ShareModal } from '@/components/ShareModal';
 
@@ -31,19 +31,20 @@ export function Header({ onStart }: HeaderProps) {
   return (
     <section
       ref={containerRef}
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-[92vh] flex items-center justify-center overflow-hidden"
       style={{ perspective: '1000px' }}
     >
       {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-yellow-50 animate-gradient-pulse" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_46%,#fef9c3_100%)] animate-gradient-pulse" />
       
       {/* Floating decorative elements */}
 
       {/* Share Button - Top Right */}
       <button
         onClick={() => setShareModalOpen(true)}
-        className="absolute top-4 right-4 md:top-8 md:right-8 bg-white hover:bg-gray-50 text-indigo-600 p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-20"
+        className="absolute top-4 right-4 md:top-8 md:right-8 bg-white hover:bg-gray-50 text-indigo-600 p-3 rounded-lg shadow-lg hover:shadow-xl transition-all z-20"
         title="Share this scavenger hunt"
+        aria-label="Share this scavenger hunt"
       >
         <Share2 className="w-6 h-6" />
       </button>
@@ -96,7 +97,7 @@ export function Header({ onStart }: HeaderProps) {
       </div>
 
       {/* Main content */}
-      <div 
+      <div
         className="relative z-10 text-center px-4 md:px-8 max-w-4xl mx-auto"
         style={{
           transform: `rotateX(${mousePos.y * 5}deg) rotateY(${mousePos.x * 5}deg)`,
@@ -109,9 +110,9 @@ export function Header({ onStart }: HeaderProps) {
           <br />
           <span className="text-blue-600">Scavenger Hunt</span>
         </h1>
-        
-        <p className="text-lg md:text-xl text-gray-600 mb-6 animate-fade-in-up animation-delay-200">
-          Finding Gospel Truths in Everyday Things
+
+        <p className="text-lg md:text-xl text-gray-700 mb-5 animate-fade-in-up animation-delay-200">
+          A phone-friendly LDS youth activity for teams exploring gospel truths in everyday things.
         </p>
 
         <blockquote className="max-w-2xl mx-auto mb-8 animate-fade-in-up animation-delay-300">
@@ -120,14 +121,30 @@ export function Header({ onStart }: HeaderProps) {
           </p>
           <cite className="text-sm text-gray-400 not-italic mt-2 block">— Alma 30:44</cite>
         </blockquote>
-        
+
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-xl mx-auto mb-8 animate-fade-in-up animation-delay-400">
+          <div className="bg-white/90 border border-blue-100 rounded-lg px-3 py-3 shadow-sm">
+            <Camera className="w-5 h-5 mx-auto mb-1 text-blue-600" />
+            <div className="text-sm font-semibold text-gray-900">15 photos</div>
+          </div>
+          <div className="bg-white/90 border border-blue-100 rounded-lg px-3 py-3 shadow-sm">
+            <Users className="w-5 h-5 mx-auto mb-1 text-emerald-600" />
+            <div className="text-sm font-semibold text-gray-900">6 paths</div>
+          </div>
+          <div className="bg-white/90 border border-blue-100 rounded-lg px-3 py-3 shadow-sm">
+            <ShoppingCart className="w-5 h-5 mx-auto mb-1 text-amber-600" />
+            <div className="text-sm font-semibold text-gray-900">Store ready</div>
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up animation-delay-400">
-          <Button 
+          <Button
             onClick={onStart}
             size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
           >
-            Start the Hunt!
+            Start the Hunt
+            <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </div>
       </div>

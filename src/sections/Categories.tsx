@@ -19,6 +19,44 @@ const iconMap: Record<string, LucideIcon> = {
   Globe
 };
 
+const categoryThemeMap: Record<string, {
+  gradient: string;
+  analogyBox: string;
+  analogyLabel: string;
+  analogyText: string;
+}> = {
+  faith: {
+    gradient: 'from-blue-500 to-cyan-400',
+    analogyBox: 'bg-blue-50 border-blue-100',
+    analogyLabel: 'text-blue-800',
+    analogyText: 'text-blue-700'
+  },
+  choices: {
+    gradient: 'from-purple-500 to-pink-400',
+    analogyBox: 'bg-purple-50 border-purple-100',
+    analogyLabel: 'text-purple-800',
+    analogyText: 'text-purple-700'
+  },
+  service: {
+    gradient: 'from-red-500 to-orange-400',
+    analogyBox: 'bg-red-50 border-red-100',
+    analogyLabel: 'text-red-800',
+    analogyText: 'text-red-700'
+  },
+  scriptures: {
+    gradient: 'from-green-500 to-emerald-400',
+    analogyBox: 'bg-green-50 border-green-100',
+    analogyLabel: 'text-green-800',
+    analogyText: 'text-green-700'
+  },
+  community: {
+    gradient: 'from-yellow-500 to-amber-400',
+    analogyBox: 'bg-yellow-50 border-yellow-100',
+    analogyLabel: 'text-yellow-900',
+    analogyText: 'text-yellow-800'
+  }
+};
+
 interface CategoriesProps {
   isVisible: boolean;
   selectedPathId: string;
@@ -31,7 +69,10 @@ interface CategoriesProps {
 }
 
 export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange }: CategoriesProps) {
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedCategoryState, setExpandedCategoryState] = useState<{
+    pathId: string;
+    categoryId: string | null | undefined;
+  }>({ pathId: selectedPathId, categoryId: undefined });
   const [completedChallenges, setCompletedChallenges, clearCompletedChallenges] = usePersistedState<Set<string>>('completedChallenges', new Set());
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
@@ -145,8 +186,25 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     }
   }, [completedChallenges, orderedCategoryData, onAllComplete]);
 
+  const defaultExpandedCategory = useMemo(() => {
+    if (!isVisible || orderedCategoryData.length === 0) return null;
+
+    const firstIncompleteCategory = orderedCategoryData.find(category =>
+      category.challenges.some(challenge => !completedChallenges.has(challenge.id))
+    );
+
+    return firstIncompleteCategory?.id ?? orderedCategoryData[0]?.id ?? null;
+  }, [completedChallenges, isVisible, orderedCategoryData]);
+
+  const effectiveExpandedCategory = expandedCategoryState.pathId === selectedPathId
+    ? (expandedCategoryState.categoryId === undefined ? defaultExpandedCategory : expandedCategoryState.categoryId)
+    : defaultExpandedCategory;
+
   const toggleCategory = (id: string) => {
-    setExpandedCategory(expandedCategory === id ? null : id);
+    setExpandedCategoryState({
+      pathId: selectedPathId,
+      categoryId: effectiveExpandedCategory === id ? null : id
+    });
   };
 
   const toggleChallenge = (challengeId: string) => {
@@ -224,6 +282,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     return bonusUnlocked || showAnalogiesEarly;
   };
 
+  const allOrderedChallenges = orderedCategoryData.flatMap(category => category.challenges);
+  const nextChallenge = allOrderedChallenges.find(challenge => !completedChallenges.has(challenge.id));
+
   // Display mode component
   if (displayModeChallenge) {
     const { category, challengeIndex, allChallenges, flatIndex } = displayModeChallenge;
@@ -231,37 +292,35 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const isCompleted = completedChallenges.has(challenge.id);
     const showAnalogies = shouldShowAnalogies();
 
-    // Get gradient colors for this category
-    const colorMap: Record<string, { from: string; to: string }> = {
-      'faith': { from: 'from-blue-500', to: 'to-cyan-400' },
-      'choices': { from: 'from-purple-500', to: 'to-pink-400' },
-      'service': { from: 'from-red-500', to: 'to-orange-400' },
-      'scriptures': { from: 'from-green-500', to: 'to-emerald-400' },
-      'community': { from: 'from-yellow-500', to: 'to-amber-400' }
+    const theme = categoryThemeMap[category.id] ?? {
+      gradient: 'from-gray-600 to-gray-800',
+      analogyBox: 'bg-gray-50 border-gray-100',
+      analogyLabel: 'text-gray-800',
+      analogyText: 'text-gray-700'
     };
-    const colors = colorMap[category.id] || { from: 'from-gray-600', to: 'to-gray-800' };
 
     return (
       <>
       <div
         ref={swipeRef}
-        className={`fixed inset-0 bg-gradient-to-br ${colors.from} ${colors.to} z-50 flex flex-col`}
+        className={`fixed inset-0 bg-gradient-to-br ${theme.gradient} z-50 flex flex-col`}
       >
         {/* Floating Exit Button */}
         <button
           onClick={exitDisplayMode}
-          className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/30 text-white p-3 rounded-full transition-colors"
+          className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/30 text-white p-3 rounded-lg transition-colors"
           title="Exit Display Mode"
+          aria-label="Exit display mode"
         >
           <X className="w-6 h-6" />
         </button>
 
         {/* Single Challenge Display */}
         <div className="flex-1 p-4 flex items-center justify-center overflow-y-auto">
-          <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-2xl w-full mx-4 my-4">
+          <div className="bg-white rounded-lg p-6 md:p-8 shadow-2xl max-w-2xl w-full mx-4 my-4">
             {/* EXTRA LARGE Challenge Number */}
             <div className="text-center mb-8">
-              <div className="inline-block bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 font-black px-8 py-6 rounded-3xl mb-6 shadow-lg">
+              <div className="inline-block bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 font-black px-8 py-6 rounded-lg mb-6 shadow-lg">
                 <span className="text-7xl md:text-8xl">#{challenge.number}</span>
               </div>
               <h3 className="text-3xl font-bold text-gray-900 mb-4">
@@ -271,7 +330,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               {/* Completion Toggle Button */}
               <button
                 onClick={() => toggleChallenge(challenge.id)}
-                className={`inline-flex items-center gap-3 px-6 py-3 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 ${
+                className={`inline-flex items-center gap-3 px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 ${
                   isCompleted
                     ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg'
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 border-2 border-gray-200'
@@ -292,26 +351,26 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             </div>
 
             {showAnalogies ? (
-              <div className={`rounded-2xl p-6`} style={{ backgroundColor: colors.from.replace('from-', '').replace('500', '100').replace('600', '100') }}>
-                <p className="text-lg font-medium mb-2" style={{ color: colors.from.replace('from-', '').replace('500', '800').replace('600', '800') }}>
-                  💡 Gospel Connection:
+              <div className={`rounded-lg border p-6 ${theme.analogyBox}`}>
+                <p className={`text-lg font-medium mb-2 ${theme.analogyLabel}`}>
+                  Gospel Connection
                 </p>
-                <p className="text-xl" style={{ color: colors.from.replace('from-', '').replace('500', '700').replace('600', '700') }}>
+                <p className={`text-xl ${theme.analogyText}`}>
                   {challenge.gospelConnection}
                 </p>
                 {challenge.scripture && (
-                  <p className="text-lg mt-3 opacity-80">
+                  <p className={`text-lg mt-3 ${theme.analogyText} opacity-80`}>
                     {challenge.scripture}
                   </p>
                 )}
                 {challenge.photoTarget && (
                   <div className="mt-4 pt-4 border-t border-current/20">
-                    <p className="text-base opacity-70">💭 Photo hint: {challenge.photoTarget}</p>
+                    <p className={`text-base ${theme.analogyText} opacity-80`}>Photo hint: {challenge.photoTarget}</p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-gray-100 rounded-2xl p-6 text-center">
+              <div className="bg-gray-100 rounded-lg p-6 text-center">
                 <p className="text-gray-500 italic text-2xl">
                   Think about the gospel connection...
                 </p>
@@ -333,7 +392,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                         setGalleryOpen(true);
                         setDisplayModeChallenge(null); // Exit display mode when opening gallery
                       }}
-                      className="w-20 h-20 rounded-xl overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
+                      className="w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
                       title={`View photo ${idx + 1}`}
                     >
                       <img
@@ -350,7 +409,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                         setGalleryOpen(true);
                         setDisplayModeChallenge(null); // Exit display mode when opening gallery
                       }}
-                      className="w-20 h-20 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 border-2 border-dashed border-gray-300"
+                      className="w-20 h-20 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 border-2 border-dashed border-gray-300"
                     >
                       +{(challengePhotos[challenge.id] ?? []).length - 4}
                     </button>
@@ -386,7 +445,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             <button
               onClick={() => navigateDisplayMode('prev')}
               disabled={flatIndex === 0}
-              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-xl transition-colors"
+              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-lg transition-colors"
+              aria-label="Previous challenge"
             >
               <ChevronLeft className="w-8 h-8" />
             </button>
@@ -402,7 +462,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             <button
               onClick={() => navigateDisplayMode('next')}
               disabled={flatIndex === allChallenges.length - 1}
-              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-xl transition-colors"
+              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-lg transition-colors"
+              aria-label="Next challenge"
             >
               <ChevronRight className="w-8 h-8" />
             </button>
@@ -426,15 +487,15 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   return (
     <>
-    <section className="pt-24 pb-16 md:pt-32 md:pb-24 bg-gradient-to-b from-gray-50 to-white relative">
+    <section className="pt-24 pb-16 md:pt-28 md:pb-20 bg-gradient-to-b from-gray-50 to-white relative">
       <div className="max-w-6xl mx-auto px-4 md:px-8">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            The Hunt Begins!
+            Hunt Checklist
           </h2>
           <p className="text-gray-600 text-lg mb-6">
-            Complete all 15 challenges with your group
+            Work down your path, take photos, and mark each challenge complete.
           </p>
 
           {/* Progress Bar with Triple Tap (shows instruction when bonus unlocked) */}
@@ -447,6 +508,30 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           />
         </div>
 
+        {nextChallenge && (
+          <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-left">
+                <div className="text-xs font-bold uppercase tracking-wide text-blue-700">Next up</div>
+                <div className="text-lg font-bold text-gray-900">#{nextChallenge.number} {nextChallenge.title}</div>
+                <div className="text-sm text-gray-600">{nextChallenge.photoTarget}</div>
+              </div>
+              <button
+                onClick={() => {
+                  const category = orderedCategoryData.find(item => item.challenges.some(challenge => challenge.id === nextChallenge.id));
+                  if (category) {
+                    setExpandedCategoryState({ pathId: selectedPathId, categoryId: category.id });
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              >
+                Show Task
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Reset Button */}
         <div className="text-center mb-8">
           <button
@@ -458,7 +543,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           </button>
           {showResetConfirm && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full">
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Reset Progress?</h3>
                 <p className="text-gray-600 mb-4">This will clear all completed challenges. Are you sure?</p>
                 <div className="flex gap-3">
@@ -483,7 +568,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         <div className="grid md:grid-cols-2 gap-6">
           {orderedCategoryData.map((category, index) => {
             const progress = { completed: category.challenges.filter(c => completedChallenges.has(c.id)).length, total: category.challenges.length };
-            const isExpanded = expandedCategory === category.id;
+            const isExpanded = effectiveExpandedCategory === category.id;
 
             return (
               <div
@@ -499,7 +584,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                 }}
               >
                 <div
-                  className={`bg-white rounded-3xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl ${
+                  className={`bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl ${
                     isExpanded ? 'ring-2 ring-blue-200' : ''
                   }`}
                   style={{
@@ -508,9 +593,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                   }}
                 >
                   {/* Category Header */}
-                  <div
-                    className={`bg-gradient-to-r ${category.color} p-6 cursor-pointer`}
+                  <button
+                    type="button"
+                    className={`w-full bg-gradient-to-r ${category.color} p-5 text-left`}
                     onClick={() => toggleCategory(category.id)}
+                    aria-expanded={isExpanded}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -541,7 +628,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                         style={{ width: `${(progress.completed / progress.total) * 100}%` }}
                       />
                     </div>
-                  </div>
+                  </button>
 
                   {/* Challenges - Expandable */}
                   <div className={`overflow-hidden transition-all duration-500 ${
@@ -562,15 +649,16 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                             }`}
                             style={{ transitionDelay: `${challengeIndex * 50}ms` }}
                           >
-                            <div className={`border rounded-2xl p-4 transition-all duration-300 ${
+                            <div className={`border rounded-lg p-4 transition-all duration-300 ${
                               isCompleted
                                 ? 'bg-green-50 border-green-200'
                                 : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
                             }`}>
-                              <div className="flex items-start gap-4">
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                 {/* Checkbox */}
                                 <button
                                   onClick={() => toggleChallenge(challenge.id)}
+                                  aria-label={isCompleted ? `Mark ${challenge.title} incomplete` : `Mark ${challenge.title} complete`}
                                   className={`flex-shrink-0 w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                                     isCompleted
                                       ? 'bg-green-500 border-green-500'
@@ -582,7 +670,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                   )}
                                 </button>
 
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2 flex-wrap">
                                     <span className="bg-blue-100 text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
                                       #{challenge.number}
@@ -618,7 +706,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                           </div>
                                         )}
                                         <div className="flex items-start gap-2 text-sm text-gray-700 font-medium bg-blue-50 p-2 rounded-lg">
-                                          <span className="text-blue-500 flex-shrink-0">👉</span>
+                                          <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
                                           <span>{challenge.gospelConnection}</span>
                                         </div>
                                         {challenge.scripture && (
@@ -629,7 +717,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                       </>
                                     ) : (
                                       <div className="flex items-start gap-2 text-sm text-gray-400 italic">
-                                        <span className="flex-shrink-0">💭</span>
+                                        <EyeOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
                                         <span>Think about the gospel connection...</span>
                                       </div>
                                     )}
@@ -671,12 +759,13 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-2 self-end sm:self-start">
                                   {/* Display Mode Button */}
                                   <button
                                     onClick={() => enterDisplayMode(category, challengeIndex)}
                                     className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
                                     title="Display Mode"
+                                    aria-label={`Open ${challenge.title} in display mode`}
                                   >
                                     <Maximize2 className="w-5 h-5" />
                                   </button>
