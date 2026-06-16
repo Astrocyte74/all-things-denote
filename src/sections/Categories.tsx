@@ -20,37 +20,31 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const categoryThemeMap: Record<string, {
-  gradient: string;
   analogyBox: string;
   analogyLabel: string;
   analogyText: string;
 }> = {
   faith: {
-    gradient: 'from-blue-500 to-cyan-400',
     analogyBox: 'bg-blue-50 border-blue-100',
     analogyLabel: 'text-blue-800',
     analogyText: 'text-blue-700'
   },
   choices: {
-    gradient: 'from-purple-500 to-pink-400',
     analogyBox: 'bg-purple-50 border-purple-100',
     analogyLabel: 'text-purple-800',
     analogyText: 'text-purple-700'
   },
   service: {
-    gradient: 'from-red-500 to-orange-400',
     analogyBox: 'bg-red-50 border-red-100',
     analogyLabel: 'text-red-800',
     analogyText: 'text-red-700'
   },
   scriptures: {
-    gradient: 'from-green-500 to-emerald-400',
     analogyBox: 'bg-green-50 border-green-100',
     analogyLabel: 'text-green-800',
     analogyText: 'text-green-700'
   },
   community: {
-    gradient: 'from-yellow-500 to-amber-400',
     analogyBox: 'bg-yellow-50 border-yellow-100',
     analogyLabel: 'text-yellow-900',
     analogyText: 'text-yellow-800'
@@ -293,7 +287,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const showAnalogies = shouldShowAnalogies();
 
     const theme = categoryThemeMap[category.id] ?? {
-      gradient: 'from-gray-600 to-gray-800',
       analogyBox: 'bg-gray-50 border-gray-100',
       analogyLabel: 'text-gray-800',
       analogyText: 'text-gray-700'
@@ -303,7 +296,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       <>
       <div
         ref={swipeRef}
-        className={`fixed inset-0 bg-gradient-to-br ${theme.gradient} z-50 flex flex-col`}
+        className={`fixed inset-0 bg-gradient-to-br ${category.color} z-50 flex flex-col`}
       >
         {/* Floating Exit Button */}
         <button

@@ -34,7 +34,7 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, photoCou
           className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-700 sm:px-4"
         >
           <Camera className="h-4 w-4" />
-          <span className="hidden xs:inline sm:inline">Gallery</span>
+          <span className="hidden sm:inline">Gallery</span>
           {photoCount > 0 && (
             <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
               {photoCount}
