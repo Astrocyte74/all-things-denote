@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, RotateCcw, X, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, type LucideIcon } from 'lucide-react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, type LucideIcon } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
@@ -211,6 +211,12 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     setCompletedChallenges(newCompleted);
   };
 
+  // Idempotent completion used for photo capture: taking another photo on an
+  // already-complete task must never mark it incomplete.
+  const markChallengeComplete = useCallback((challengeId: string) => {
+    setCompletedChallenges(prev => prev.has(challengeId) ? prev : new Set(prev).add(challengeId));
+  }, [setCompletedChallenges]);
+
   const handleResetProgress = () => {
     clearCompletedChallenges();
     if (showAnalogiesEarly) {
@@ -236,6 +242,31 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const exitDisplayMode = () => {
     setDisplayModeChallenge(null);
   };
+
+  // Open the carousel on the first incomplete challenge (used by the auto-open
+  // effect, the Overview "Resume Hunt" button, and the "Next up" card).
+  const openNextIncomplete = useCallback(() => {
+    const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
+    const firstIncomplete = allChallenges.find(c => !completedChallenges.has(c.id));
+    if (!firstIncomplete) return;
+    const category = orderedCategoryData.find(cat => cat.challenges.some(c => c.id === firstIncomplete.id));
+    if (!category) return;
+    const challengeIndex = category.challenges.findIndex(c => c.id === firstIncomplete.id);
+    const flatIndex = allChallenges.indexOf(firstIncomplete);
+    setDisplayModeChallenge({ category, challengeIndex, allChallenges, flatIndex });
+  }, [orderedCategoryData, completedChallenges]);
+
+  // Auto-open the carousel once per path when the hunt starts (or the path changes).
+  // useLayoutEffect sets it before first paint so the busy checklist never flashes.
+  // The ref guard (keyed by selectedPathId) ensures exiting to Overview never reopens it.
+  const autoOpenedForPath = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!isVisible) return;
+    if (autoOpenedForPath.current === selectedPathId) return;
+    autoOpenedForPath.current = selectedPathId;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-time open on hunt start / path change
+    openNextIncomplete();
+  }, [isVisible, selectedPathId, openNextIncomplete]);
 
   const navigateDisplayMode = (direction: 'prev' | 'next') => {
     if (!displayModeChallenge) return;
@@ -285,6 +316,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const challenge = category.challenges[challengeIndex];
     const isCompleted = completedChallenges.has(challenge.id);
     const showAnalogies = shouldShowAnalogies();
+    const isLastChallenge = flatIndex >= allChallenges.length - 1;
+    const totalPhotos = Object.values(challengePhotoCounts).reduce((sum, n) => sum + n, 0);
 
     const theme = categoryThemeMap[category.id] ?? {
       analogyBox: 'bg-gray-50 border-gray-100',
@@ -298,14 +331,33 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         ref={swipeRef}
         className={`fixed inset-0 bg-gradient-to-br ${category.color} z-50 flex flex-col`}
       >
-        {/* Floating Exit Button */}
+        {/* Progress strip */}
+        <div className="h-1.5 w-full flex-shrink-0 bg-black/20">
+          <div
+            className="h-full bg-white/90 transition-all duration-500"
+            style={{ width: `${totalProgress.total > 0 ? (totalProgress.completed / totalProgress.total) * 100 : 0}%` }}
+          />
+        </div>
+
+        {/* Top toolbar: Gallery (left) + Overview (right) */}
+        <button
+          onClick={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
+          className="absolute top-5 left-4 z-10 inline-flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-white transition-colors hover:bg-black/30"
+          aria-label="Open photo gallery"
+        >
+          <Camera className="w-5 h-5" />
+          <span className="hidden text-sm font-medium sm:inline">Gallery</span>
+          {totalPhotos > 0 && (
+            <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-xs">{totalPhotos}</span>
+          )}
+        </button>
         <button
           onClick={exitDisplayMode}
-          className="absolute top-4 right-4 z-10 bg-black/20 hover:bg-black/30 text-white p-3 rounded-lg transition-colors"
-          title="Exit Display Mode"
-          aria-label="Exit display mode"
+          className="absolute top-5 right-4 z-10 inline-flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-white transition-colors hover:bg-black/30"
+          aria-label="Back to all tasks overview"
         >
-          <X className="w-6 h-6" />
+          <LayoutGrid className="w-5 h-5" />
+          <span className="hidden text-sm font-medium sm:inline">Overview</span>
         </button>
 
         {/* Single Challenge Display */}
@@ -341,6 +393,17 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                   </>
                 )}
               </button>
+
+              {/* Next Challenge CTA — appears once this task is done */}
+              {isCompleted && (
+                <button
+                  onClick={() => isLastChallenge ? exitDisplayMode() : navigateDisplayMode('next')}
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-colors hover:bg-blue-700"
+                >
+                  {isLastChallenge ? 'See Overview' : 'Next Challenge'}
+                  {isLastChallenge ? <LayoutGrid className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                </button>
+              )}
             </div>
 
             {showAnalogies ? (
@@ -383,7 +446,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                       onClick={() => {
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
-                        setDisplayModeChallenge(null); // Exit display mode when opening gallery
                       }}
                       className="w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
                       title={`View photo ${idx + 1}`}
@@ -400,7 +462,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                       onClick={() => {
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
-                        setDisplayModeChallenge(null); // Exit display mode when opening gallery
                       }}
                       className="w-20 h-20 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 border-2 border-dashed border-gray-300"
                     >
@@ -429,7 +490,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           <div className="flex items-center justify-between mb-3 text-white text-sm">
             <span className="font-medium">{category.title}</span>
             <span className="text-white/80">
-              Challenge {flatIndex + 1} of {allChallenges.length} • Path {selectedPathId}
+              Challenge {flatIndex + 1} of {allChallenges.length} · {totalProgress.completed}/{totalProgress.total} done · Path {selectedPathId}
             </span>
           </div>
 
@@ -447,7 +508,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             <PhotoCapture pathId={selectedPathId}
               challenge={challenge}
               category={category}
-              onCaptureComplete={toggleChallenge}
+              onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved}
               variant="display"
             />
@@ -510,16 +571,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                 <div className="text-sm text-gray-600">{nextChallenge.photoTarget}</div>
               </div>
               <button
-                onClick={() => {
-                  const category = orderedCategoryData.find(item => item.challenges.some(challenge => challenge.id === nextChallenge.id));
-                  if (category) {
-                    setExpandedCategoryState({ pathId: selectedPathId, categoryId: category.id });
-                  }
-                }}
+                onClick={openNextIncomplete}
                 className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
               >
-                Show Task
-                <ChevronDown className="ml-2 h-4 w-4" />
+                Resume Hunt
+                <ChevronRight className="ml-2 h-4 w-4" />
               </button>
             </div>
           </div>
@@ -767,7 +823,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                   <PhotoCapture pathId={selectedPathId}
                                     challenge={challenge}
                                     category={category}
-                                    onCaptureComplete={toggleChallenge}
+                                    onCaptureComplete={markChallengeComplete}
                                     onPhotoSaved={handlePhotoSaved}
                                   />
                                 </div>
