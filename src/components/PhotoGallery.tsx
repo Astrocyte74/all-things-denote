@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Download, Trash2, Image as ImageIcon, ExternalLink, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAllPhotos, deletePhoto, getPhotoCount, type StoredPhoto } from '@/lib/photoStorage';
@@ -29,7 +29,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     threshold: 50
   });
 
-  const loadPhotos = async () => {
+  const loadPhotos = useCallback(async () => {
     setLoading(true);
     try {
       // Get all photos first (for filter options
@@ -56,14 +56,14 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentFilter, sortBy, onPhotoCountChange]);
 
   // Load photos when gallery opens, filter changes, or sort changes
   useEffect(() => {
     if (isOpen) {
       loadPhotos();
     }
-  }, [isOpen, currentFilter, sortBy]);
+  }, [isOpen, loadPhotos]);
 
   // Reset filter and sort when gallery opens to default values
   useEffect(() => {
