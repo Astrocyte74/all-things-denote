@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
 import { Rules } from '@/sections/Rules';
-import { Categories } from '@/sections/Categories';
+import { Categories, type CategoriesHandle } from '@/sections/Categories';
 import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
 import { StickyHuntHeader } from '@/components/StickyHuntHeader';
@@ -21,6 +21,7 @@ function App() {
   const [photoCount, setPhotoCount] = useState(0);
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
+  const categoriesRef = useRef<CategoriesHandle>(null);
 
   const handleStart = () => {
     // If there's a saved path, go directly to rules
@@ -108,10 +109,12 @@ function App() {
             pathId={selectedPathId}
             onChangePath={handleChangePath}
             onOpenGallery={() => setGalleryOpen(true)}
+            onResume={() => categoriesRef.current?.resume()}
             photoCount={photoCount}
           />
 
           <Categories
+            ref={categoriesRef}
             isVisible={true}
             selectedPathId={selectedPathId}
             pathOrder={selectedPath.order}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, type LucideIcon } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
@@ -62,7 +62,12 @@ interface CategoriesProps {
   onPhotoCountChange: (count: number) => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange }: CategoriesProps) {
+export type CategoriesHandle = {
+  /** Re-open the focus-mode carousel on the next incomplete challenge. */
+  resume: () => void;
+};
+
+export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange }, ref) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
@@ -267,6 +272,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-time open on hunt start / path change
     openNextIncomplete();
   }, [isVisible, selectedPathId, openNextIncomplete]);
+
+  // Let the parent (sticky header "Resume Hunt" button) re-enter focus mode.
+  useImperativeHandle(ref, () => ({ resume: openNextIncomplete }), [openNextIncomplete]);
 
   const navigateDisplayMode = (direction: 'prev' | 'next') => {
     if (!displayModeChallenge) return;
@@ -855,7 +863,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     />
   </>
   );
-}
+});
+
+Categories.displayName = 'Categories';
 
 // Progress Bar Component
 interface ProgressBarProps {
