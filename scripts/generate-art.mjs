@@ -2,10 +2,28 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const env = fs.readFileSync('/Users/markdarby/projects/youth/scavenger/.env', 'utf8');
-const m = env.match(/OPEN_AI_API_KEY\s*=\s*["']?([^\s"']+)/);
-if (!m) { console.error('No OPEN_AI_API_KEY found in .env'); process.exit(1); }
-const KEY = m[1];
+// Candidate .env files; the first key that authenticates wins.
+const ENV_PATHS = [
+  '/Users/markdarby/projects/youth/scavenger/.env',
+  '/Users/markdarby/projects/GLM/.env',
+];
+
+async function findWorkingKey() {
+  for (const p of ENV_PATHS) {
+    if (!fs.existsSync(p)) continue;
+    const m = fs.readFileSync(p, 'utf8').match(/OPEN_AI_API_KEY\s*=\s*["']?([^\s"']+)/);
+    if (!m) continue;
+    const res = await fetch('https://api.openai.com/v1/models', {
+      headers: { 'Authorization': `Bearer ${m[1]}` },
+    });
+    if (res.ok) { console.log(`using OPEN_AI_API_KEY from ${p}`); return m[1]; }
+    console.log(`key in ${p} rejected (HTTP ${res.status}), trying next`);
+  }
+  console.error('No working OPEN_AI_API_KEY found');
+  process.exit(1);
+}
+
+const KEY = await findWorkingKey();
 
 const OUT = '/Users/markdarby/projects/youth/scavenger/app/public/art';
 fs.mkdirSync(OUT, { recursive: true });
