@@ -44,7 +44,7 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
               <li>• Android: Camera app or Google Lens</li>
             </ul>
             <p className="mt-3 font-extrabold">🔗 Or share this link:</p>
-            <p className="break-all font-bold text-sky-edge">https://scavenger2026.onrender.com</p>
+            <p className="break-all font-bold text-sky-edge">https://astrocyte74.github.io/all-things-denote/</p>
           </div>
         </div>
       </div>
