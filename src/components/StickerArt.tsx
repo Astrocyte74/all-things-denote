@@ -35,7 +35,7 @@ export function StickerArt({ name, emoji, alt, className, emojiSize = '3rem' }: 
 
   return (
     <img
-      src={`/art/${name}.png`}
+      src={`${import.meta.env.BASE_URL}art/${name}.png`}
       alt={alt}
       draggable={false}
       decoding="async"

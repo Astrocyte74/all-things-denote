@@ -1,8 +1,8 @@
 const CACHE_NAME = 'scavenger-hunt-v2';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  'index.html',
+  'manifest.json'
 ];
 
 // Install event - cache assets
@@ -10,7 +10,7 @@ self.addEventListener('install', (event) => {
   console.log('[SW] Installing new service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(['/index.html', '/manifest.json']);
+      return cache.addAll(['index.html', 'manifest.json']);
     })
   );
   // Force the waiting service worker to become the active service worker
