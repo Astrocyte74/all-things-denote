@@ -202,12 +202,12 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     <>
       {/* Gallery Modal - hidden when in full-screen mode */}
       {selectedPhotoIndex === null && (
-        <div className="fixed inset-0 bg-black/80 z-[55] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-ink/80 z-[55] flex items-center justify-center p-4">
+          <div className="sticker-card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
-          <div className="p-4 border-b">
+          <div className="p-4 border-b-2 border-ink/10 bg-paper">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold text-gray-900">Photo Gallery ({photos.length})</h2>
+              <h2 className="font-display text-2xl text-ink">📸 Photo Gallery <span className="text-ink/40">({photos.length})</span></h2>
               <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
                 <X className="w-6 h-6" />
               </Button>
@@ -220,7 +220,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                   <select
                     value={currentFilter || 'all'}
                     onChange={(e) => setCurrentFilter(e.target.value === 'all' ? null : e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="px-3 py-2 text-sm font-bold text-ink border-2 border-ink/20 rounded-xl bg-white focus:outline-none focus:border-ink"
                   >
                     <option value="all">All photos</option>
                     {Array.from(
@@ -239,7 +239,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'newest' | 'challenge')}
-                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="px-3 py-2 text-sm font-bold text-ink border-2 border-ink/20 rounded-xl bg-white focus:outline-none focus:border-ink"
                   >
                     <option value="newest">Sort: Newest</option>
                     <option value="challenge">Sort: Challenge #</option>
@@ -253,13 +253,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
           <div className="flex-1 overflow-y-auto p-4">
             {loading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="text-gray-500">Loading photos...</div>
+                <div className="font-bold text-ink/50">Loading photos…</div>
               </div>
             ) : photos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+              <div className="flex flex-col items-center justify-center h-64 text-ink/50">
                 <ImageIcon className="w-16 h-16 mb-4 opacity-50" />
-                <p className="text-lg font-medium">No photos yet</p>
-                <p className="text-sm">Take photos to see them here!</p>
+                <p className="font-display text-xl">No photos yet</p>
+                <p className="text-sm font-semibold">Tap the green camera button to fill this up!</p>
               </div>
             ) : (
               // Large view - bigger single column cards
@@ -267,7 +267,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                 {photos.map((photo, index) => (
                   <div
                     key={photo.id}
-                    className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                    className="rounded-2xl border-2 border-ink bg-cream shadow-sticker-sm overflow-hidden transition-transform hover:-translate-y-0.5"
                   >
                     {/* Photo - larger, taller aspect ratio */}
                     <div
@@ -280,15 +280,15 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                         className="w-full h-full object-cover"
                       />
                       {/* Challenge number badge overlay */}
-                      <div className="absolute top-2 left-2 bg-purple-600 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg">
+                      <div className="absolute top-2 left-2 border-2 border-ink bg-sun text-ink font-display text-sm px-3 py-1 rounded-full shadow-sticker-sm">
                         #{photo.challengeNumber}
                       </div>
                     </div>
 
                     {/* Actions bar */}
-                    <div className="p-4 flex items-center justify-between border-t bg-gray-50">
+                    <div className="p-4 flex items-center justify-between border-t-2 border-ink/10 bg-paper">
                       <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 text-xs font-bold text-ink/50">
                           <Calendar className="w-3 h-3" />
                           {new Date(photo.timestamp).toLocaleDateString('en-US', {
                             month: 'short',
@@ -296,7 +296,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                             year: 'numeric'
                           })}
                         </div>
-                        <div className="text-xs text-purple-600">
+                        <div className="text-xs font-bold text-sky-edge">
                           Tap photo to view full screen
                         </div>
                       </div>
@@ -424,25 +424,25 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
 
       {/* Delete Confirmation Dialog */}
       {photoToDelete && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Photo?</h3>
-            <p className="text-gray-600 mb-2">
+        <div className="fixed inset-0 bg-ink/70 flex items-center justify-center z-[70] p-4">
+          <div className="sticker-card animate-pop-in p-6 max-w-md w-full">
+            <h3 className="font-display text-2xl text-ink mb-2">Delete Photo?</h3>
+            <p className="font-semibold text-ink/70 mb-2">
               This will permanently delete the photo for:
             </p>
-            <p className="text-purple-600 font-semibold mb-6">
+            <p className="text-coral-edge font-extrabold mb-6">
               #{photoToDelete.challengeNumber} {photoToDelete.challengeTitle}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={cancelDelete}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl font-semibold transition-colors"
+                className="btn-3d btn-white flex-1 text-ink px-4 py-3 rounded-full font-extrabold"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors"
+                className="btn-3d btn-coral flex-1 text-white px-4 py-3 rounded-full font-extrabold"
               >
                 Delete
               </button>

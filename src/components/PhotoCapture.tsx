@@ -11,18 +11,20 @@ interface PhotoCaptureProps {
   onPhotoSaved?: () => void; // Callback when photo is saved to gallery
   variant?: 'default' | 'display';
   pathId?: string;
+  /** Draw attention to the button (focus mode, challenge not yet complete) */
+  pulse?: boolean;
 };
 
-// Category color mapping for canvas gradients
+// Category color mapping for canvas photo-frame gradients (Sticker Quest palette)
 const categoryColors: Record<string, { from: string; to: string }> = {
-  'faith': { from: '#3B82F6', to: '#22D3EE' },      // blue-500 to cyan-400
-  'choices': { from: '#A855F7', to: '#F472B6' },    // purple-500 to pink-400
-  'service': { from: '#EF4444', to: '#FB923C' },    // red-500 to orange-400
-  'scriptures': { from: '#22C55E', to: '#34D399' }, // green-500 to emerald-400
-  'community': { from: '#EAB308', to: '#F59E0B' }   // yellow-500 to amber-400
+  'faith': { from: '#FFB020', to: '#D98F00' },
+  'choices': { from: '#7A6CF0', to: '#5A4BD8' },
+  'service': { from: '#FF6B6B', to: '#E04848' },
+  'scriptures': { from: '#2FBF71', to: '#22995A' },
+  'community': { from: '#38B6FF', to: '#1E93DB' }
 };
 
-export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, pulse = false }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoCapture = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,15 +228,15 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
       />
       <button
         onClick={triggerCapture}
-        className={`flex-shrink-0 rounded-lg transition-colors ${
+        className={`flex-shrink-0 ${
           variant === 'display'
-            ? 'bg-white hover:bg-gray-100 text-purple-600 p-4 shadow-lg hover:shadow-xl'
-            : 'text-gray-400 hover:text-gray-600 p-2'
+            ? `btn-3d btn-go rounded-full p-5 text-white ${pulse ? 'animate-pulse-ring' : ''}`
+            : 'btn-3d btn-sky rounded-xl p-2 text-white'
         }`}
         title="Take Photo"
         aria-label="Take photo for this challenge"
       >
-        <Camera className={`w-6 h-6 ${variant === 'display' ? 'w-8 h-8' : 'w-5 h-5'}`} />
+        <Camera className={variant === 'display' ? 'h-8 w-8' : 'h-5 w-5'} strokeWidth={2.5} />
       </button>
     </>
   );

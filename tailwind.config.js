@@ -4,7 +4,44 @@ module.exports = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['"Lilita One"', 'system-ui', 'sans-serif'],
+        body: ['Figtree', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        ink: "#2E2459",
+        paper: "#FDF6EC",
+        cream: "#FFFDF7",
+        go: {
+          DEFAULT: "#58CC02",
+          edge: "#43A302",
+          soft: "#E7F8D8",
+        },
+        sun: {
+          DEFAULT: "#FFB020",
+          edge: "#D98F00",
+          soft: "#FFF4D9",
+        },
+        coral: {
+          DEFAULT: "#FF6B6B",
+          edge: "#E04848",
+          soft: "#FFE7E4",
+        },
+        sky: {
+          DEFAULT: "#38B6FF",
+          edge: "#1E93DB",
+          soft: "#E0F3FF",
+        },
+        grape: {
+          DEFAULT: "#7A6CF0",
+          edge: "#5A4BD8",
+          soft: "#ECE9FF",
+        },
+        leaf: {
+          DEFAULT: "#2FBF71",
+          edge: "#22995A",
+          soft: "#DFF6E9",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -38,16 +75,6 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
-        },
       },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",
@@ -55,9 +82,13 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         xs: "calc(var(--radius) - 6px)",
+        blob: "2rem",
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        sticker: "4px 4px 0 0 #2E2459",
+        "sticker-sm": "2px 2px 0 0 #2E2459",
+        "sticker-lg": "6px 6px 0 0 #2E2459",
       },
       keyframes: {
         "accordion-down": {

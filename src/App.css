@@ -1,140 +1,189 @@
-/* Global Animations */
-@keyframes float-slow {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
+/* ============================================
+   Sticker Quest — motion & texture system
+   ============================================ */
+
+/* Warm paper with faint ink dot-grid texture */
+.paper-dots {
+  background-color: #fdf6ec;
+  background-image: radial-gradient(rgba(46, 36, 89, 0.07) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
 }
 
-@keyframes float-medium {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-15px);
-  }
+/* ---------- Sticker cards ---------- */
+.sticker-card {
+  background: #fffdf7;
+  border: 2px solid #2e2459;
+  border-radius: 1.5rem;
+  box-shadow: 4px 4px 0 0 #2e2459;
 }
 
-@keyframes float-fast {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+/* ---------- Chunky pressable 3D buttons ----------
+   Set --btn-bg and --btn-edge inline (or via utility classes). */
+.btn-3d {
+  --btn-bg: #58cc02;
+  --btn-edge: #43a302;
+  background: var(--btn-bg);
+  border: 2px solid #2e2459;
+  box-shadow: 0 5px 0 0 var(--btn-edge), 0 5px 0 2px #2e2459;
+  transform: translateY(0);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+  will-change: transform;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-3d:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.btn-3d:active:not(:disabled),
+.btn-3d[data-pressed="true"] {
+  transform: translateY(5px);
+  box-shadow: 0 0 0 0 var(--btn-edge), 0 0 0 2px #2e2459;
+}
+.btn-3d:disabled {
+  filter: saturate(0.15) brightness(1.1);
+  cursor: not-allowed;
 }
 
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
+.btn-go     { --btn-bg: #58cc02; --btn-edge: #43a302; }
+.btn-sun    { --btn-bg: #ffb020; --btn-edge: #d98f00; }
+.btn-coral  { --btn-bg: #ff6b6b; --btn-edge: #e04848; }
+.btn-sky    { --btn-bg: #38b6ff; --btn-edge: #1e93db; }
+.btn-grape  { --btn-bg: #7a6cf0; --btn-edge: #5a4bd8; }
+.btn-leaf   { --btn-bg: #2fbf71; --btn-edge: #22995a; }
+.btn-white  { --btn-bg: #fffdf7; --btn-edge: #d9cdbc; }
+
+/* ---------- Sticker display text ---------- */
+.text-sticker-sun {
+  color: #ffb020;
+  -webkit-text-stroke: 2px #2e2459;
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 #2e2459;
+}
+.text-sticker-white {
+  color: #fffdf7;
+  -webkit-text-stroke: 2px #2e2459;
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 #2e2459;
+}
+
+/* ---------- Entrance animations ---------- */
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.5) rotate(-4deg); }
+  70%  { opacity: 1; transform: scale(1.06) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.animate-pop-in {
+  animation: pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-rise-in {
+  animation: rise-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes stamp-in {
+  0%   { opacity: 0; transform: scale(2.4) rotate(12deg); }
+  60%  { opacity: 1; transform: scale(0.9) rotate(-6deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-4deg); }
+}
+.animate-stamp-in {
+  animation: stamp-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ---------- Ambient loops ---------- */
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(var(--bob-tilt, 0deg)); }
+  50%      { transform: translateY(-12px) rotate(var(--bob-tilt, 0deg)); }
+}
+.animate-bob        { animation: bob 3.4s ease-in-out infinite; }
+.animate-bob-slow   { animation: bob 5s ease-in-out infinite; }
+.animate-bob-slower { animation: bob 6.5s ease-in-out infinite; }
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg); }
+}
+.animate-wiggle { animation: wiggle 1.6s ease-in-out infinite; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.5); }
+  100% { box-shadow: 0 0 0 16px rgba(88, 204, 2, 0); }
+}
+.animate-pulse-ring { animation: pulse-ring 1.6s ease-out infinite; }
+
+/* Candy-stripe progress fill */
+.progress-stripes {
+  background-image: linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.28) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.28) 75%,
+    transparent 75%
+  );
+  background-size: 22px 22px;
+  animation: stripes-move 1.2s linear infinite;
+}
+@keyframes stripes-move {
+  from { background-position: 0 0; }
+  to   { background-position: 22px 0; }
+}
+
+/* ---------- Confetti burst ---------- */
+@keyframes confetti-fall {
+  0% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate(var(--cf-x, 0px), var(--cf-y, 140px))
+      rotate(var(--cf-r, 360deg)) scale(0.6);
   }
 }
-
-@keyframes gradient-pulse {
-  0%, 100% {
-    filter: hue-rotate(0deg);
-  }
-  50% {
-    filter: hue-rotate(10deg);
-  }
+.confetti-piece {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: confetti-fall 0.95s cubic-bezier(0.15, 0.7, 0.4, 1) both;
 }
 
-@keyframes wave {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  25% {
-    transform: translateY(-5px);
-  }
-  75% {
-    transform: translateY(5px);
-  }
-}
-
-.animate-float-slow {
-  animation: float-slow 6s ease-in-out infinite;
-}
-
-.animate-float-medium {
-  animation: float-medium 4s ease-in-out infinite;
-}
-
-.animate-float-fast {
-  animation: float-fast 3s ease-in-out infinite;
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.8s ease-out forwards;
-}
-
-.animate-gradient-pulse {
-  animation: gradient-pulse 20s ease-in-out infinite;
-}
-
-.animate-wave {
-  animation: wave 2s ease-in-out infinite;
-}
-
-.animation-delay-200 {
-  animation-delay: 200ms;
-}
-
-.animation-delay-300 {
-  animation-delay: 300ms;
-}
-
-.animation-delay-400 {
-  animation-delay: 400ms;
-}
-
-.animation-delay-600 {
-  animation-delay: 600ms;
-}
-
-/* Backface hidden for 3D transforms */
+/* ---------- Misc ---------- */
 .backface-hidden {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f6ecdc; }
+::-webkit-scrollbar-thumb { background: #d9cdbc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #c4b49d; }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
-}
-
-/* Focus styles for accessibility */
 button:focus-visible,
-a:focus-visible {
-  outline: 2px solid #3b82f6;
+a:focus-visible,
+select:focus-visible {
+  outline: 3px solid #ffb020;
   outline-offset: 2px;
 }
 
-/* Reduced motion preference */
+/* Safe-area padding for standalone/notched phones */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

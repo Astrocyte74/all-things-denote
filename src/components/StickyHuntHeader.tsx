@@ -10,41 +10,45 @@ interface StickyHuntHeaderProps {
 
 export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, onResume, photoCount = 0 }: StickyHuntHeaderProps) {
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm safe-top">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2 sm:gap-3">
-        {/* Left: Gallery + Path + Change (Gallery lives on the left to match the focus-mode toolbar) */}
+    <div className="safe-top fixed left-0 right-0 top-0 z-50 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
+        {/* Left: gallery + path */}
         <div className="flex min-w-0 items-center gap-2">
           <button
             onClick={onOpenGallery}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            className="btn-3d btn-white relative inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-extrabold text-ink"
             aria-label={`Open photo gallery${photoCount > 0 ? ` (${photoCount} photos)` : ''}`}
           >
-            <Camera className="h-4 w-4 flex-shrink-0" />
+            <Camera className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
             <span className="hidden sm:inline">Gallery</span>
             {photoCount > 0 && (
-              <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-xs font-bold text-purple-700">{photoCount}</span>
+              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-sun px-1 text-[10px] font-black text-ink">
+                {photoCount}
+              </span>
             )}
           </button>
-          <div className="flex items-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-purple-800">
-            <MapPinned className="h-4 w-4 flex-shrink-0" />
-            <span className="text-sm font-semibold">Path</span>
-            <span className="font-black text-lg leading-none">{pathId}</span>
+
+          <div className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-grape-soft px-2.5 py-1.5 text-ink">
+            <MapPinned className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
+            <span className="hidden text-xs font-extrabold uppercase tracking-wide sm:inline">Path</span>
+            <span className="font-display text-lg leading-none">{pathId}</span>
           </div>
+
           <button
             onClick={onChangePath}
-            className="rounded-lg px-2 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+            className="rounded-xl px-2 py-2 text-sm font-extrabold text-ink/50 transition-colors hover:bg-ink/5 hover:text-ink"
           >
             Change
           </button>
         </div>
 
-        {/* Right: Resume Hunt — the obvious way back into focus mode (mirrors the focus-mode "Overview" button position) */}
+        {/* Right: resume */}
         <button
           onClick={onResume}
-          className="inline-flex flex-shrink-0 items-center gap-2 rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-green-700"
+          className="btn-3d btn-go inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-extrabold text-white sm:px-4"
         >
           <span>Resume Hunt</span>
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-4 w-4" strokeWidth={3} />
         </button>
       </div>
     </div>

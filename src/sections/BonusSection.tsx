@@ -1,127 +1,130 @@
 import { useState, useEffect } from 'react';
-import { Gift, Info } from 'lucide-react';
 import { bonusItems } from '@/data/scavengerData';
+import { bonusArt } from '@/lib/theme';
+import { StickerArt } from '@/components/StickerArt';
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 
 interface BonusSectionProps {
   isVisible: boolean;
   isUnlocked: boolean;
 }
 
+const bonusColors = ['#38B6FF', '#FFFDF7', '#FF6B6B', '#7A6CF0'];
+const bonusSofts = ['#E0F3FF', '#FFFDF7', '#FFE7E4', '#ECE9FF'];
+
 export function BonusSection({ isVisible, isUnlocked }: BonusSectionProps) {
   const [isAnimated, setIsAnimated] = useState(false);
   const [flippedCard, setFlippedCard] = useState<string | null>(null);
+  const [burstKey, setBurstKey] = useState(0);
 
   useEffect(() => {
     if (isVisible && isUnlocked) {
       setTimeout(() => setIsAnimated(true), 300);
+      setTimeout(() => setBurstKey(1), 600);
     }
   }, [isVisible, isUnlocked]);
-
-  const handleCardClick = (id: string) => {
-    setFlippedCard(flippedCard === id ? null : id);
-  };
 
   if (!isUnlocked) return null;
 
   return (
-    <section className="py-16 md:py-24 bg-white relative overflow-hidden">
-      {/* Decorative background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-yellow-50 via-white to-blue-50 opacity-50" />
-      
-      <div className="max-w-6xl mx-auto px-4 md:px-8 relative z-10">
-        <div className="text-center mb-12">
-          {/* Info message about triple tap */}
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 max-w-2xl mx-auto">
-            <div className="flex items-center gap-3">
-              <Info className="w-6 h-6 text-green-600 flex-shrink-0" />
-              <div className="text-left">
-                <p className="text-green-800 font-medium">
-                  💡 Tip: Triple tap the progress bar to reveal all gospel analogies!
-                </p>
-                <p className="text-green-600 text-sm mt-1">
-                  This helps when youth are ready to discuss their insights.
-                </p>
-              </div>
-            </div>
+    <section className="paper-dots relative overflow-hidden border-t-2 border-ink py-16 md:py-24">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 md:px-8">
+        <div className="mb-10 text-center">
+          {/* Celebration header */}
+          <div className="relative mx-auto w-fit">
+            <ConfettiBurst burstKey={burstKey} />
+            <StickerArt
+              name="trophy"
+              emoji="🏆"
+              alt="Trophy"
+              className="animate-pop-in mx-auto h-28 w-28 animate-bob md:h-36 md:w-36"
+              emojiSize="5rem"
+            />
           </div>
-          
-          <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full mb-4">
-            <Gift className="w-5 h-5" />
-            <span className="font-semibold">Bonus Round Unlocked!</span>
+
+          <div className="mt-2">
+            <span className="inline-flex rotate-[-2deg] items-center gap-2 rounded-full border-2 border-ink bg-sun px-4 py-1.5 font-display text-sm tracking-wide text-ink shadow-sticker-sm">
+              🎉 Bonus Round Unlocked!
+            </span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Extra Challenges
+          <h2 className="mt-3 font-display text-4xl text-ink md:text-5xl">
+            You Did <span className="text-sticker-sun">All 15!</span>
           </h2>
-          <p className="text-gray-600 text-lg">
-            Complete these bonus items for extra points!
+          <p className="mt-2 font-semibold text-ink/70">
+            Four more finds for the champions. Tap a card to reveal its meaning.
           </p>
+
+          {/* Analogy tip */}
+          <div className="mx-auto mt-6 max-w-xl rounded-2xl border-2 border-dashed border-ink/30 bg-leaf-soft p-4 text-left">
+            <p className="font-extrabold text-leaf-edge">
+              💡 Leader tip: triple-tap the progress bar to reveal every gospel analogy
+            </p>
+            <p className="mt-0.5 text-sm font-semibold text-ink/60">
+              Perfect for when the group is ready to talk about what they found.
+            </p>
+          </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {bonusItems.map((item, index) => {
             const isFlipped = flippedCard === item.id;
-            
+            const art = bonusArt[item.id];
+
             return (
               <div
                 key={item.id}
                 className={`transform transition-all duration-500 ${
-                  isAnimated 
-                    ? 'translate-y-0 opacity-100' 
-                    : 'translate-y-8 opacity-0'
+                  isAnimated ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
                 }`}
-                style={{ 
-                  transitionDelay: `${index * 100}ms`,
-                  perspective: '1000px'
-                }}
+                style={{ transitionDelay: `${index * 100}ms`, perspective: '1000px' }}
               >
                 <div
-                  className={`relative h-64 cursor-pointer transition-transform duration-700`}
+                  className="relative h-64 cursor-pointer transition-transform duration-700"
                   style={{
                     transformStyle: 'preserve-3d',
                     transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
                   }}
-                  onClick={() => handleCardClick(item.id)}
+                  onClick={() => setFlippedCard(isFlipped ? null : item.id)}
                 >
-                  {/* Front of card */}
-                  <div 
-                    className={`absolute inset-0 bg-gradient-to-br ${item.color} rounded-3xl shadow-lg flex flex-col items-center justify-center p-6 text-white backface-hidden`}
-                    style={{ backfaceVisibility: 'hidden' }}
+                  {/* Front */}
+                  <div
+                    className="backface-hidden absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-ink p-6 shadow-sticker"
+                    style={{ backfaceVisibility: 'hidden', backgroundColor: bonusSofts[index] }}
                   >
-                    <div className={`mb-4 ${
-                      index === 0 ? 'animate-float-slow' :
-                      index === 1 ? 'animate-float-medium' :
-                      index === 2 ? 'animate-float-fast' : 'animate-float-slow'
-                    }`}>
-                      <span className="text-6xl">
-                        {item.icon}
-                      </span>
+                    <div className={index % 2 === 0 ? 'animate-bob' : 'animate-bob-slow'}>
+                      <StickerArt
+                        name={art?.art ?? 'mascot'}
+                        emoji={art?.emoji ?? '⭐'}
+                        alt={item.title}
+                        className="h-24 w-24"
+                        emojiSize="4rem"
+                      />
                     </div>
-                    <h3 className="text-xl font-bold text-center mb-2">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-center opacity-90">
-                      {item.hint}
-                    </p>
-                    <div className="mt-4 text-xs opacity-70">
-                      Click to reveal meaning
-                    </div>
+                    <h3 className="mt-3 text-center font-display text-xl text-ink">{item.title}</h3>
+                    <p className="mt-1 text-center text-sm font-semibold text-ink/60">{item.hint}</p>
+                    <span className="mt-3 rounded-full border-2 border-ink/20 bg-white px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-ink/50">
+                      Tap to reveal
+                    </span>
                   </div>
-                  
-                  {/* Back of card */}
-                  <div 
-                    className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 rounded-3xl shadow-lg flex flex-col items-center justify-center p-6 text-white"
-                    style={{ 
+
+                  {/* Back */}
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-ink p-6 shadow-sticker"
+                    style={{
                       backfaceVisibility: 'hidden',
-                      transform: 'rotateY(180deg)'
+                      transform: 'rotateY(180deg)',
+                      backgroundColor: bonusColors[index] === '#FFFDF7' ? '#2E2459' : bonusColors[index],
                     }}
                   >
-                    <div className="text-4xl mb-3">
-                      {item.icon}
-                    </div>
-                    <h3 className="text-lg font-bold text-center mb-3">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-center text-gray-300 leading-relaxed">
+                    <StickerArt
+                      name={art?.art ?? 'mascot'}
+                      emoji={art?.emoji ?? '⭐'}
+                      alt={item.title}
+                      className="h-14 w-14"
+                      emojiSize="2.5rem"
+                    />
+                    <h3 className="mt-2 text-center font-display text-lg text-white">{item.title}</h3>
+                    <p className="mt-2 text-center text-sm font-semibold leading-relaxed text-white/90">
                       {item.connection}
                     </p>
                   </div>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff, Lightbulb, Target, Heart, BookOpen, Globe, type LucideIcon } from 'lucide-react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff } from 'lucide-react';
 import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
@@ -8,48 +8,10 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
+import { StickerArt } from '@/components/StickerArt';
+import { ConfettiBurst } from '@/components/ConfettiBurst';
+import { getCategoryTheme } from '@/lib/theme';
 import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
-
-// Map icon names to Lucide components
-const iconMap: Record<string, LucideIcon> = {
-  Lightbulb,
-  Target,
-  Heart,
-  BookOpen,
-  Globe
-};
-
-const categoryThemeMap: Record<string, {
-  analogyBox: string;
-  analogyLabel: string;
-  analogyText: string;
-}> = {
-  faith: {
-    analogyBox: 'bg-blue-50 border-blue-100',
-    analogyLabel: 'text-blue-800',
-    analogyText: 'text-blue-700'
-  },
-  choices: {
-    analogyBox: 'bg-purple-50 border-purple-100',
-    analogyLabel: 'text-purple-800',
-    analogyText: 'text-purple-700'
-  },
-  service: {
-    analogyBox: 'bg-red-50 border-red-100',
-    analogyLabel: 'text-red-800',
-    analogyText: 'text-red-700'
-  },
-  scriptures: {
-    analogyBox: 'bg-green-50 border-green-100',
-    analogyLabel: 'text-green-800',
-    analogyText: 'text-green-700'
-  },
-  community: {
-    analogyBox: 'bg-yellow-50 border-yellow-100',
-    analogyLabel: 'text-yellow-900',
-    analogyText: 'text-yellow-800'
-  }
-};
 
 interface CategoriesProps {
   isVisible: boolean;
@@ -80,6 +42,9 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
+  const [burstKey, setBurstKey] = useState(0);
+
+  const celebrate = useCallback(() => setBurstKey(k => k + 1), []);
 
   // Reorder ALL challenges based on selected path and regroup into categories
   const orderedCategoryData = useMemo(() => {
@@ -212,6 +177,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
       newCompleted.delete(challengeId);
     } else {
       newCompleted.add(challengeId);
+      celebrate();
     }
     setCompletedChallenges(newCompleted);
   };
@@ -219,8 +185,12 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   // Idempotent completion used for photo capture: taking another photo on an
   // already-complete task must never mark it incomplete.
   const markChallengeComplete = useCallback((challengeId: string) => {
-    setCompletedChallenges(prev => prev.has(challengeId) ? prev : new Set(prev).add(challengeId));
-  }, [setCompletedChallenges]);
+    setCompletedChallenges(prev => {
+      if (prev.has(challengeId)) return prev;
+      celebrate();
+      return new Set(prev).add(challengeId);
+    });
+  }, [setCompletedChallenges, celebrate]);
 
   const handleResetProgress = () => {
     clearCompletedChallenges();
@@ -310,7 +280,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     threshold: 50
   });
 
-  // Gospel analogies show when: bonus is unlocked OR user knows the secret (long press)
+  // Gospel analogies show when: bonus is unlocked OR user knows the secret (triple tap)
   const shouldShowAnalogies = () => {
     return bonusUnlocked || showAnalogiesEarly;
   };
@@ -318,7 +288,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   const allOrderedChallenges = orderedCategoryData.flatMap(category => category.challenges);
   const nextChallenge = allOrderedChallenges.find(challenge => !completedChallenges.has(challenge.id));
 
-  // Display mode component
+  // ============ FOCUS MODE (one challenge at a time) ============
   if (displayModeChallenge) {
     const { category, challengeIndex, allChallenges, flatIndex } = displayModeChallenge;
     const challenge = category.challenges[challengeIndex];
@@ -326,128 +296,148 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     const showAnalogies = shouldShowAnalogies();
     const isLastChallenge = flatIndex >= allChallenges.length - 1;
     const totalPhotos = Object.values(challengePhotoCounts).reduce((sum, n) => sum + n, 0);
-
-    const theme = categoryThemeMap[category.id] ?? {
-      analogyBox: 'bg-gray-50 border-gray-100',
-      analogyLabel: 'text-gray-800',
-      analogyText: 'text-gray-700'
-    };
+    const theme = getCategoryTheme(category.id);
 
     return (
       <>
       <div
         ref={swipeRef}
-        className={`fixed inset-0 bg-gradient-to-br ${category.color} z-50 flex flex-col`}
+        className="paper-dots fixed inset-0 z-50 flex flex-col"
+        style={{ backgroundColor: theme.soft }}
       >
         {/* Progress strip */}
-        <div className="h-1.5 w-full flex-shrink-0 bg-black/20">
+        <div className="h-2.5 w-full flex-shrink-0 border-b-2 border-ink bg-white/60">
           <div
-            className="h-full bg-white/90 transition-all duration-500"
-            style={{ width: `${totalProgress.total > 0 ? (totalProgress.completed / totalProgress.total) * 100 : 0}%` }}
+            className="progress-stripes h-full transition-all duration-500"
+            style={{
+              width: `${totalProgress.total > 0 ? (totalProgress.completed / totalProgress.total) * 100 : 0}%`,
+              backgroundColor: theme.main,
+            }}
           />
         </div>
 
-        {/* Top toolbar: Gallery (left) + Overview (right) */}
-        <button
-          onClick={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
-          className="absolute top-5 left-4 z-10 inline-flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-white transition-colors hover:bg-black/30"
-          aria-label="Open photo gallery"
-        >
-          <Camera className="w-5 h-5" />
-          <span className="hidden text-sm font-medium sm:inline">Gallery</span>
-          {totalPhotos > 0 && (
-            <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-xs">{totalPhotos}</span>
-          )}
-        </button>
-        <button
-          onClick={exitDisplayMode}
-          className="absolute top-5 right-4 z-10 inline-flex items-center gap-2 rounded-lg bg-black/20 px-3 py-2 text-white transition-colors hover:bg-black/30"
-          aria-label="Back to all tasks overview"
-        >
-          <LayoutGrid className="w-5 h-5" />
-          <span className="hidden text-sm font-medium sm:inline">Overview</span>
-        </button>
+        {/* Top toolbar */}
+        <div className="flex flex-shrink-0 items-center justify-between px-4 pt-4">
+          <button
+            onClick={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
+            className="btn-3d btn-white relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-ink"
+            aria-label="Open photo gallery"
+          >
+            <Camera className="h-4 w-4" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Gallery</span>
+            {totalPhotos > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-sun px-1 text-[10px] font-black text-ink">
+                {totalPhotos}
+              </span>
+            )}
+          </button>
 
-        {/* Single Challenge Display */}
-        <div className="flex-1 p-4 flex items-center justify-center overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 md:p-8 shadow-2xl max-w-2xl w-full mx-4 my-4">
-            {/* EXTRA LARGE Challenge Number */}
-            <div className="text-center mb-8">
-              <div className="inline-block bg-gradient-to-br from-gray-100 to-gray-200 text-gray-800 font-black px-8 py-6 rounded-lg mb-6 shadow-lg">
-                <span className="text-7xl md:text-8xl">#{challenge.number}</span>
-              </div>
-              <h3 className="text-3xl font-bold text-gray-900 mb-4">
-                {challenge.title}
-              </h3>
+          <span
+            className="rounded-full border-2 border-ink px-3 py-1 font-display text-sm text-white"
+            style={{ backgroundColor: theme.main }}
+          >
+            {category.title}
+          </span>
 
-              {/* Completion Toggle Button */}
+          <button
+            onClick={exitDisplayMode}
+            className="btn-3d btn-white inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-ink"
+            aria-label="Back to all tasks overview"
+          >
+            <LayoutGrid className="h-4 w-4" strokeWidth={2.5} />
+            <span className="hidden sm:inline">Overview</span>
+          </button>
+        </div>
+
+        {/* Challenge card */}
+        <div className="flex flex-1 items-center justify-center overflow-y-auto p-4">
+          <div className="sticker-card relative w-full max-w-2xl rotate-[-0.4deg] p-6 md:p-8">
+            <ConfettiBurst burstKey={burstKey} />
+
+            {/* Number badge */}
+            <div className="mb-4 flex justify-center">
+              <span
+                className="flex h-20 w-20 rotate-[-5deg] items-center justify-center rounded-3xl border-2 border-ink font-display text-4xl text-white md:h-24 md:w-24 md:text-5xl"
+                style={{ backgroundColor: theme.main, boxShadow: '4px 4px 0 0 #2E2459' }}
+              >
+                {challenge.number}
+              </span>
+            </div>
+
+            <h3 className="text-center font-display text-2xl leading-tight text-ink md:text-4xl">
+              {challenge.title}
+            </h3>
+
+            {/* Completion toggle */}
+            <div className="mt-5 text-center">
               <button
                 onClick={() => toggleChallenge(challenge.id)}
-                className={`inline-flex items-center gap-3 px-6 py-3 rounded-lg text-lg font-semibold transition-all duration-300 ${
-                  isCompleted
-                    ? 'bg-green-500 hover:bg-green-600 text-white shadow-lg'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 border-2 border-gray-200'
+                className={`btn-3d inline-flex items-center gap-2.5 rounded-full px-7 py-3.5 font-display text-lg tracking-wide ${
+                  isCompleted ? 'btn-sun text-ink' : 'btn-go text-white'
                 }`}
               >
                 {isCompleted ? (
                   <>
-                    <Check className="w-6 h-6" />
-                    Completed!
+                    <Check className="h-6 w-6" strokeWidth={3.5} />
+                    Nailed It!
                   </>
                 ) : (
                   <>
-                    <div className="w-6 h-6 rounded-full border-2 border-current" />
-                    Mark as Complete
+                    <span className="h-5 w-5 rounded-full border-[3px] border-current" />
+                    Mark Complete
                   </>
                 )}
               </button>
 
-              {/* Next Challenge CTA — appears once this task is done */}
               {isCompleted && (
                 <button
                   onClick={() => isLastChallenge ? exitDisplayMode() : navigateDisplayMode('next')}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-colors hover:bg-blue-700"
+                  className="btn-3d btn-sky animate-pop-in mt-4 flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 font-display text-lg tracking-wide text-white"
                 >
                   {isLastChallenge ? 'See Overview' : 'Next Challenge'}
-                  {isLastChallenge ? <LayoutGrid className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  {isLastChallenge ? <LayoutGrid className="h-5 w-5" strokeWidth={2.5} /> : <ChevronRight className="h-5 w-5" strokeWidth={3} />}
                 </button>
               )}
             </div>
 
+            {/* Gospel connection */}
             {showAnalogies ? (
-              <div className={`rounded-lg border p-6 ${theme.analogyBox}`}>
-                <p className={`text-lg font-medium mb-2 ${theme.analogyLabel}`}>
-                  Gospel Connection
+              <div
+                className="mt-6 rounded-2xl border-2 border-ink/15 p-5"
+                style={{ backgroundColor: theme.soft }}
+              >
+                <p className="text-xs font-extrabold uppercase tracking-widest" style={{ color: theme.text }}>
+                  💡 Gospel Connection
                 </p>
-                <p className={`text-xl ${theme.analogyText}`}>
+                <p className="mt-1.5 text-lg font-semibold leading-snug" style={{ color: theme.text }}>
                   {challenge.gospelConnection}
                 </p>
                 {challenge.scripture && (
-                  <p className={`text-lg mt-3 ${theme.analogyText} opacity-80`}>
+                  <p className="mt-2 text-sm font-bold italic opacity-80" style={{ color: theme.text }}>
                     {challenge.scripture}
                   </p>
                 )}
                 {challenge.photoTarget && (
-                  <div className="mt-4 pt-4 border-t border-current/20">
-                    <p className={`text-base ${theme.analogyText} opacity-80`}>Photo hint: {challenge.photoTarget}</p>
-                  </div>
+                  <p className="mt-3 border-t-2 border-dashed border-ink/10 pt-3 text-sm font-semibold opacity-80" style={{ color: theme.text }}>
+                    📸 Photo hint: {challenge.photoTarget}
+                  </p>
                 )}
               </div>
             ) : (
-              <div className="bg-gray-100 rounded-lg p-6 text-center">
-                <p className="text-gray-500 italic text-2xl">
-                  Think about the gospel connection...
+              <div className="mt-6 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-5 text-center">
+                <p className="text-lg font-semibold italic text-ink/50">
+                  🤔 Talk it over — what gospel truth hides in this one?
                 </p>
               </div>
             )}
 
-            {/* Photo Thumbnails for this challenge */}
+            {/* Photo thumbnails for this challenge */}
             {(challengePhotos[challenge.id] ?? []).length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-3 text-center">
-                  Photos for this challenge
+              <div className="mt-5 border-t-2 border-dashed border-ink/10 pt-4">
+                <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-widest text-ink/50">
+                  Your shots
                 </p>
-                <div className="flex gap-2 justify-center flex-wrap">
+                <div className="flex flex-wrap justify-center gap-2">
                   {(challengePhotos[challenge.id] ?? []).slice(0, 4).map((photo, idx) => (
                     <button
                       key={photo.id}
@@ -455,14 +445,10 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
                       }}
-                      className="w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
+                      className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 border-ink shadow-sticker-sm transition-transform hover:-translate-y-0.5"
                       title={`View photo ${idx + 1}`}
                     >
-                      <img
-                        src={photo.imageData}
-                        alt={`Photo ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={photo.imageData} alt={`Photo ${idx + 1}`} className="h-full w-full object-cover" />
                     </button>
                   ))}
                   {(challengePhotos[challenge.id] ?? []).length > 4 && (
@@ -471,7 +457,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
                       }}
-                      className="w-20 h-20 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0 border-2 border-dashed border-gray-300"
+                      className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-ink/40 bg-paper text-sm font-extrabold text-ink/60 hover:bg-white"
                     >
                       +{(challengePhotos[challenge.id] ?? []).length - 4}
                     </button>
@@ -480,37 +466,27 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               </div>
             )}
 
-            {/* Instructions */}
-            <div className="mt-8 text-center">
-              <p className="text-gray-600 text-lg">
-                View each challenge fullscreen for easy reference
-              </p>
-              <p className="text-gray-500 text-base mt-2">
-                Swipe or use arrows to navigate between challenges
-              </p>
-            </div>
+            <p className="mt-6 text-center text-xs font-bold uppercase tracking-widest text-ink/35">
+              Swipe or use arrows to move between challenges
+            </p>
           </div>
         </div>
 
-        {/* Navigation Footer with Info */}
-        <div className="bg-black/30 p-4">
-          {/* Info Row */}
-          <div className="flex items-center justify-between mb-3 text-white text-sm">
-            <span className="font-medium">{category.title}</span>
-            <span className="text-white/80">
-              Challenge {flatIndex + 1} of {allChallenges.length} · {totalProgress.completed}/{totalProgress.total} done · Path {selectedPathId}
-            </span>
+        {/* Bottom nav */}
+        <div className="flex-shrink-0 border-t-2 border-ink bg-cream/90 px-4 pb-5 pt-3 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-2xl items-center justify-between text-xs font-extrabold uppercase tracking-wider text-ink/50">
+            <span>Challenge {flatIndex + 1} / {allChallenges.length}</span>
+            <span>{totalProgress.completed}/{totalProgress.total} done · Path {selectedPathId}</span>
           </div>
 
-          {/* Navigation Row */}
-          <div className="flex items-center justify-between gap-2">
+          <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
             <button
               onClick={() => navigateDisplayMode('prev')}
               disabled={flatIndex === 0}
-              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-lg transition-colors"
+              className="btn-3d btn-white rounded-2xl p-4 text-ink"
               aria-label="Previous challenge"
             >
-              <ChevronLeft className="w-8 h-8" />
+              <ChevronLeft className="h-7 w-7" strokeWidth={3} />
             </button>
 
             <PhotoCapture pathId={selectedPathId}
@@ -519,15 +495,16 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved}
               variant="display"
+              pulse={!isCompleted}
             />
 
             <button
               onClick={() => navigateDisplayMode('next')}
               disabled={flatIndex === allChallenges.length - 1}
-              className="bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 text-white p-4 rounded-lg transition-colors"
+              className="btn-3d btn-white rounded-2xl p-4 text-ink"
               aria-label="Next challenge"
             >
-              <ChevronRight className="w-8 h-8" />
+              <ChevronRight className="h-7 w-7" strokeWidth={3} />
             </button>
           </div>
         </div>
@@ -547,151 +524,124 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     );
   }
 
+  // ============ OVERVIEW (checklist) ============
   return (
     <>
-    <section className="pt-24 pb-16 md:pt-28 md:pb-20 bg-gradient-to-b from-gray-50 to-white relative">
-      <div className="max-w-6xl mx-auto px-4 md:px-8">
+    <section className="paper-dots relative pb-16 pt-24 md:pb-20 md:pt-28">
+      <div className="mx-auto max-w-6xl px-4 md:px-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Hunt Checklist
+        <div className="mb-8 text-center">
+          <h2 className="font-display text-4xl text-ink md:text-5xl">
+            Hunt <span className="text-sticker-sun">Checklist</span>
           </h2>
-          <p className="text-gray-600 text-lg mb-6">
-            Work down your path, take photos, and mark each challenge complete.
+          <p className="mt-2 font-semibold text-ink/70">
+            Work down your path, snap photos, check things off.
           </p>
 
-          {/* Progress Bar with Triple Tap (shows instruction when bonus unlocked) */}
-          <ProgressBar
-            completed={totalProgress.completed}
-            total={totalProgress.total}
-            onTripleTap={toggleAnalogiesEarly}
-            bonusUnlocked={bonusUnlocked}
-            showAnalogies={showAnalogiesEarly}
-          />
+          <div className="mt-6">
+            <ProgressBar
+              completed={totalProgress.completed}
+              total={totalProgress.total}
+              onTripleTap={toggleAnalogiesEarly}
+              bonusUnlocked={bonusUnlocked}
+              showAnalogies={showAnalogiesEarly}
+            />
+          </div>
         </div>
 
+        {/* Next up card */}
         {nextChallenge && (
-          <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4 shadow-sm">
+          <div className="sticker-card mb-8 bg-sun-soft p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-left">
-                <div className="text-xs font-bold uppercase tracking-wide text-blue-700">Next up</div>
-                <div className="text-lg font-bold text-gray-900">#{nextChallenge.number} {nextChallenge.title}</div>
-                <div className="text-sm text-gray-600">{nextChallenge.photoTarget}</div>
+              <div className="flex items-center gap-4 text-left">
+                <span className="flex h-14 w-14 flex-shrink-0 rotate-[-5deg] items-center justify-center rounded-2xl border-2 border-ink bg-sun font-display text-2xl text-white shadow-sticker-sm">
+                  {nextChallenge.number}
+                </span>
+                <div>
+                  <div className="text-xs font-extrabold uppercase tracking-widest text-sun-edge">Next up</div>
+                  <div className="font-display text-xl leading-tight text-ink">{nextChallenge.title}</div>
+                  <div className="text-sm font-semibold text-ink/60">{nextChallenge.photoTarget}</div>
+                </div>
               </div>
               <button
                 onClick={openNextIncomplete}
-                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                className="btn-3d btn-go inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-lg tracking-wide text-white"
               >
                 Resume Hunt
-                <ChevronRight className="ml-2 h-4 w-4" />
+                <ChevronRight className="h-5 w-5" strokeWidth={3} />
               </button>
             </div>
           </div>
         )}
 
-        {/* Reset Button */}
-        <div className="text-center mb-8">
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-2 mx-auto"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset Progress
-          </button>
-          {showResetConfirm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Reset Progress?</h3>
-                <p className="text-gray-600 mb-4">This will clear all completed challenges. Are you sure?</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleResetProgress}
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-                  >
-                    Yes, Reset
-                  </button>
-                  <button
-                    onClick={() => setShowResetConfirm(false)}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-6 md:grid-cols-2">
           {orderedCategoryData.map((category, index) => {
             const progress = { completed: category.challenges.filter(c => completedChallenges.has(c.id)).length, total: category.challenges.length };
             const isExpanded = effectiveExpandedCategory === category.id;
+            const theme = getCategoryTheme(category.id);
+            const categoryDone = progress.completed === progress.total;
 
             return (
               <div
                 key={category.id}
                 className={`transform transition-all duration-500 ${
-                  isAnimated
-                    ? 'translate-y-0 opacity-100'
-                    : 'translate-y-8 opacity-0'
+                  isAnimated ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
                 }`}
-                style={{
-                  transitionDelay: `${index * 100}ms`,
-                  perspective: '1000px'
-                }}
+                style={{ transitionDelay: `${index * 80}ms` }}
               >
-                <div
-                  className={`bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl ${
-                    isExpanded ? 'ring-2 ring-blue-200' : ''
-                  }`}
-                  style={{
-                    transform: isExpanded ? 'rotateX(2deg)' : 'rotateX(0deg)',
-                    transformStyle: 'preserve-3d'
-                  }}
-                >
-                  {/* Category Header */}
+                <div className={`sticker-card overflow-hidden transition-shadow ${isExpanded ? 'shadow-sticker-lg' : ''}`}>
+                  {/* Category header */}
                   <button
                     type="button"
-                    className={`w-full bg-gradient-to-r ${category.color} p-5 text-left`}
+                    className="w-full p-4 text-left sm:p-5"
+                    style={{ backgroundColor: theme.soft }}
                     onClick={() => toggleCategory(category.id)}
                     aria-expanded={isExpanded}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="text-white">
-                          {iconMap[category.icon] ? React.createElement(iconMap[category.icon], { className: "w-6 h-6" }) : null}
-                        </div>
-                        <h3 className="text-xl font-bold text-white">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <StickerArt
+                          name={theme.art}
+                          emoji={theme.emoji}
+                          alt={category.title}
+                          className="h-14 w-14 flex-shrink-0"
+                          emojiSize="2.4rem"
+                        />
+                        <h3 className="truncate font-display text-xl text-ink sm:text-2xl">
                           {category.title}
                         </h3>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="bg-white/20 rounded-full px-3 py-1 text-sm text-white font-medium">
-                          {progress.completed}/{progress.total}
-                        </div>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <span
+                          className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-sm font-extrabold ${
+                            categoryDone ? 'bg-go text-white' : 'bg-white text-ink'
+                          }`}
+                        >
+                          {categoryDone ? '✓ ' : ''}{progress.completed}/{progress.total}
+                        </span>
                         {isExpanded ? (
-                          <ChevronUp className="w-6 h-6 text-white" />
+                          <ChevronUp className="h-6 w-6 text-ink" strokeWidth={3} />
                         ) : (
-                          <ChevronDown className="w-6 h-6 text-white" />
+                          <ChevronDown className="h-6 w-6 text-ink" strokeWidth={3} />
                         )}
                       </div>
                     </div>
 
-                    {/* Progress Bar */}
-                    <div className="h-1.5 bg-white/30 rounded-full overflow-hidden">
+                    {/* Category progress bar */}
+                    <div className="mt-3 h-2.5 overflow-hidden rounded-full border-2 border-ink/60 bg-white">
                       <div
-                        className="h-full bg-white rounded-full transition-all duration-500"
-                        style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                        className="progress-stripes h-full rounded-full transition-all duration-500"
+                        style={{ width: `${(progress.completed / progress.total) * 100}%`, backgroundColor: theme.main }}
                       />
                     </div>
                   </button>
 
-                  {/* Challenges - Expandable */}
-                  <div className={`overflow-hidden transition-all duration-500 ${
-                    isExpanded ? 'max-h-[1000px]' : 'max-h-0'
+                  {/* Challenges — expandable */}
+                  <div className={`overflow-hidden border-t-2 transition-all duration-500 ${
+                    isExpanded ? 'max-h-[1200px] border-ink/10' : 'max-h-0 border-transparent'
                   }`}>
-                    <div className="p-6 space-y-4">
+                    <div className="space-y-3 p-4 sm:p-5">
                       {category.challenges.map((challenge, challengeIndex) => {
                         const isCompleted = completedChallenges.has(challenge.id);
                         const showAnalogies = shouldShowAnalogies();
@@ -700,89 +650,88 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                           <div
                             key={challenge.id}
                             className={`transform transition-all duration-300 ${
-                              isExpanded
-                                ? 'translate-y-0 opacity-100'
-                                : '-translate-y-4 opacity-0'
+                              isExpanded ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
                             }`}
                             style={{ transitionDelay: `${challengeIndex * 50}ms` }}
                           >
-                            <div className={`border rounded-lg p-4 transition-all duration-300 ${
+                            <div className={`rounded-2xl border-2 p-3.5 transition-colors sm:p-4 ${
                               isCompleted
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                                ? 'border-go/60 bg-go-soft'
+                                : 'border-ink/10 bg-paper hover:border-ink/25'
                             }`}>
-                              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                                {/* Checkbox */}
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                {/* Check button */}
                                 <button
                                   onClick={() => toggleChallenge(challenge.id)}
                                   aria-label={isCompleted ? `Mark ${challenge.title} incomplete` : `Mark ${challenge.title} complete`}
-                                  className={`flex-shrink-0 w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                                     isCompleted
-                                      ? 'bg-green-500 border-green-500'
-                                      : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                                      ? 'border-ink bg-go text-white shadow-sticker-sm'
+                                      : 'border-ink/30 bg-white hover:border-go hover:bg-go-soft'
                                   }`}
                                 >
-                                  {isCompleted && (
-                                    <Check className="w-5 h-5 text-white" />
-                                  )}
+                                  {isCompleted && <Check className="h-5 w-5" strokeWidth={3.5} />}
                                 </button>
 
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                    <span className="bg-blue-100 text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
+                                <div className="min-w-0 flex-1">
+                                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                    <span
+                                      className="rounded-lg border-2 border-ink px-1.5 py-0.5 font-display text-xs text-white"
+                                      style={{ backgroundColor: theme.main }}
+                                    >
                                       #{challenge.number}
                                     </span>
-                                    <h4 className={`font-semibold text-gray-900 ${
-                                      isCompleted ? 'line-through' : ''
-                                    }`}>
+                                    <h4 className={`font-body text-base font-extrabold text-ink ${isCompleted ? 'line-through opacity-60' : ''}`}>
                                       {challenge.title}
                                     </h4>
-                                    {/* Photo indicator with count */}
                                     {(challengePhotoCounts[challenge.id] ?? 0) > 0 && (
                                       <button
                                         onClick={() => {
                                           setGalleryFilterChallengeId(challenge.id);
                                           setGalleryOpen(true);
                                         }}
-                                        className="inline-flex items-center gap-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs px-2 py-1 rounded-full transition-colors"
+                                        className="inline-flex items-center gap-1 rounded-full border-2 border-ink/20 bg-sky-soft px-2 py-0.5 text-xs font-extrabold text-sky-edge transition-colors hover:border-ink/50"
                                         title={`View ${challengePhotoCounts[challenge.id] ?? 0} photo${(challengePhotoCounts[challenge.id] ?? 0) !== 1 ? 's' : ''} in gallery`}
                                       >
-                                        <Camera className="w-3 h-3" />
-                                        <span>{challengePhotoCounts[challenge.id] ?? 0} photo{(challengePhotoCounts[challenge.id] ?? 0) !== 1 ? 's' : ''}</span>
+                                        <Camera className="h-3 w-3" strokeWidth={3} />
+                                        <span>{challengePhotoCounts[challenge.id] ?? 0}</span>
                                       </button>
                                     )}
                                   </div>
 
-                                  <div className="space-y-2 ml-0">
+                                  <div className="space-y-2">
                                     {showAnalogies ? (
                                       <>
                                         {challenge.photoTarget && (
-                                          <div className="flex items-start gap-2 text-sm text-gray-600">
-                                            <Camera className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                                          <div className="flex items-start gap-2 text-sm font-semibold text-ink/60">
+                                            <Camera className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={2.5} style={{ color: theme.main }} />
                                             <span>{challenge.photoTarget}</span>
                                           </div>
                                         )}
-                                        <div className="flex items-start gap-2 text-sm text-gray-700 font-medium bg-blue-50 p-2 rounded-lg">
-                                          <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
+                                        <div
+                                          className="flex items-start gap-2 rounded-xl border-2 border-ink/10 p-2.5 text-sm font-semibold"
+                                          style={{ backgroundColor: theme.soft, color: theme.text }}
+                                        >
+                                          <span className="mt-0.5 flex-shrink-0">💡</span>
                                           <span>{challenge.gospelConnection}</span>
                                         </div>
                                         {challenge.scripture && (
-                                          <div className="text-xs text-gray-500 italic">
+                                          <div className="text-xs font-bold italic text-ink/45">
                                             {challenge.scripture}
                                           </div>
                                         )}
                                       </>
                                     ) : (
-                                      <div className="flex items-start gap-2 text-sm text-gray-400 italic">
-                                        <EyeOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                        <span>Think about the gospel connection...</span>
+                                      <div className="flex items-start gap-2 text-sm font-semibold italic text-ink/40">
+                                        <EyeOff className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
+                                        <span>Think about the gospel connection…</span>
                                       </div>
                                     )}
                                   </div>
 
-                                  {/* Photo Thumbnails */}
+                                  {/* Photo thumbnails */}
                                   {(challengePhotos[challenge.id] ?? []).length > 0 && (
-                                    <div className="mt-3 flex gap-2 flex-wrap">
+                                    <div className="mt-3 flex flex-wrap gap-2">
                                       {(challengePhotos[challenge.id] ?? []).slice(0, 4).map((photo, idx) => (
                                         <button
                                           key={photo.id}
@@ -790,14 +739,10 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                             setGalleryFilterChallengeId(challenge.id);
                                             setGalleryOpen(true);
                                           }}
-                                          className="w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-colors flex-shrink-0"
+                                          className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-2 border-ink/60 transition-transform hover:-translate-y-0.5"
                                           title={`View ${challenge.title} photo ${idx + 1}`}
                                         >
-                                          <img
-                                            src={photo.imageData}
-                                            alt={`Photo ${idx + 1}`}
-                                            className="w-full h-full object-cover"
-                                          />
+                                          <img src={photo.imageData} alt={`Photo ${idx + 1}`} className="h-full w-full object-cover" />
                                         </button>
                                       ))}
                                       {(challengePhotos[challenge.id] ?? []).length > 4 && (
@@ -806,7 +751,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                             setGalleryFilterChallengeId(challenge.id);
                                             setGalleryOpen(true);
                                           }}
-                                          className="w-16 h-16 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center text-sm text-gray-600 font-medium flex-shrink-0"
+                                          className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-ink/30 bg-white text-sm font-extrabold text-ink/60"
                                         >
                                           +{(challengePhotos[challenge.id] ?? []).length - 4}
                                         </button>
@@ -815,19 +760,17 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                   )}
                                 </div>
 
-                                {/* Action Buttons */}
+                                {/* Actions */}
                                 <div className="flex items-center gap-2 self-end sm:self-start">
-                                  {/* Display Mode Button */}
                                   <button
                                     onClick={() => enterDisplayMode(category, challengeIndex)}
-                                    className="flex-shrink-0 text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
-                                    title="Display Mode"
-                                    aria-label={`Open ${challenge.title} in display mode`}
+                                    className="flex-shrink-0 rounded-xl border-2 border-ink/15 bg-white p-2 text-ink/50 transition-colors hover:border-ink/40 hover:text-ink"
+                                    title="Focus Mode"
+                                    aria-label={`Open ${challenge.title} in focus mode`}
                                   >
-                                    <Maximize2 className="w-5 h-5" />
+                                    <Maximize2 className="h-5 w-5" strokeWidth={2.5} />
                                   </button>
 
-                                  {/* Photo Capture Button */}
                                   <PhotoCapture pathId={selectedPathId}
                                     challenge={challenge}
                                     category={category}
@@ -846,6 +789,39 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               </div>
             );
           })}
+        </div>
+
+        {/* Reset */}
+        <div className="mt-10 text-center">
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
+          >
+            <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+            Reset Progress
+          </button>
+          {showResetConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4">
+              <div className="sticker-card animate-pop-in w-full max-w-md p-6 text-left">
+                <h3 className="font-display text-2xl text-ink">Reset Progress?</h3>
+                <p className="mt-1 font-semibold text-ink/70">This clears every completed challenge. Sure about that?</p>
+                <div className="mt-5 flex gap-3">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="btn-3d btn-white flex-1 rounded-full px-4 py-2.5 font-extrabold text-ink"
+                  >
+                    Keep Going
+                  </button>
+                  <button
+                    onClick={handleResetProgress}
+                    className="btn-3d btn-coral flex-1 rounded-full px-4 py-2.5 font-extrabold text-white"
+                  >
+                    Yes, Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -886,42 +862,38 @@ function ProgressBar({ completed, total, onTripleTap, bonusUnlocked, showAnalogi
   const percentage = total > 0 ? (completed / total) * 100 : 0;
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="flex justify-between text-sm text-gray-600 mb-2">
-        <span>Progress</span>
-        <span>{completed} / {total}</span>
+    <div className="mx-auto max-w-md">
+      <div className="mb-1.5 flex items-end justify-between px-1">
+        <span className="text-xs font-extrabold uppercase tracking-widest text-ink/50">Progress</span>
+        <span className="font-display text-lg leading-none text-ink">{completed} <span className="text-ink/40">/ {total}</span></span>
       </div>
       <div
         ref={progressBarRef}
-        className="h-4 bg-gray-200 rounded-full overflow-hidden cursor-pointer relative group"
-        title={bonusUnlocked ? "Triple tap to toggle gospel analogies" : ""}
+        className="group relative h-6 cursor-pointer overflow-hidden rounded-full border-2 border-ink bg-white shadow-sticker-sm"
+        title={bonusUnlocked ? 'Triple tap to toggle gospel analogies' : ''}
       >
         <div
-          className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500 ease-out relative"
+          className="progress-stripes h-full rounded-full bg-go transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
-        >
-          <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+        />
       </div>
 
-      {/* Hint - shows automatically when bonus is unlocked (not just hover) */}
       {bonusUnlocked && !showAnalogies && (
-        <div className="text-center mt-2">
-          <span className="text-xs text-gray-500 bg-white/90 px-3 py-1.5 rounded-full shadow-sm inline-flex items-center gap-1 border border-gray-200">
-            <Map className="w-3 h-3" />
-            Triple tap progress bar to reveal all gospel analogies
+        <div className="mt-2 text-center">
+          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink/15 bg-cream px-3 py-1.5 text-xs font-bold text-ink/60">
+            <Map className="h-3 w-3" />
+            Triple tap the bar to reveal all gospel analogies
           </span>
         </div>
       )}
 
-      {/* Hide link when analogies are showing */}
       {showAnalogies && (
-        <div className="text-center mt-2">
+        <div className="mt-2 text-center">
           <button
             onClick={onTripleTap}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 mx-auto"
+            className="mx-auto flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-ink/40 transition-colors hover:text-ink"
           >
-            <EyeOff className="w-3 h-3" />
+            <EyeOff className="h-3 w-3" />
             Hide gospel analogies
           </button>
         </div>

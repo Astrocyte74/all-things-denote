@@ -1,12 +1,20 @@
+import { StickerArt } from '@/components/StickerArt';
+
 export function Footer() {
   return (
-    <footer className="py-12 bg-gradient-to-b from-gray-50 to-gray-100 relative">
-      <div className="max-w-4xl mx-auto px-4 md:px-8 text-center">
-        <div className="border-t border-gray-200 pt-8">
-          <p className="text-sm text-gray-500">
-            Remember to always follow store policies and be respectful while participating
-          </p>
-        </div>
+    <footer className="border-t-2 border-ink/10 bg-paper py-10">
+      <div className="mx-auto max-w-4xl px-4 text-center md:px-8">
+        <StickerArt
+          name="camera"
+          emoji="📸"
+          alt="Camera"
+          className="mx-auto h-16 w-16 animate-bob-slow"
+          emojiSize="2.5rem"
+        />
+        <p className="mt-2 font-display text-2xl text-ink">Happy Hunting!</p>
+        <p className="mt-2 text-sm font-semibold text-ink/50">
+          Follow store policies, be kind to shoppers and employees, and have fun.
+        </p>
       </div>
     </footer>
   );

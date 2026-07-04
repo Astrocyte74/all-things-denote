@@ -10,39 +10,41 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-8 relative">
-        {/* Close Button */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4" onClick={onClose}>
+      <div
+        className="sticker-card animate-pop-in relative w-full max-w-md p-8"
+        onClick={e => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-2"
+          className="btn-3d btn-white absolute -right-3 -top-3 rounded-full p-2 text-ink"
+          aria-label="Close share dialog"
         >
-          <X className="w-6 h-6" />
+          <X className="h-5 w-5" strokeWidth={3} />
         </button>
 
-        {/* Content */}
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Share This Scavenger Hunt
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Scan the QR code to join the fun!
+          <h2 className="font-display text-3xl text-ink">Invite a Team!</h2>
+          <p className="mt-1 font-semibold text-ink/70">
+            Scan the code to join the hunt
           </p>
 
-          {/* QR Code */}
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-400 p-6 rounded-2xl inline-block mb-6">
-            <img src={qrCode} alt="Scan to join scavenger hunt" className="w-48 h-48 bg-white rounded-xl" />
+          <div className="mx-auto mt-6 inline-block rotate-[-2deg] rounded-3xl border-2 border-ink bg-sun p-5 shadow-sticker">
+            <img
+              src={qrCode}
+              alt="Scan to join scavenger hunt"
+              className="h-44 w-44 rounded-xl border-2 border-ink bg-white"
+            />
           </div>
 
-          {/* Instructions */}
-          <div className="text-left bg-gray-50 rounded-xl p-4 space-y-2 text-sm text-gray-700">
-            <p><strong>📱 To scan:</strong></p>
-            <ul className="ml-4 space-y-1">
-              <li>• iPhone: Open Camera app and point at QR code</li>
-              <li>• Android: Open Camera app or Google Lens</li>
+          <div className="mt-6 rounded-2xl border-2 border-dashed border-ink/30 bg-paper p-4 text-left text-sm text-ink/80">
+            <p className="font-extrabold">📱 To scan:</p>
+            <ul className="ml-4 mt-1 space-y-1">
+              <li>• iPhone: point the Camera app at the code</li>
+              <li>• Android: Camera app or Google Lens</li>
             </ul>
-            <p className="mt-3"><strong>🔗 Or share this link:</strong></p>
-            <p className="text-indigo-600 break-all">https://scavenger2026.onrender.com</p>
+            <p className="mt-3 font-extrabold">🔗 Or share this link:</p>
+            <p className="break-all font-bold text-sky-edge">https://scavenger2026.onrender.com</p>
           </div>
         </div>
       </div>

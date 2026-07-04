@@ -72,7 +72,7 @@ function App() {
   const selectedPath = getPathById(selectedPathId);
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-paper overflow-x-hidden">
       {/* Landing Page */}
       {appState === 'landing' && (
         <Header onStart={handleStart} />
@@ -90,12 +90,12 @@ function App() {
       {appState === 'rules' && (
         <div ref={rulesRef}>
           <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} />
-          <div className="py-8 bg-gray-50 text-center">
+          <div className="paper-dots border-t-2 border-ink/10 py-10 text-center">
             <button
               onClick={handleStartHunt}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+              className="btn-3d btn-go inline-flex items-center gap-3 rounded-full px-10 py-5 font-display text-2xl tracking-wide text-white"
             >
-              Start the Hunt with Path {selectedPathId}!
+              Start the Hunt — Path {selectedPathId}!
             </button>
           </div>
         </div>
@@ -131,7 +131,7 @@ function App() {
 
           {/* Path Selection Modal */}
           {pathSelectionOpen && (
-            <div className="fixed inset-0 bg-black/60 z-50">
+            <div className="fixed inset-0 bg-ink/70 z-50">
               <div className="h-full overflow-y-auto">
                 <PathSelection
                   onPathSelected={handlePathSelected}
