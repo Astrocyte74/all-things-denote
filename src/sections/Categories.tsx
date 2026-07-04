@@ -350,8 +350,12 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
         </div>
 
         {/* Challenge card */}
-        <div className="flex flex-1 items-center justify-center overflow-y-auto p-4">
-          <div className="sticker-card relative w-full max-w-2xl rotate-[-0.4deg] p-6 md:p-8">
+        {/* min-h-0 + my-auto (not items-center): a centered flex item taller than the
+            scroll area can't be scrolled back to its top, clipping the card after a photo
+            adds the "Your shots" strip. Auto margins center when there's room and collapse
+            to 0 when overflowing, keeping the top reachable. */}
+        <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-4">
+          <div className="sticker-card relative my-auto w-full max-w-2xl rotate-[-0.4deg] p-6 md:p-8">
             <ConfettiBurst burstKey={burstKey} />
 
             {/* Number badge */}
