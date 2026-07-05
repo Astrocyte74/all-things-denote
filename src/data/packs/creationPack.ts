@@ -265,11 +265,11 @@ const paths: Path[] = [
 ];
 
 const categoryTheme: GamePack['categoryTheme'] = {
-  light: { main: '#FFB020', edge: '#D98F00', soft: '#FFF4D9', text: '#8A5B00', btn: 'btn-sun', art: 'cat-faith', emoji: '☀️' },
-  water: { main: '#38B6FF', edge: '#1E93DB', soft: '#E0F3FF', text: '#0F6FA8', btn: 'btn-sky', art: 'cat-plan', emoji: '💧' },
-  growth: { main: '#2FBF71', edge: '#22995A', soft: '#DFF6E9', text: '#157A47', btn: 'btn-leaf', art: 'cat-scriptures', emoji: '🌱' },
-  earth: { main: '#7A6CF0', edge: '#5A4BD8', soft: '#ECE9FF', text: '#453AA4', btn: 'btn-grape', art: 'cat-choices', emoji: '🏔️' },
-  creatures: { main: '#FF6B6B', edge: '#E04848', soft: '#FFE7E4', text: '#A83232', btn: 'btn-coral', art: 'cat-love', emoji: '🕊️' },
+  light: { main: '#FFB020', edge: '#D98F00', soft: '#FFF4D9', text: '#8A5B00', btn: 'btn-sun', art: 'c-light', emoji: '☀️' },
+  water: { main: '#38B6FF', edge: '#1E93DB', soft: '#E0F3FF', text: '#0F6FA8', btn: 'btn-sky', art: 'c-water', emoji: '💧' },
+  growth: { main: '#2FBF71', edge: '#22995A', soft: '#DFF6E9', text: '#157A47', btn: 'btn-leaf', art: 'c-growth', emoji: '🌱' },
+  earth: { main: '#7A6CF0', edge: '#5A4BD8', soft: '#ECE9FF', text: '#453AA4', btn: 'btn-grape', art: 'c-earth', emoji: '🏔️' },
+  creatures: { main: '#FF6B6B', edge: '#E04848', soft: '#FFE7E4', text: '#A83232', btn: 'btn-coral', art: 'c-creatures', emoji: '🕊️' },
 };
 
 const bonusArt: GamePack['bonusArt'] = {
@@ -284,7 +284,7 @@ export const creationPack: GamePack = {
   title: 'Creation Quest',
   tagline: 'Gospel Truths in the Outdoors · Youth Activity',
   setting: 'the outdoors',
-  mascotArt: 'mascot', // reused; emoji fallback below shows until a nature mascot is generated
+  mascotArt: 'c-mascot', // Creation Quest mascot; emoji fallback shows until the PNG is generated
   mascotEmoji: '🌿',
   mascotAlt: 'Creation Quest mascot — a magnifying glass over a sprouting leaf',
   scriptureCitation: 'Psalm 19:1',
