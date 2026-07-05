@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Camera, ChevronDown, ChevronUp, Heart, Map, PersonStanding, Smartphone } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronDown, ChevronUp, Heart, Map, PersonStanding, Smartphone } from 'lucide-react';
 import { rules } from '@/data/scavengerData';
 import qrCode from '/qr.png';
 
@@ -8,6 +8,8 @@ interface RulesProps {
   collapsed?: boolean;
   onChangePath?: () => void;
   currentPathId?: string;
+  /** Back-to-Path-Selection affordance; only rendered when provided. */
+  onBack?: () => void;
 }
 
 const ruleMeta: Record<string, { icon: React.ReactNode; color: string; soft: string }> = {
@@ -18,7 +20,7 @@ const ruleMeta: Record<string, { icon: React.ReactNode; color: string; soft: str
   'rule-5': { icon: <Smartphone className="h-8 w-8" strokeWidth={2.5} />, color: '#7A6CF0', soft: '#ECE9FF' },
 };
 
-export function Rules({ collapsed = false, onChangePath, currentPathId = 'A' }: RulesProps) {
+export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', onBack }: RulesProps) {
   const [isExpandedState, setIsExpandedState] = useState(!collapsed);
   const isExpanded = collapsed ? isExpandedState : true;
 
@@ -42,6 +44,15 @@ export function Rules({ collapsed = false, onChangePath, currentPathId = 'A' }: 
   return (
     <section className="paper-dots py-12">
       <div className="mx-auto max-w-6xl px-4 md:px-8">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="btn-3d btn-white animate-rise-in mb-6 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold text-ink"
+          >
+            <ArrowLeft className="h-4 w-4" strokeWidth={3} />
+            Back
+          </button>
+        )}
         <div className="mb-10 text-center">
           {!collapsed && (
             <p className="mx-auto mb-3 inline-block rounded-full border-2 border-ink bg-cream px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-ink shadow-sticker-sm">

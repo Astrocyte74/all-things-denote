@@ -5,6 +5,8 @@ import { PATHS } from '@/data/paths';
 interface PathSelectionProps {
   onPathSelected: (pathId: string) => void;
   isVisible: boolean;
+  /** Back-to-previous-screen affordance; only rendered when provided. */
+  onBack?: () => void;
 }
 
 const pathMeta: Record<string, { icon: React.ReactNode; color: string; soft: string }> = {
@@ -16,12 +18,21 @@ const pathMeta: Record<string, { icon: React.ReactNode; color: string; soft: str
   F: { icon: <Zap className="h-5 w-5" strokeWidth={3} />, color: '#FF9DE2', soft: '#FFE9F7' },
 };
 
-export function PathSelection({ onPathSelected }: PathSelectionProps) {
+export function PathSelection({ onPathSelected, onBack }: PathSelectionProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
   return (
     <section className="paper-dots relative min-h-[100svh] py-10 md:py-16">
       <div className="mx-auto max-w-4xl px-4 pb-28 md:px-8">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="btn-3d btn-white animate-rise-in mb-6 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-extrabold text-ink"
+          >
+            <ArrowLeft className="h-4 w-4" strokeWidth={3} />
+            Back
+          </button>
+        )}
         <div className="mb-8 text-center">
           <p className="animate-rise-in mx-auto mb-3 inline-block rounded-full border-2 border-ink bg-cream px-4 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-ink shadow-sticker-sm">
             Step 1 of 2

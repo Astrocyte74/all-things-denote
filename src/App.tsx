@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { X } from 'lucide-react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
 import { Rules } from '@/sections/Rules';
@@ -65,6 +66,16 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
+  const handleBackToLanding = () => {
+    setAppState('landing');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleBackToPathSelection = () => {
+    setAppState('path-selection');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
   const handleAllCategoriesComplete = () => {
     setBonusUnlocked(true);
   };
@@ -83,13 +94,14 @@ function App() {
         <PathSelection
           onPathSelected={handlePathSelected}
           isVisible={appState === 'path-selection'}
+          onBack={handleBackToLanding}
         />
       )}
 
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} />
+          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} />
           <div className="paper-dots border-t-2 border-ink/10 py-10 text-center">
             <button
               onClick={handleStartHunt}
@@ -111,6 +123,7 @@ function App() {
             onOpenGallery={() => setGalleryOpen(true)}
             onResume={() => categoriesRef.current?.resume()}
             photoCount={photoCount}
+            onExit={handleBackToLanding}
           />
 
           <Categories
@@ -127,12 +140,19 @@ function App() {
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} />
           <Footer />
           {/* Collapsed rules at bottom during hunt */}
-          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} />
+          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} />
 
           {/* Path Selection Modal */}
           {pathSelectionOpen && (
             <div className="fixed inset-0 bg-ink/70 z-50">
               <div className="h-full overflow-y-auto">
+                <button
+                  onClick={() => setPathSelectionOpen(false)}
+                  className="btn-3d btn-white absolute right-4 top-4 z-50 rounded-full p-2 text-ink md:right-8 md:top-6"
+                  aria-label="Close path selection"
+                >
+                  <X className="h-5 w-5" strokeWidth={3} />
+                </button>
                 <PathSelection
                   onPathSelected={handlePathSelected}
                   isVisible={true}
