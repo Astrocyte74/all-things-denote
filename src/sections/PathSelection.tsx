@@ -7,6 +7,8 @@ interface PathSelectionProps {
   isVisible: boolean;
   /** Back-to-previous-screen affordance; only rendered when provided. */
   onBack?: () => void;
+  /** Previously chosen path; pre-selected so the user can confirm or change it. */
+  initialPathId?: string;
 }
 
 const pathMeta: Record<string, { icon: React.ReactNode; color: string; soft: string }> = {
@@ -18,8 +20,8 @@ const pathMeta: Record<string, { icon: React.ReactNode; color: string; soft: str
   F: { icon: <Zap className="h-5 w-5" strokeWidth={3} />, color: '#FF9DE2', soft: '#FFE9F7' },
 };
 
-export function PathSelection({ onPathSelected, onBack }: PathSelectionProps) {
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+export function PathSelection({ onPathSelected, onBack, initialPathId }: PathSelectionProps) {
+  const [selectedPath, setSelectedPath] = useState<string | null>(initialPathId ?? null);
 
   return (
     <section className="paper-dots relative min-h-[100svh] py-10 md:py-16">

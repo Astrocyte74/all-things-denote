@@ -25,15 +25,10 @@ function App() {
   const categoriesRef = useRef<CategoriesHandle>(null);
 
   const handleStart = () => {
-    // If there's a saved path, go directly to rules
-    if (selectedPathId) {
-      setAppState('rules');
-      setTimeout(() => {
-        rulesRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    } else {
-      setAppState('path-selection');
-    }
+    // Always start at Step 1 (path selection). A previously chosen path is
+    // pre-selected there so the user can confirm it or pick a different one.
+    setAppState('path-selection');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handlePathSelected = (pathId: string) => {
@@ -95,6 +90,7 @@ function App() {
           onPathSelected={handlePathSelected}
           isVisible={appState === 'path-selection'}
           onBack={handleBackToLanding}
+          initialPathId={selectedPathId}
         />
       )}
 
@@ -156,6 +152,7 @@ function App() {
                 <PathSelection
                   onPathSelected={handlePathSelected}
                   isVisible={true}
+                  initialPathId={selectedPathId}
                 />
               </div>
             </div>
