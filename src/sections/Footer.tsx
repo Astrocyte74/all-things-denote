@@ -1,6 +1,11 @@
 import { StickerArt } from '@/components/StickerArt';
+import type { GamePack } from '@/types';
 
-export function Footer() {
+interface FooterProps {
+  pack: GamePack;
+}
+
+export function Footer({ pack }: FooterProps) {
   return (
     <footer className="border-t-2 border-ink/10 bg-paper py-10">
       <div className="mx-auto max-w-4xl px-4 text-center md:px-8">
@@ -13,7 +18,7 @@ export function Footer() {
         />
         <p className="mt-2 font-display text-2xl text-ink">Happy Hunting!</p>
         <p className="mt-2 text-sm font-semibold text-ink/50">
-          Follow store policies, be kind to shoppers and employees, and have fun.
+          Be kind, stay safe, respect {pack.setting}, and have fun.
         </p>
       </div>
     </footer>

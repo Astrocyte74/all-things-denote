@@ -1,6 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff } from 'lucide-react';
-import { categories } from '@/data/scavengerData';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -22,6 +21,9 @@ interface CategoriesProps {
   galleryOpen: boolean;
   setGalleryOpen: (open: boolean) => void;
   onPhotoCountChange: (count: number) => void;
+  /** Active pack id — used to namespace progress/photos per game. */
+  packId: string;
+  categories: CategoryType[];
 }
 
 export type CategoriesHandle = {
@@ -33,15 +35,15 @@ export type CategoriesHandle = {
   resetAll: () => void;
 };
 
-export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange }, ref) {
+export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, packId, categories }, ref) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
   }>({ pathId: selectedPathId, categoryId: undefined });
-  const [completedChallenges, setCompletedChallenges, clearCompletedChallenges] = usePersistedState<Set<string>>('completedChallenges', new Set());
+  const [completedChallenges, setCompletedChallenges, clearCompletedChallenges] = usePersistedState<Set<string>>(`completedChallenges:${packId}`, new Set());
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
-  const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle('showAnalogiesEarly', false);
+  const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle(`showAnalogiesEarly:${packId}`, false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
@@ -97,8 +99,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   // Load photo count on mount
   useEffect(() => {
-    getPhotoCount().then(onPhotoCountChange);
-  }, [onPhotoCountChange]);
+    getPhotoCount(packId).then(onPhotoCountChange);
+  }, [onPhotoCountChange, packId]);
 
   // Load photo counts per challenge
   useEffect(() => {
@@ -122,7 +124,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   // Handle photo saved callback
   const handlePhotoSaved = useCallback(async () => {
-    const count = await getPhotoCount();
+    const count = await getPhotoCount(packId);
     onPhotoCountChange(count);
 
     // Update challenge photo counts and photos
@@ -217,11 +219,11 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     if (showAnalogiesEarly) {
       toggleAnalogiesEarly();
     }
-    // Wipe photos, then push the new count up so the header badge updates.
-    clearAllPhotos().then(() => {
-      getPhotoCount().then(onPhotoCountChange);
+    // Wipe this pack's photos, then push the new count up so the header badge updates.
+    clearAllPhotos(packId).then(() => {
+      getPhotoCount(packId).then(onPhotoCountChange);
     });
-  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly, onPhotoCountChange]);
+  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly, onPhotoCountChange, packId]);
 
   const getTotalProgress = useCallback(() => {
     const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
@@ -521,6 +523,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               category={category}
               onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved}
+              packId={packId}
               variant="display"
               pulse={!isCompleted}
             />
@@ -546,6 +549,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
         }}
         onPhotoCountChange={handleGalleryPhotoCountChange}
         filterChallengeId={galleryFilterChallengeId}
+        packId={packId}
       />
       </>
     );
@@ -803,6 +807,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                     category={category}
                                     onCaptureComplete={markChallengeComplete}
                                     onPhotoSaved={handlePhotoSaved}
+                                    packId={packId}
                                   />
                                 </div>
                               </div>
@@ -863,6 +868,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
       onPhotoCountChange={handleGalleryPhotoCountChange}
       onPhotoDeleted={handlePhotoSaved}
       filterChallengeId={galleryFilterChallengeId}
+      packId={packId}
     />
   </>
   );

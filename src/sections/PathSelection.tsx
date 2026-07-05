@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Map, Repeat, Shuffle, Zap } from 'lucide-react';
-import { PATHS } from '@/data/paths';
+import type { Path } from '@/types';
 
 interface PathSelectionProps {
   onPathSelected: (pathId: string) => void;
@@ -9,6 +9,8 @@ interface PathSelectionProps {
   onBack?: () => void;
   /** Previously chosen path; pre-selected so the user can confirm or change it. */
   initialPathId?: string;
+  /** The paths to choose between (comes from the active pack). */
+  paths: Path[];
 }
 
 const pathMeta: Record<string, { icon: React.ReactNode; color: string; soft: string }> = {
@@ -20,7 +22,7 @@ const pathMeta: Record<string, { icon: React.ReactNode; color: string; soft: str
   F: { icon: <Zap className="h-5 w-5" strokeWidth={3} />, color: '#FF9DE2', soft: '#FFE9F7' },
 };
 
-export function PathSelection({ onPathSelected, onBack, initialPathId }: PathSelectionProps) {
+export function PathSelection({ onPathSelected, onBack, initialPathId, paths }: PathSelectionProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(initialPathId ?? null);
 
   return (
@@ -44,12 +46,12 @@ export function PathSelection({ onPathSelected, onBack, initialPathId }: PathSel
           </h2>
           <p className="animate-rise-in mx-auto mt-3 max-w-xl font-semibold text-ink/70" style={{ animationDelay: '0.16s' }}>
             Every team does the same 15 challenges — just in a different order,
-            so you naturally spread out across the store.
+            so you naturally spread out and explore together.
           </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PATHS.map((path, index) => {
+          {paths.map((path, index) => {
             const meta = pathMeta[path.id];
             const isSelected = selectedPath === path.id;
             return (

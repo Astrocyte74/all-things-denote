@@ -1,14 +1,26 @@
 import { useState } from 'react';
-import { ArrowRight, Camera, Share2, ShoppingCart, Users } from 'lucide-react';
+import { ArrowRight, Camera, Share2, ShoppingCart } from 'lucide-react';
 import { ShareModal } from '@/components/ShareModal';
 import { StickerArt } from '@/components/StickerArt';
+import type { GamePack } from '@/types';
 
 interface HeaderProps {
+  pack: GamePack;
   onStart: () => void;
 }
 
-export function Header({ onStart }: HeaderProps) {
+// Split a title into two stacked lines for the display heading, breaking on
+// the last word (e.g. "Scavenger Hunt" -> ["Scavenger", "Hunt!"]).
+function splitTitle(title: string): [string, string] {
+  const trimmed = title.trim();
+  const space = trimmed.lastIndexOf(' ');
+  if (space === -1) return ['', `${trimmed}!`];
+  return [trimmed.slice(0, space), `${trimmed.slice(space + 1)}!`];
+}
+
+export function Header({ pack, onStart }: HeaderProps) {
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [titleLine1, titleLine2] = splitTitle(pack.title);
 
   return (
     <section className="paper-dots relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 py-12">
@@ -43,9 +55,9 @@ export function Header({ onStart }: HeaderProps) {
         {/* Mascot */}
         <div className="animate-pop-in mb-2">
           <StickerArt
-            name="mascot"
-            emoji="🛒"
-            alt="Scavenger hunt mascot — a happy shopping cart with a camera"
+            name={pack.mascotArt}
+            emoji={pack.mascotEmoji}
+            alt={pack.mascotAlt}
             className="h-36 w-36 animate-bob md:h-48 md:w-48"
             emojiSize="6.5rem"
           />
@@ -53,38 +65,37 @@ export function Header({ onStart }: HeaderProps) {
 
         {/* Title */}
         <p className="animate-rise-in mb-2 rounded-full border-2 border-ink bg-cream px-4 py-1 font-body text-xs font-extrabold uppercase tracking-[0.2em] text-ink shadow-sticker-sm" style={{ animationDelay: '0.1s' }}>
-          Gospel Analogies · Youth Activity
+          {pack.tagline}
         </p>
         <h1 className="animate-rise-in font-display text-5xl leading-[0.95] md:text-7xl" style={{ animationDelay: '0.18s' }}>
-          <span className="block text-ink">Scavenger</span>
-          <span className="text-sticker-sun block text-6xl md:text-8xl">Hunt!</span>
+          {titleLine1 && <span className="block text-ink">{titleLine1}</span>}
+          <span className="text-sticker-sun block text-6xl md:text-8xl">{titleLine2}</span>
         </h1>
 
         <p className="animate-rise-in mt-5 max-w-md text-base font-semibold text-ink/80 md:text-lg" style={{ animationDelay: '0.26s' }}>
-          Team up, race the aisles, and snap 15 photos of everyday things
-          that secretly teach gospel truths.
+          {pack.blurb}
         </p>
 
         {/* Scripture ticket */}
         <blockquote className="animate-rise-in mt-6 max-w-md rotate-[-1deg] rounded-2xl border-2 border-dashed border-ink/40 bg-cream px-5 py-4" style={{ animationDelay: '0.34s' }}>
           <p className="text-sm italic leading-relaxed text-ink/70">
-            “All things denote there is a God; yea, even the earth, and all
-            things that are upon the face of it…”
+            {pack.scriptureQuote}
           </p>
-          <cite className="mt-1 block text-xs font-bold not-italic text-ink/50">— Alma 30:44</cite>
+          <cite className="mt-1 block text-xs font-bold not-italic text-ink/50">— {pack.scriptureCitation}</cite>
         </blockquote>
 
         {/* Stat chips */}
         <div className="animate-rise-in mt-6 flex flex-wrap items-center justify-center gap-2" style={{ animationDelay: '0.42s' }}>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-sky-soft px-3 py-1.5 text-sm font-extrabold text-ink shadow-sticker-sm">
-            <Camera className="h-4 w-4" /> 15 photos
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-grape-soft px-3 py-1.5 text-sm font-extrabold text-ink shadow-sticker-sm">
-            <Users className="h-4 w-4" /> 6 team paths
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-coral-soft px-3 py-1.5 text-sm font-extrabold text-ink shadow-sticker-sm">
-            <ShoppingCart className="h-4 w-4" /> store ready
-          </span>
+          {pack.statChips.map((chip, i) => (
+            <span
+              key={chip.label}
+              className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-sm font-extrabold text-ink shadow-sticker-sm ${
+                ['bg-sky-soft', 'bg-grape-soft', 'bg-coral-soft'][i % 3]
+              }`}
+            >
+              <span className="leading-none">{chip.emoji}</span> {chip.label}
+            </span>
+          ))}
         </div>
 
         {/* CTA */}

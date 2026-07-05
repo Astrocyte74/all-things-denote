@@ -3,6 +3,7 @@ import { Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Category, Challenge } from '@/types';
 import { savePhoto, type StoredPhoto } from '@/lib/photoStorage';
+import { getCategoryTheme } from '@/lib/theme';
 
 interface PhotoCaptureProps {
   challenge: Challenge;
@@ -11,20 +12,13 @@ interface PhotoCaptureProps {
   onPhotoSaved?: () => void; // Callback when photo is saved to gallery
   variant?: 'default' | 'display';
   pathId?: string;
+  /** Pack id, stamped on the saved photo so it stays scoped to its game. */
+  packId?: string;
   /** Draw attention to the button (focus mode, challenge not yet complete) */
   pulse?: boolean;
 };
 
-// Category color mapping for canvas photo-frame gradients (Sticker Quest palette)
-const categoryColors: Record<string, { from: string; to: string }> = {
-  'faith': { from: '#FFB020', to: '#D98F00' },
-  'choices': { from: '#7A6CF0', to: '#5A4BD8' },
-  'service': { from: '#FF6B6B', to: '#E04848' },
-  'scriptures': { from: '#2FBF71', to: '#22995A' },
-  'community': { from: '#38B6FF', to: '#1E93DB' }
-};
-
-export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, pulse = false }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, packId, pulse = false }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoCapture = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,8 +64,9 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         // Draw the photo
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Draw frame overlay
-        const colors = categoryColors[category.id] || categoryColors['faith'];
+        // Draw frame overlay — colors come from the active pack's theme.
+        const theme = getCategoryTheme(category.id);
+        const colors = { from: theme.main, to: theme.edge };
 
         // Create gradient background for frame
         const gradient = ctx.createLinearGradient(0, height, 0, canvas.height);
@@ -159,6 +154,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
                 categoryIcon: category.icon,
                 categoryColor: category.color,
                 pathId: pathId, // Save the team path
+                packId: packId, // Scope the photo to its game pack
                 imageData: base64data,
                 timestamp: Date.now()
               };
@@ -209,7 +205,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
 
     // Reset file input so same file can be selected again
     event.target.value = '';
-  }, [challenge, category, onCaptureComplete, onPhotoSaved, pathId]);
+  }, [challenge, category, onCaptureComplete, onPhotoSaved, pathId, packId]);
 
   const triggerCapture = () => {
     fileInputRef.current?.click();

@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
-import { bonusItems } from '@/data/scavengerData';
-import { bonusArt } from '@/lib/theme';
+import type { BonusItem } from '@/types';
+import { getBonusArt } from '@/lib/theme';
 import { StickerArt } from '@/components/StickerArt';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 
 interface BonusSectionProps {
   isVisible: boolean;
   isUnlocked: boolean;
+  bonusItems: BonusItem[];
 }
 
 const bonusColors = ['#38B6FF', '#FFFDF7', '#FF6B6B', '#7A6CF0'];
 const bonusSofts = ['#E0F3FF', '#FFFDF7', '#FFE7E4', '#ECE9FF'];
 
-export function BonusSection({ isVisible, isUnlocked }: BonusSectionProps) {
+export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSectionProps) {
   const [isAnimated, setIsAnimated] = useState(false);
   const [flippedCard, setFlippedCard] = useState<string | null>(null);
   const [burstKey, setBurstKey] = useState(0);
@@ -68,7 +69,7 @@ export function BonusSection({ isVisible, isUnlocked }: BonusSectionProps) {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {bonusItems.map((item, index) => {
             const isFlipped = flippedCard === item.id;
-            const art = bonusArt[item.id];
+            const art = getBonusArt(item.id);
 
             return (
               <div

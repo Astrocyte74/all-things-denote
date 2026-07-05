@@ -1,9 +1,6 @@
-export interface Path {
-  id: string;
-  name: string;
-  description: string;
-  order: number[];
-}
+import type { Path } from '@/types';
+
+export type { Path };
 
 export const PATHS: Path[] = [
   {

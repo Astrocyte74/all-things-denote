@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
@@ -8,7 +8,9 @@ import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
 import { StickyHuntHeader } from '@/components/StickyHuntHeader';
 import { StartOverDialog } from '@/components/StartOverDialog';
-import { getPathById } from '@/data/paths';
+import { PackPicker } from '@/sections/PackPicker';
+import { PACKS, getPackById, DEFAULT_PACK_ID } from '@/data/packs';
+import { setActivePack } from '@/lib/theme';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
@@ -17,7 +19,10 @@ type AppState = 'landing' | 'path-selection' | 'rules' | 'hunt';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('landing');
-  const [selectedPathId, setSelectedPathId] = usePersistedState<string>('selectedPathId', '');
+  const [activePackId, setActivePackId] = usePersistedState<string>('activePackId', DEFAULT_PACK_ID);
+  // Per-pack path memory: { scavenger: 'A', creation: 'C' } so switching packs
+  // doesn't lose each game's chosen path.
+  const [pathByPack, setPathByPack] = usePersistedState<Record<string, string>>('pathByPack', {});
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
@@ -25,6 +30,28 @@ function App() {
   const [startOverOpen, setStartOverOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
+
+  const pack = getPackById(activePackId);
+
+  // Keep the theme lookups + (via Categories' packId prop) progress/photo keys
+  // in sync with whichever pack is active.
+  useEffect(() => {
+    setActivePack(pack);
+  }, [pack]);
+
+  const selectedPathId = pathByPack[pack.id] ?? '';
+
+  const setSelectedPathId = (pathId: string) => {
+    setPathByPack((prev) => ({ ...prev, [pack.id]: pathId }));
+  };
+
+  // ── Pack + flow handlers ────────────────────────────────────────────────
+  const handlePickPack = (id: string) => {
+    setActivePackId(id);
+    setBonusUnlocked(false);
+    setAppState('landing');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
 
   const handleStart = () => {
     // Always start at Step 1 (path selection). A previously chosen path is
@@ -48,18 +75,15 @@ function App() {
   };
 
   const handleChangePath = () => {
-    // If we're in the rules/setup phase, go to path-selection screen
     if (appState === 'rules' || appState === 'landing') {
       setAppState('path-selection');
     } else {
-      // If we're in the hunt, open the modal overlay
       setPathSelectionOpen(true);
     }
   };
 
   const handleStartHunt = () => {
     setAppState('hunt');
-    // Scroll to top when starting the hunt
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -89,13 +113,16 @@ function App() {
     setBonusUnlocked(true);
   };
 
-  const selectedPath = getPathById(selectedPathId);
+  const selectedPath = pack.paths.find((p) => p.id === selectedPathId);
 
   return (
     <div className="min-h-screen bg-paper overflow-x-hidden">
-      {/* Landing Page */}
+      {/* Landing Page — pack picker, then the active pack's hero */}
       {appState === 'landing' && (
-        <Header onStart={handleStart} />
+        <>
+          <PackPicker packs={PACKS} activePackId={pack.id} onPick={handlePickPack} />
+          <Header pack={pack} onStart={handleStart} />
+        </>
       )}
 
       {/* Path Selection */}
@@ -105,19 +132,20 @@ function App() {
           isVisible={appState === 'path-selection'}
           onBack={handleBackToLanding}
           initialPathId={selectedPathId}
+          paths={pack.paths}
         />
       )}
 
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} />
+          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} rules={pack.rules} />
           <div className="paper-dots border-t-2 border-ink/10 py-10 text-center">
             <button
               onClick={handleStartHunt}
               className="btn-3d btn-go inline-flex items-center gap-3 rounded-full px-10 py-5 font-display text-2xl tracking-wide text-white"
             >
-              Start the Hunt — Path {selectedPathId}!
+              Start the {pack.title} — Path {selectedPathId}!
             </button>
           </div>
         </div>
@@ -147,11 +175,13 @@ function App() {
             galleryOpen={galleryOpen}
             setGalleryOpen={setGalleryOpen}
             onPhotoCountChange={setPhotoCount}
+            packId={pack.id}
+            categories={pack.categories}
           />
-          <BonusSection isVisible={true} isUnlocked={bonusUnlocked} />
-          <Footer />
+          <BonusSection isVisible={true} isUnlocked={bonusUnlocked} bonusItems={pack.bonusItems} />
+          <Footer pack={pack} />
           {/* Collapsed rules at bottom during hunt */}
-          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} />
+          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} rules={pack.rules} />
 
           {/* Path Selection Modal */}
           {pathSelectionOpen && (
@@ -168,6 +198,7 @@ function App() {
                   onPathSelected={handlePathSelected}
                   isVisible={true}
                   initialPathId={selectedPathId}
+                  paths={pack.paths}
                 />
               </div>
             </div>

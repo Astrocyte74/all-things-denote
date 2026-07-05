@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Camera, ChevronDown, ChevronUp, Heart, Map, PersonStanding, Smartphone } from 'lucide-react';
-import { rules } from '@/data/scavengerData';
+import type { Rule } from '@/types';
 import qrCode from '/qr.png';
 
 interface RulesProps {
@@ -10,6 +10,7 @@ interface RulesProps {
   currentPathId?: string;
   /** Back-to-Path-Selection affordance; only rendered when provided. */
   onBack?: () => void;
+  rules: Rule[];
 }
 
 const ruleMeta: Record<string, { icon: React.ReactNode; color: string; soft: string }> = {
@@ -20,7 +21,7 @@ const ruleMeta: Record<string, { icon: React.ReactNode; color: string; soft: str
   'rule-5': { icon: <Smartphone className="h-8 w-8" strokeWidth={2.5} />, color: '#7A6CF0', soft: '#ECE9FF' },
 };
 
-export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', onBack }: RulesProps) {
+export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', onBack, rules }: RulesProps) {
   const [isExpandedState, setIsExpandedState] = useState(!collapsed);
   const isExpanded = collapsed ? isExpandedState : true;
 
