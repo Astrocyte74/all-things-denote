@@ -11,7 +11,7 @@ import { PhotoGallery } from '@/components/PhotoGallery';
 import { StickerArt } from '@/components/StickerArt';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { getCategoryTheme } from '@/lib/theme';
-import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
+import { clearAllPhotos, getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
 interface CategoriesProps {
   isVisible: boolean;
@@ -27,6 +27,10 @@ interface CategoriesProps {
 export type CategoriesHandle = {
   /** Re-open the focus-mode carousel on the next incomplete challenge. */
   resume: () => void;
+  /** Clear completed challenges (and the analogies toggle); keep photos. */
+  resetProgress: () => void;
+  /** Clear completed challenges AND delete all photos, then refresh the count. */
+  resetAll: () => void;
 };
 
 export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange }, ref) {
@@ -200,6 +204,25 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     setShowResetConfirm(false);
   };
 
+  // Imperative reset entry points (called from App via categoriesRef).
+  const resetProgress = useCallback(() => {
+    clearCompletedChallenges();
+    if (showAnalogiesEarly) {
+      toggleAnalogiesEarly();
+    }
+  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly]);
+
+  const resetAll = useCallback(() => {
+    clearCompletedChallenges();
+    if (showAnalogiesEarly) {
+      toggleAnalogiesEarly();
+    }
+    // Wipe photos, then push the new count up so the header badge updates.
+    clearAllPhotos().then(() => {
+      getPhotoCount().then(onPhotoCountChange);
+    });
+  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly, onPhotoCountChange]);
+
   const getTotalProgress = useCallback(() => {
     const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
     const completed = allChallenges.filter(c => completedChallenges.has(c.id)).length;
@@ -244,7 +267,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   }, [isVisible, selectedPathId, openNextIncomplete]);
 
   // Let the parent (sticky header "Resume Hunt" button) re-enter focus mode.
-  useImperativeHandle(ref, () => ({ resume: openNextIncomplete }), [openNextIncomplete]);
+  useImperativeHandle(ref, () => ({ resume: openNextIncomplete, resetProgress, resetAll }), [openNextIncomplete, resetProgress, resetAll]);
 
   const navigateDisplayMode = (direction: 'prev' | 'next') => {
     if (!displayModeChallenge) return;

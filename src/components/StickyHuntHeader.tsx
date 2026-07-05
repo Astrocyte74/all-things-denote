@@ -1,4 +1,4 @@
-import { ArrowRight, Camera, Home, MapPinned } from 'lucide-react';
+import { ArrowRight, Camera, Home, MapPinned, RotateCcw } from 'lucide-react';
 
 interface StickyHuntHeaderProps {
   pathId: string;
@@ -8,9 +8,11 @@ interface StickyHuntHeaderProps {
   photoCount?: number;
   /** Exit-to-home affordance; only rendered when provided. */
   onExit?: () => void;
+  /** Open the start-over dialog; only rendered when provided. */
+  onStartOver?: () => void;
 }
 
-export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, onResume, photoCount = 0, onExit }: StickyHuntHeaderProps) {
+export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, onResume, photoCount = 0, onExit, onStartOver }: StickyHuntHeaderProps) {
   return (
     <div className="safe-top fixed left-0 right-0 top-0 z-50 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
@@ -53,6 +55,17 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, onResume
           >
             Change
           </button>
+
+          {onStartOver && (
+            <button
+              onClick={onStartOver}
+              className="btn-3d btn-white inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-extrabold text-ink"
+              aria-label="Start over"
+            >
+              <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
+              <span className="hidden lg:inline">Start Over</span>
+            </button>
+          )}
         </div>
 
         {/* Right: resume */}

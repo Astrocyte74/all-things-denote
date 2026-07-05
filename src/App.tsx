@@ -7,6 +7,7 @@ import { Categories, type CategoriesHandle } from '@/sections/Categories';
 import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
 import { StickyHuntHeader } from '@/components/StickyHuntHeader';
+import { StartOverDialog } from '@/components/StartOverDialog';
 import { getPathById } from '@/data/paths';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Toaster } from '@/components/ui/sonner';
@@ -21,6 +22,7 @@ function App() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
+  const [startOverOpen, setStartOverOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
 
@@ -67,6 +69,18 @@ function App() {
   };
 
   const handleBackToPathSelection = () => {
+    setAppState('path-selection');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleStartOverProgress = () => {
+    categoriesRef.current?.resetProgress();
+    setAppState('path-selection');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleStartOverAll = () => {
+    categoriesRef.current?.resetAll();
     setAppState('path-selection');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -120,6 +134,7 @@ function App() {
             onResume={() => categoriesRef.current?.resume()}
             photoCount={photoCount}
             onExit={handleBackToLanding}
+            onStartOver={() => setStartOverOpen(true)}
           />
 
           <Categories
@@ -157,6 +172,14 @@ function App() {
               </div>
             </div>
           )}
+
+          {/* Start Over dialog */}
+          <StartOverDialog
+            isOpen={startOverOpen}
+            onClose={() => setStartOverOpen(false)}
+            onResetProgress={handleStartOverProgress}
+            onResetAll={handleStartOverAll}
+          />
         </>
       )}
 
