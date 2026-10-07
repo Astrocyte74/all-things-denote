@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
@@ -31,6 +31,14 @@ function App() {
   const [startOverOpen, setStartOverOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
   const categoriesRef = useRef<CategoriesHandle>(null);
+
+  const handleProgressChange = useCallback((completed: number, total: number) => {
+    setProgress(previous =>
+      previous.completed === completed && previous.total === total
+        ? previous
+        : { completed, total }
+    );
+  }, []);
 
   const pack = getPackById(activePackId);
 
@@ -170,7 +178,7 @@ function App() {
             galleryOpen={galleryOpen}
             setGalleryOpen={setGalleryOpen}
             onPhotoCountChange={setPhotoCount}
-            onProgressChange={(completed, total) => setProgress({ completed, total })}
+            onProgressChange={handleProgressChange}
             packId={pack.id}
             categories={pack.categories}
           />
