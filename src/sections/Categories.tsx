@@ -89,7 +89,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     });
 
     return result;
-  }, [pathOrder]);
+  }, [pathOrder, categories]);
 
   useEffect(() => {
     if (isVisible) {
@@ -140,7 +140,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
     setChallengePhotoCounts(photoCountMap);
     setChallengePhotos(photosMap);
-  }, [orderedCategoryData, onPhotoCountChange]);
+  }, [orderedCategoryData, onPhotoCountChange, packId]);
 
   // Handle gallery photo count change
   const handleGalleryPhotoCountChange = useCallback((count: number) => {
@@ -454,7 +454,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               </div>
             ) : (
               <div className="mt-6 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-5 text-center">
-                <p className="text-lg font-semibold italic text-ink/50">
+                <p className="text-lg font-semibold italic text-ink/70">
                   🤔 Talk it over — what gospel truth hides in this one?
                 </p>
               </div>
@@ -463,7 +463,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
             {/* Photo thumbnails for this challenge */}
             {(challengePhotos[challenge.id] ?? []).length > 0 && (
               <div className="mt-5 border-t-2 border-dashed border-ink/10 pt-4">
-                <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-widest text-ink/50">
+                <p className="mb-2 text-center text-xs font-extrabold uppercase tracking-widest text-ink/70">
                   Your shots
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -486,7 +486,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                         setGalleryFilterChallengeId(challenge.id);
                         setGalleryOpen(true);
                       }}
-                      className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-ink/40 bg-paper text-sm font-extrabold text-ink/60 hover:bg-white"
+                      className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-ink/40 bg-paper text-sm font-extrabold text-ink/70 hover:bg-white"
                     >
                       +{(challengePhotos[challenge.id] ?? []).length - 4}
                     </button>
@@ -503,7 +503,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
         {/* Bottom nav */}
         <div className="flex-shrink-0 border-t-2 border-ink bg-cream/90 px-4 pb-5 pt-3 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center justify-between text-xs font-extrabold uppercase tracking-wider text-ink/50">
+          <div className="mx-auto flex max-w-2xl items-center justify-between text-xs font-extrabold uppercase tracking-wider text-ink/70">
             <span>Challenge {flatIndex + 1} / {allChallenges.length}</span>
             <span>{totalProgress.completed}/{totalProgress.total} done · Path {selectedPathId}</span>
           </div>
@@ -591,7 +591,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                 <div>
                   <div className="text-xs font-extrabold uppercase tracking-widest text-sun-edge">Next up</div>
                   <div className="font-display text-xl leading-tight text-ink">{nextChallenge.title}</div>
-                  <div className="text-sm font-semibold text-ink/60">{nextChallenge.photoTarget}</div>
+                  <div className="text-sm font-semibold text-ink/70">{nextChallenge.photoTarget}</div>
                 </div>
               </div>
               <button
@@ -615,7 +615,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
             return (
               <div
                 key={category.id}
-                className={`transform transition-all duration-500 ${
+                className={`min-w-0 transform transition-all duration-500 ${
                   isAnimated ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
                 }`}
                 style={{ transitionDelay: `${index * 80}ms` }}
@@ -638,7 +638,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                           className="h-14 w-14 flex-shrink-0"
                           emojiSize="2.4rem"
                         />
-                        <h3 className="truncate font-display text-xl text-ink sm:text-2xl">
+                        <h3 className="font-display text-xl leading-tight text-ink sm:text-2xl">
                           {category.title}
                         </h3>
                       </div>
@@ -712,7 +712,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                     >
                                       #{challenge.number}
                                     </span>
-                                    <h4 className={`font-body text-base font-extrabold text-ink ${isCompleted ? 'line-through opacity-60' : ''}`}>
+                                    <h4 className={`font-body text-base font-extrabold text-ink ${isCompleted ? 'line-through text-ink/70' : ''}`}>
                                       {challenge.title}
                                     </h4>
                                     {(challengePhotoCounts[challenge.id] ?? 0) > 0 && (
@@ -734,7 +734,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                     {showAnalogies ? (
                                       <>
                                         {challenge.photoTarget && (
-                                          <div className="flex items-start gap-2 text-sm font-semibold text-ink/60">
+                                          <div className="flex items-start gap-2 text-sm font-semibold text-ink/70">
                                             <Camera className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={2.5} style={{ color: theme.main }} />
                                             <span>{challenge.photoTarget}</span>
                                           </div>
@@ -747,13 +747,13 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                           <span>{challenge.gospelConnection}</span>
                                         </div>
                                         {challenge.scripture && (
-                                          <div className="text-xs font-bold italic text-ink/45">
+                                          <div className="text-xs font-bold italic text-ink/70">
                                             {challenge.scripture}
                                           </div>
                                         )}
                                       </>
                                     ) : (
-                                      <div className="flex items-start gap-2 text-sm font-semibold italic text-ink/40">
+                                      <div className="flex items-start gap-2 text-sm font-semibold italic text-ink/70">
                                         <EyeOff className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
                                         <span>Think about the gospel connection…</span>
                                       </div>
@@ -782,7 +782,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                             setGalleryFilterChallengeId(challenge.id);
                                             setGalleryOpen(true);
                                           }}
-                                          className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-ink/30 bg-white text-sm font-extrabold text-ink/60"
+                                          className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-ink/30 bg-white text-sm font-extrabold text-ink/70"
                                         >
                                           +{(challengePhotos[challenge.id] ?? []).length - 4}
                                         </button>
@@ -795,7 +795,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                 <div className="flex items-center gap-2 self-end sm:self-start">
                                   <button
                                     onClick={() => enterDisplayMode(category, challengeIndex)}
-                                    className="flex-shrink-0 rounded-xl border-2 border-ink/15 bg-white p-2 text-ink/50 transition-colors hover:border-ink/40 hover:text-ink"
+                                    className="flex-shrink-0 rounded-xl border-2 border-ink/15 bg-white p-2 text-ink/70 transition-colors hover:border-ink/40 hover:text-ink"
                                     title="Focus Mode"
                                     aria-label={`Open ${challenge.title} in focus mode`}
                                   >
@@ -827,7 +827,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
         <div className="mt-10 text-center">
           <button
             onClick={() => setShowResetConfirm(true)}
-            className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink"
+            className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
           >
             <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
             Reset Progress
@@ -897,8 +897,8 @@ function ProgressBar({ completed, total, onTripleTap, bonusUnlocked, showAnalogi
   return (
     <div className="mx-auto max-w-md">
       <div className="mb-1.5 flex items-end justify-between px-1">
-        <span className="text-xs font-extrabold uppercase tracking-widest text-ink/50">Progress</span>
-        <span className="font-display text-lg leading-none text-ink">{completed} <span className="text-ink/40">/ {total}</span></span>
+        <span className="text-xs font-extrabold uppercase tracking-widest text-ink/70">Progress</span>
+        <span className="font-display text-lg leading-none text-ink">{completed} <span className="text-ink/70">/ {total}</span></span>
       </div>
       <div
         ref={progressBarRef}
@@ -913,7 +913,7 @@ function ProgressBar({ completed, total, onTripleTap, bonusUnlocked, showAnalogi
 
       {bonusUnlocked && !showAnalogies && (
         <div className="mt-2 text-center">
-          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink/15 bg-cream px-3 py-1.5 text-xs font-bold text-ink/60">
+          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink/15 bg-cream px-3 py-1.5 text-xs font-bold text-ink/70">
             <Map className="h-3 w-3" />
             Triple tap the bar to reveal all gospel analogies
           </span>
@@ -924,7 +924,7 @@ function ProgressBar({ completed, total, onTripleTap, bonusUnlocked, showAnalogi
         <div className="mt-2 text-center">
           <button
             onClick={onTripleTap}
-            className="mx-auto flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-ink/40 transition-colors hover:text-ink"
+            className="mx-auto flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-ink/70 transition-colors hover:text-ink"
           >
             <EyeOff className="h-3 w-3" />
             Hide gospel analogies

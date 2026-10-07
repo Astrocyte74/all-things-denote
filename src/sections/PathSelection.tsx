@@ -81,7 +81,7 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths }: 
                     {path.id}
                   </span>
                   <div className="min-w-0">
-                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-ink/50">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-ink/70">
                       {path.name.split(' - ')[1] ?? path.name}
                     </div>
                     <div className="flex items-center gap-1.5 font-display text-xl text-ink">
@@ -96,7 +96,7 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths }: 
 
                 {/* First stops preview */}
                 <div className="mt-3 flex items-center gap-1.5 border-t-2 border-dashed border-ink/15 pt-3">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-ink/50">Starts</span>
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-ink/70">Starts</span>
                   {path.order.slice(0, 4).map(n => (
                     <span
                       key={n}
@@ -105,7 +105,7 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths }: 
                       {n}
                     </span>
                   ))}
-                  <span className="text-sm font-extrabold text-ink/40">…</span>
+                  <span className="text-sm font-extrabold text-ink/70">…</span>
                 </div>
               </button>
             );

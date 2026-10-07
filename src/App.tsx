@@ -139,15 +139,7 @@ function App() {
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} rules={pack.rules} />
-          <div className="paper-dots border-t-2 border-ink/10 py-10 text-center">
-            <button
-              onClick={handleStartHunt}
-              className="btn-3d btn-go inline-flex items-center gap-3 rounded-full px-10 py-5 font-display text-2xl tracking-wide text-white"
-            >
-              Start the {pack.title} — Path {selectedPathId}!
-            </button>
-          </div>
+          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} onStart={handleStartHunt} rules={pack.rules} />
         </div>
       )}
 

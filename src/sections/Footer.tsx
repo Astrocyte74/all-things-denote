@@ -17,7 +17,7 @@ export function Footer({ pack }: FooterProps) {
           emojiSize="2.5rem"
         />
         <p className="mt-2 font-display text-2xl text-ink">Happy Hunting!</p>
-        <p className="mt-2 text-sm font-semibold text-ink/50">
+        <p className="mt-2 text-sm font-semibold text-ink/70">
           Be kind, stay safe, respect {pack.setting}, and have fun.
         </p>
       </div>

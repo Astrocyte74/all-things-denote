@@ -23,7 +23,7 @@ export function Header({ pack, onStart }: HeaderProps) {
   const [titleLine1, titleLine2] = splitTitle(pack.title);
 
   return (
-    <section className="paper-dots relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-4 py-12">
+    <section className="paper-dots relative flex flex-col items-center justify-center overflow-hidden px-4 py-6 md:min-h-[calc(100svh-140px)] md:py-10">
       {/* Share button */}
       <button
         onClick={() => setShareModalOpen(true)}
@@ -53,18 +53,18 @@ export function Header({ pack, onStart }: HeaderProps) {
 
       <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-center text-center">
         {/* Mascot */}
-        <div className="animate-pop-in mb-2">
+        <div className="animate-pop-in mb-2 rounded-3xl bg-paper p-3">
           <StickerArt
             name={pack.mascotArt}
             emoji={pack.mascotEmoji}
             alt={pack.mascotAlt}
-            className="h-36 w-36 animate-bob md:h-48 md:w-48"
+            className="h-24 w-24 animate-bob md:h-36 md:w-36"
             emojiSize="6.5rem"
           />
         </div>
 
         {/* Title */}
-        <p className="animate-rise-in mb-2 rounded-full border-2 border-ink bg-cream px-4 py-1 font-body text-xs font-extrabold uppercase tracking-[0.2em] text-ink shadow-sticker-sm" style={{ animationDelay: '0.1s' }}>
+        <p className="animate-rise-in mb-3 rounded-full border-2 border-ink bg-cream px-3 py-1 font-body text-[10px] font-extrabold uppercase tracking-[0.15em] text-ink shadow-sticker-sm md:text-xs" style={{ animationDelay: '0.1s' }}>
           {pack.tagline}
         </p>
         <h1 className="animate-rise-in font-display text-5xl leading-[0.95] md:text-7xl" style={{ animationDelay: '0.18s' }}>
@@ -76,12 +76,24 @@ export function Header({ pack, onStart }: HeaderProps) {
           {pack.blurb}
         </p>
 
+        <button
+          onClick={onStart}
+          className="btn-3d btn-go animate-rise-in mt-6 inline-flex items-center gap-3 rounded-full px-8 py-4 font-display text-2xl tracking-wide text-white"
+          style={{ animationDelay: '0.3s' }}
+        >
+          Start the Hunt
+          <ArrowRight className="h-6 w-6" strokeWidth={3} />
+        </button>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wider text-ink/70">
+          Free · No sign-up · Progress saved on this device
+        </p>
+
         {/* Scripture ticket */}
         <blockquote className="animate-rise-in mt-6 max-w-md rotate-[-1deg] rounded-2xl border-2 border-dashed border-ink/40 bg-cream px-5 py-4" style={{ animationDelay: '0.34s' }}>
           <p className="text-sm italic leading-relaxed text-ink/70">
             {pack.scriptureQuote}
           </p>
-          <cite className="mt-1 block text-xs font-bold not-italic text-ink/50">— {pack.scriptureCitation}</cite>
+          <cite className="mt-1 block text-xs font-bold not-italic text-ink/70">— {pack.scriptureCitation}</cite>
         </blockquote>
 
         {/* Stat chips */}
@@ -98,18 +110,6 @@ export function Header({ pack, onStart }: HeaderProps) {
           ))}
         </div>
 
-        {/* CTA */}
-        <button
-          onClick={onStart}
-          className="btn-3d btn-go animate-rise-in mt-8 inline-flex items-center gap-3 rounded-full px-10 py-5 font-display text-2xl tracking-wide text-white"
-          style={{ animationDelay: '0.5s' }}
-        >
-          Start the Hunt
-          <ArrowRight className="h-6 w-6" strokeWidth={3} />
-        </button>
-        <p className="animate-rise-in mt-3 text-xs font-bold uppercase tracking-widest text-ink/40" style={{ animationDelay: '0.58s' }}>
-          No sign-up · works offline-ish · free
-        </p>
       </div>
 
       <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
