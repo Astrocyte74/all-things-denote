@@ -24,7 +24,7 @@ export const PATHS: Path[] = [
   {
     id: 'D',
     name: 'Path D - Theme Shuffle',
-    description: 'Complete all challenges from each category before moving on',
+    description: 'Take one challenge from each theme, then go around again',
     order: [1, 4, 7, 10, 13, 2, 5, 8, 11, 14, 3, 6, 9, 12, 15]
   },
   {

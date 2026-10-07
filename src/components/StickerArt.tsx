@@ -40,8 +40,7 @@ export function StickerArt({ name, emoji, alt, className, emojiSize = '3rem' }: 
       draggable={false}
       decoding="async"
       onError={() => setFailed(true)}
-      // The Creation artwork has a white matte; blend it into the paper surface.
-      className={cn('object-contain select-none', name.startsWith('c-') && 'mix-blend-multiply', className)}
+      className={cn('object-contain select-none', className)}
     />
   );
 }

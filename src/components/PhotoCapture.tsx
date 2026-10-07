@@ -226,13 +226,13 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         onClick={triggerCapture}
         className={`flex-shrink-0 ${
           variant === 'display'
-            ? `btn-3d btn-go rounded-full p-5 text-white ${pulse ? 'animate-pulse-ring' : ''}`
-            : 'btn-3d btn-sky rounded-xl p-2 text-white'
+            ? `btn-3d btn-go rounded-full p-6 text-white ${pulse ? 'animate-pulse-ring' : ''}`
+            : 'btn-3d btn-sky rounded-xl p-2 text-ink'
         }`}
         title="Take Photo"
         aria-label="Take photo for this challenge"
       >
-        <Camera className={variant === 'display' ? 'h-8 w-8' : 'h-5 w-5'} strokeWidth={2.5} />
+        <Camera className={variant === 'display' ? 'h-10 w-10' : 'h-5 w-5'} strokeWidth={2.5} />
       </button>
     </>
   );

@@ -9,12 +9,20 @@
   background-size: 22px 22px;
 }
 
-/* ---------- Sticker cards ---------- */
+/* ---------- Sticker cards ----------
+   Hard shadow = "you can press this". Use .sticker-card for things that
+   respond to a tap (accordion headers, pickable cards). Use .flat-card for
+   information that just sits there (rules, quotes, status). */
 .sticker-card {
   background: #fffdf7;
   border: 2px solid #2e2459;
   border-radius: 1.5rem;
   box-shadow: 4px 4px 0 0 #2e2459;
+}
+.flat-card {
+  background: #fffdf7;
+  border: 2px solid #2e2459;
+  border-radius: 1.5rem;
 }
 
 /* ---------- Chunky pressable 3D buttons ----------
@@ -39,8 +47,12 @@
   transform: translateY(5px);
   box-shadow: 0 0 0 0 var(--btn-edge), 0 0 0 2px #2e2459;
 }
+/* Disabled: flat beige with dark text (the old desaturated green left white
+   text on a pale face at ~1.5:1). Reads as "not yet", stays legible. */
 .btn-3d:disabled {
-  filter: saturate(0.15) brightness(1.1);
+  --btn-bg: #ebe4d6;
+  --btn-edge: #d3c9b6;
+  color: #4a4170;
   cursor: not-allowed;
 }
 
@@ -172,11 +184,36 @@ html {
 ::-webkit-scrollbar-thumb { background: #d9cdbc; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #c4b49d; }
 
+/* Keyboard focus: ink ring (13:1 on paper). The old amber ring was ~1.7:1.
+   On the dark modal scrim the ring flips to cream so it stays visible. */
 button:focus-visible,
 a:focus-visible,
-select:focus-visible {
-  outline: 3px solid #ffb020;
-  outline-offset: 2px;
+select:focus-visible,
+summary:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: 3px solid #2e2459;
+  outline-offset: 3px;
+}
+.bg-ink\/70 button:focus-visible {
+  outline-color: #fffdf7;
+}
+
+/* Progress pips (play screen): one per challenge, filled in the category color. */
+.pip {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 0.75rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(46, 36, 89, 0.28);
+  background: rgba(255, 255, 255, 0.7);
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+}
+.pip[data-done="true"] {
+  border-color: #2e2459;
+}
+.pip[data-current="true"] {
+  border-color: #2e2459;
+  transform: scaleY(1.35);
 }
 
 /* Safe-area padding for standalone/notched phones */

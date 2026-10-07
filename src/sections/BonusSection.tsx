@@ -103,7 +103,7 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSection
                     </div>
                     <h3 className="mt-3 text-center font-display text-xl text-ink">{item.title}</h3>
                     <p className="mt-1 text-center text-sm font-semibold text-ink/70">{item.hint}</p>
-                    <span className="mt-3 rounded-full border-2 border-ink/20 bg-white px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-ink/70">
+                    <span className="mt-3 rounded-full border-2 border-ink/20 bg-white px-3 py-1 text-sm font-extrabold text-ink/70">
                       Tap to reveal
                     </span>
                   </div>

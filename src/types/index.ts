@@ -66,6 +66,8 @@ export interface GamePack {
   tagline: string;
   /** Short phrase for the setting ("the store", "the outdoors"). */
   setting: string;
+  /** Short label under the game's name in the picker ("At the store"). Falls back to `setting`. */
+  locationLabel?: string;
   mascotArt: string;
   mascotEmoji: string;
   mascotAlt: string;

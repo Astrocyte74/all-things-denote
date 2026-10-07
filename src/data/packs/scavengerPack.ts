@@ -64,6 +64,7 @@ export const scavengerPack: GamePack = {
   title: 'Scavenger Hunt',
   tagline: 'Gospel Analogies · Youth Activity',
   setting: 'the store',
+  locationLabel: 'At the store',
   mascotArt: 'mascot',
   mascotEmoji: '🛒',
   mascotAlt: 'Scavenger hunt mascot — a happy shopping cart with a camera',
@@ -75,7 +76,7 @@ export const scavengerPack: GamePack = {
   statChips: [
     { emoji: '📸', label: '15 photos' },
     { emoji: '👥', label: '6 team paths' },
-    { emoji: '🛒', label: 'store ready' },
+    { emoji: '📱', label: 'Bring a phone' },
   ],
   rules,
   categories,

@@ -9,7 +9,7 @@ const rules: Rule[] = [
     id: 'rule-1',
     title: 'Photo Hunt',
     description:
-      '• Use the camera button to snap photos of each item in nature\n• Photos automatically tag with challenge info\n• Work together - one spots, one shoots',
+      '• Use the camera button to snap photos of each item in nature\n• Each photo is labeled with its challenge\n• Work together: one spots, one shoots',
     icon: '📸',
   },
   {
@@ -284,6 +284,7 @@ export const creationPack: GamePack = {
   title: 'Creation Quest',
   tagline: 'Gospel Truths in the Outdoors · Youth Activity',
   setting: 'the outdoors',
+  locationLabel: 'Outdoors',
   mascotArt: 'c-mascot', // Creation Quest mascot; emoji fallback shows until the PNG is generated
   mascotEmoji: '🌿',
   mascotAlt: 'Creation Quest mascot — a magnifying glass over a sprouting leaf',
@@ -294,7 +295,7 @@ export const creationPack: GamePack = {
   statChips: [
     { emoji: '📸', label: '15 photos' },
     { emoji: '👥', label: '6 team paths' },
-    { emoji: '🌳', label: 'outdoor ready' },
+    { emoji: '📱', label: 'Bring a phone' },
   ],
   rules,
   categories,

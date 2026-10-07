@@ -4,7 +4,7 @@ export const rules: Rule[] = [
   {
     id: 'rule-1',
     title: 'Photo Hunt',
-    description: '• Use the camera button to snap photos of each item\n• Photos automatically tag with challenge info\n• Work together - one navigates, one shoots',
+    description: '• Use the camera button to snap photos of each item\n• Each photo is labeled with its challenge\n• Work together: one navigates, one shoots',
     icon: '📸'
   },
   {

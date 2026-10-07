@@ -26,6 +26,7 @@ function App() {
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
+  const [progress, setProgress] = useState({ completed: 0, total: 15 });
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
   const [startOverOpen, setStartOverOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
@@ -133,6 +134,7 @@ function App() {
           onBack={handleBackToLanding}
           initialPathId={selectedPathId}
           paths={pack.paths}
+          categories={pack.categories}
         />
       )}
 
@@ -151,7 +153,8 @@ function App() {
             pathId={selectedPathId}
             onChangePath={handleChangePath}
             onOpenGallery={() => setGalleryOpen(true)}
-            onResume={() => categoriesRef.current?.resume()}
+            completed={progress.completed}
+            total={progress.total}
             photoCount={photoCount}
             onExit={handleBackToLanding}
             onStartOver={() => setStartOverOpen(true)}
@@ -167,6 +170,7 @@ function App() {
             galleryOpen={galleryOpen}
             setGalleryOpen={setGalleryOpen}
             onPhotoCountChange={setPhotoCount}
+            onProgressChange={(completed, total) => setProgress({ completed, total })}
             packId={pack.id}
             categories={pack.categories}
           />
@@ -191,6 +195,7 @@ function App() {
                   isVisible={true}
                   initialPathId={selectedPathId}
                   paths={pack.paths}
+                  categories={pack.categories}
                 />
               </div>
             </div>

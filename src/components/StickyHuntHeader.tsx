@@ -1,17 +1,19 @@
-import { ArrowRight, Camera, ChevronDown, Home, MapPinned, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { Camera, ChevronDown, Home, MapPinned, MoreHorizontal, RotateCcw } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface StickyHuntHeaderProps {
   pathId: string;
   onChangePath: () => void;
   onOpenGallery: () => void;
-  onResume: () => void;
+  /** Challenges finished so far, and how many there are in total. */
+  completed: number;
+  total: number;
   photoCount?: number;
   onExit?: () => void;
   onStartOver?: () => void;
 }
 
-export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, onResume, photoCount = 0, onExit, onStartOver }: StickyHuntHeaderProps) {
+export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, completed, total, photoCount = 0, onExit, onStartOver }: StickyHuntHeaderProps) {
   return (
     <div className="safe-top fixed inset-x-0 top-0 z-50 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
       <nav aria-label="Hunt controls" className="mx-auto flex max-w-6xl items-center justify-between gap-1.5 px-3 py-3 sm:gap-3 sm:px-4">
@@ -42,14 +44,18 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, onResume
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <button
-            onClick={onResume}
-            aria-label="Resume Hunt"
-            className="btn-3d btn-go inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-sm font-extrabold text-white sm:px-4"
+          {/* Progress lives here; the big green Resume button is in the Next up card right below. */}
+          <div
+            role="status"
+            aria-label={`${completed} of ${total} challenges done`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-ink bg-white px-3"
           >
-            <span>Resume<span className="hidden sm:inline"> Hunt</span></span>
-            <ArrowRight className="h-4 w-4" strokeWidth={3} />
-          </button>
+            <span className="font-display text-lg leading-none text-ink">
+              {completed}
+              <span className="text-ink/60">/{total}</span>
+            </span>
+            <span className="hidden text-sm font-extrabold text-ink/70 sm:inline">done</span>
+          </div>
           {(onExit || onStartOver) && (
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>

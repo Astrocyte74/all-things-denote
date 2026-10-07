@@ -16,12 +16,9 @@ export function PackPicker({ packs, activePackId, onPick }: PackPickerProps) {
   if (packs.length < 2) return null;
 
   return (
-    <div className="paper-dots border-b-2 border-ink/10 pb-4 pt-3">
+    <div className="paper-dots border-b-2 border-ink/10 pb-4 pt-4">
       <div className="mx-auto max-w-4xl px-4 md:px-8">
-        <p className="mb-2 text-center text-[11px] font-extrabold uppercase tracking-[0.2em] text-ink/70">
-          Choose your game
-        </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div role="group" aria-label="Choose your game" className="grid grid-cols-2 gap-3">
           {packs.map((pack) => {
             const isActive = pack.id === activePackId;
             return (
@@ -30,14 +27,14 @@ export function PackPicker({ packs, activePackId, onPick }: PackPickerProps) {
                 onClick={() => onPick(pack.id)}
                 aria-pressed={isActive}
                 className={`sticker-card relative flex min-w-0 items-center gap-2 p-2 text-left transition-transform duration-150 sm:gap-3 sm:p-3 ${
-                  isActive ? 'ring-2 ring-ink ring-offset-2 ring-offset-paper' : 'hover:-translate-y-0.5'
+                  isActive ? '!bg-sun-soft' : 'hover:-translate-y-0.5'
                 }`}
               >
                 <div className="flex-shrink-0">
                   <StickerArt
                     name={pack.mascotArt}
                     emoji={pack.mascotEmoji}
-                    alt={pack.mascotAlt}
+                    alt=""
                     className="h-8 w-8 sm:h-12 sm:w-12"
                     emojiSize="2rem"
                   />
@@ -45,7 +42,7 @@ export function PackPicker({ packs, activePackId, onPick }: PackPickerProps) {
                 <div className="min-w-0 flex-1">
                   <div className="font-display text-base leading-tight text-ink sm:text-lg">{pack.title}</div>
                   <div className="truncate text-xs font-semibold text-ink/70">
-                    {pack.setting.replace(/^the /, '')}
+                    {pack.locationLabel ?? pack.setting}
                   </div>
                 </div>
                 {isActive && (
