@@ -19,7 +19,7 @@ interface StickerArtProps {
 export function StickerArt({ name, emoji, alt, className, emojiSize = '3rem' }: StickerArtProps) {
   const [failed, setFailed] = useState(false);
 
-  if (failed) {
+  if (!name || failed) {
     return (
       <div
         role="img"

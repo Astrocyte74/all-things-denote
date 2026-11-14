@@ -1,0 +1,108 @@
+/* ============================================
+   Game library — "Choose your adventure" cards
+   Per-card colors come in as --gl-color / --gl-soft (pack.library).
+   ============================================ */
+
+.gl-card {
+  --gl-color: #ffb020;
+  --gl-soft: #fff4d9;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Colored identity band; inner radius = card radius minus its 2px border. */
+.gl-band {
+  background-color: var(--gl-soft);
+  background-image: radial-gradient(rgba(46, 36, 89, 0.08) 1.1px, transparent 1.1px);
+  background-size: 16px 16px;
+  border-radius: calc(1.5rem - 2px) calc(1.5rem - 2px) 0 0;
+}
+
+.gl-chip {
+  background: var(--gl-color);
+}
+
+/* Mascot sits like a slightly crooked sticker and straightens on hover. */
+.gl-art {
+  transform: rotate(var(--gl-tilt, -4deg));
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.gl-art-img {
+  filter: drop-shadow(2px 3px 0 rgba(46, 36, 89, 0.18));
+}
+.gl-badge {
+  background: var(--gl-color);
+  box-shadow: 3px 3px 0 0 #2e2459;
+}
+
+.gl-fill {
+  background-color: var(--gl-color);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gl-cue-dot {
+  background: var(--gl-color);
+  transition: transform 0.15s ease;
+}
+
+.gl-stamp {
+  pointer-events: none;
+  box-shadow: 2px 2px 0 0 #2e2459;
+}
+
+/* ---------- Stretched "open details" button ----------
+   The title button's ::after covers the whole card, so any tap on the card
+   opens it. The Continue / Results button is a sibling raised above it,
+   so buttons are never nested. */
+.gl-open {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.gl-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 1.5rem;
+}
+.gl-open:focus-visible {
+  outline: none;
+}
+.gl-action {
+  position: relative;
+  z-index: 2;
+}
+
+/* Hover / press the card like the rest of the sticker UI. */
+@media (hover: hover) {
+  .gl-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 #2e2459;
+  }
+  .gl-card:hover .gl-art {
+    transform: rotate(0deg) scale(1.06);
+  }
+  .gl-card:hover .gl-cue-dot {
+    transform: translateX(3px);
+  }
+  /* Hovering the Continue button shouldn't make the card look pressable. */
+  .gl-card:has(.gl-action:hover):hover {
+    transform: none;
+    box-shadow: 4px 4px 0 0 #2e2459;
+  }
+}
+.gl-card:has(.gl-open:active) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 #2e2459;
+}
+
+/* Keyboard focus on the title button rings the whole card. */
+.gl-card:has(.gl-open:focus-visible) {
+  outline: 3px solid #2e2459;
+  outline-offset: 4px;
+}

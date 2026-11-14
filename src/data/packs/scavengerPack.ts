@@ -61,6 +61,7 @@ const bonusArt: GamePack['bonusArt'] = {
 
 export const scavengerPack: GamePack = {
   id: 'scavenger',
+  library: { summary: 'Find gospel truths hiding in everyday things.', label: 'Everyday discoveries', color: '#FFB020', soft: '#FFF4D9' },
   title: 'Scavenger Hunt',
   tagline: 'Gospel Analogies · Youth Activity',
   setting: 'the store',

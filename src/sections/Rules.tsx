@@ -63,7 +63,7 @@ export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', on
         {/* Rules are information, not buttons, so they stay flat (no pressable shadow) */}
         <div className="grid gap-3 md:grid-cols-3 md:gap-4">
           {playRules.map(rule => {
-            const meta = ruleMeta[rule.id];
+            const meta = ruleMeta[rule.id] ?? { color: '#FFF4D9', icon: rule.icon };
             return (
               <div key={rule.id} className="flat-card p-3.5 md:p-5">
                 <div className="mb-2 flex items-center gap-3">

@@ -8,12 +8,13 @@ interface BonusSectionProps {
   isVisible: boolean;
   isUnlocked: boolean;
   bonusItems: BonusItem[];
+  total: number;
 }
 
 const bonusColors = ['#38B6FF', '#FFFDF7', '#FF6B6B', '#7A6CF0'];
 const bonusSofts = ['#E0F3FF', '#FFFDF7', '#FFE7E4', '#ECE9FF'];
 
-export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSectionProps) {
+export function BonusSection({ isVisible, isUnlocked, bonusItems, total }: BonusSectionProps) {
   const [isAnimated, setIsAnimated] = useState(false);
   const [flippedCard, setFlippedCard] = useState<string | null>(null);
   const [burstKey, setBurstKey] = useState(0);
@@ -25,7 +26,7 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSection
     }
   }, [isVisible, isUnlocked]);
 
-  if (!isUnlocked) return null;
+  if (!isUnlocked || !bonusItems.length) return null;
 
   return (
     <section className="paper-dots relative overflow-hidden border-t-2 border-ink py-16 md:py-24">
@@ -49,10 +50,10 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSection
             </span>
           </div>
           <h2 className="mt-3 font-display text-4xl text-ink md:text-5xl">
-            You Did <span className="text-sticker-sun">All 15!</span>
+            You Did <span className="text-sticker-sun">All {total}!</span>
           </h2>
           <p className="mt-2 font-semibold text-ink/70">
-            Four more finds for the champions. Tap a card to reveal its meaning.
+            {bonusItems.length} more discoveries for your team. Tap a card to reveal its meaning.
           </p>
 
           {/* Analogy tip */}
@@ -90,7 +91,7 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSection
                   {/* Front */}
                   <div
                     className="backface-hidden absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-ink p-6 shadow-sticker"
-                    style={{ backfaceVisibility: 'hidden', backgroundColor: bonusSofts[index] }}
+                    style={{ backfaceVisibility: 'hidden', backgroundColor: bonusSofts[index % bonusSofts.length] }}
                   >
                     <div className={index % 2 === 0 ? 'animate-bob' : 'animate-bob-slow'}>
                       <StickerArt
@@ -114,7 +115,7 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems }: BonusSection
                     style={{
                       backfaceVisibility: 'hidden',
                       transform: 'rotateY(180deg)',
-                      backgroundColor: bonusColors[index] === '#FFFDF7' ? '#2E2459' : bonusColors[index],
+                      backgroundColor: bonusColors[index % bonusColors.length] === '#FFFDF7' ? '#2E2459' : bonusColors[index % bonusColors.length],
                     }}
                   >
                     <StickerArt

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Share2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Share2 } from 'lucide-react';
 import { ShareModal } from '@/components/ShareModal';
 import { StickerArt } from '@/components/StickerArt';
 import type { GamePack } from '@/types';
@@ -8,6 +8,7 @@ interface HeaderProps {
   pack: GamePack;
   onStart: () => void;
   onContinue?: () => void;
+  onBack: () => void;
 }
 
 // Split a title into two stacked lines for the display heading, breaking on
@@ -27,7 +28,7 @@ const decorSlots = [
   { position: 'bottom-[16%] left-[9%]', tilt: '6deg', anim: 'animate-bob' },
 ];
 
-export function Header({ pack, onStart, onContinue }: HeaderProps) {
+export function Header({ pack, onStart, onContinue, onBack }: HeaderProps) {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [titleLine1, titleLine2] = splitTitle(pack.title);
 
@@ -38,6 +39,7 @@ export function Header({ pack, onStart, onContinue }: HeaderProps) {
 
   return (
     <section className="paper-dots relative flex flex-col items-center justify-center overflow-hidden px-4 py-6 md:min-h-[calc(100svh-120px)] md:py-10">
+      <button onClick={onBack} className="btn-3d btn-white relative z-10 mb-6 inline-flex min-h-11 items-center gap-2 self-start rounded-full px-4 py-2 font-bold text-ink"><ArrowLeft className="h-4 w-4" /> All games</button>
       {/* Floating decorative stickers (wide screens only) */}
       {decor.map(({ category, theme }, i) => {
         const slot = decorSlots[i];

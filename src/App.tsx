@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
@@ -8,16 +8,15 @@ import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
 import { StickyHuntHeader } from '@/components/StickyHuntHeader';
 import { StartOverDialog } from '@/components/StartOverDialog';
-import { PackPicker } from '@/sections/PackPicker';
+import { GameLibrary, type GameSummary } from '@/sections/GameLibrary';
 import { PACKS, getPackById, DEFAULT_PACK_ID } from '@/data/packs';
-import { setActivePack } from '@/lib/theme';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Toaster } from '@/components/ui/sonner';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { toast } from 'sonner';
 import './App.css';
 
-type AppState = 'landing' | 'path-selection' | 'rules' | 'hunt';
+type AppState = 'library' | 'game' | 'path-selection' | 'rules' | 'hunt';
 
 function findExistingHunts(): Record<string, boolean> {
   const existing: Record<string, boolean> = {};
@@ -32,7 +31,7 @@ function findExistingHunts(): Record<string, boolean> {
 
 function App() {
   const [existingHunts] = useState(findExistingHunts);
-  const [savedAppState, setAppState] = usePersistedState<AppState>('huntScreen', 'landing');
+  const [savedAppState, setAppState] = usePersistedState<AppState>('huntScreen', 'library');
   const [startedByPack, setStartedByPack] = usePersistedState<Record<string, boolean>>('startedByPack', existingHunts);
   const [activePackId, setActivePackId] = usePersistedState<string>('activePackId', DEFAULT_PACK_ID);
   // Per-pack path memory: { scavenger: 'A', creation: 'C' } so switching packs
@@ -41,7 +40,7 @@ function App() {
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
-  const [progress, setProgress] = useState({ completed: 0, total: 15 });
+  const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
   const [startOverOpen, setStartOverOpen] = useState(false);
   const rulesRef = useRef<HTMLDivElement>(null);
@@ -57,17 +56,21 @@ function App() {
 
   const pack = getPackById(activePackId);
 
-  // Keep the theme lookups + (via Categories' packId prop) progress/photo keys
-  // in sync with whichever pack is active.
-  useEffect(() => {
-    setActivePack(pack);
-  }, [pack]);
-
   const selectedPathId = pathByPack[pack.id] ?? '';
   const selectedPath = pack.paths.find((p) => p.id === selectedPathId);
-  const appState = ['landing', 'path-selection', 'rules', 'hunt'].includes(savedAppState)
-    && (savedAppState !== 'hunt' || selectedPath) ? savedAppState : 'landing';
+  const appState = ['library', 'game', 'path-selection', 'rules', 'hunt'].includes(savedAppState)
+    && (savedAppState !== 'hunt' || selectedPath) ? savedAppState : 'library';
   const canResume = Boolean(selectedPath && startedByPack[pack.id]);
+  const summaries: Record<string, GameSummary> = Object.fromEntries(PACKS.map(game => {
+    const ids = game.categories.flatMap(category => category.challenges.map(challenge => challenge.id));
+    let completed = 0;
+    try {
+      const saved = JSON.parse(localStorage.getItem(`completedChallenges:${game.id}`) ?? '[]');
+      if (Array.isArray(saved)) completed = ids.filter(id => saved.includes(id)).length;
+    } catch { /* An unavailable save starts with no completed challenges. */ }
+    const pathId = game.paths.find(path => path.id === pathByPack[game.id])?.id;
+    return [game.id, { completed, total: ids.length, started: Boolean(pathId && (startedByPack[game.id] || completed)), pathId }];
+  }));
 
   const setSelectedPathId = (pathId: string) => {
     setPathByPack((prev) => ({ ...prev, [pack.id]: pathId }));
@@ -77,8 +80,17 @@ function App() {
   const handlePickPack = (id: string) => {
     setActivePackId(id);
     setBonusUnlocked(false);
-    setAppState('landing');
+    setGalleryOpen(false);
+    setPhotoCount(0);
+    setProgress({ completed: summaries[id].completed, total: summaries[id].total });
+    setAppState('game');
     window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const handleResumePack = (id: string) => {
+    handlePickPack(id);
+    setStartedByPack(prev => ({ ...prev, [id]: true }));
+    setAppState('hunt');
   };
 
   const handleStart = () => {
@@ -93,7 +105,7 @@ function App() {
     setPathSelectionOpen(false);
 
     // If we're in initial flow (landing/path-selection), go to rules
-    if (appState === 'landing' || appState === 'path-selection') {
+    if (appState === 'game' || appState === 'path-selection') {
       setAppState('rules');
       setTimeout(() => {
         rulesRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -103,7 +115,7 @@ function App() {
   };
 
   const handleChangePath = () => {
-    if (appState === 'rules' || appState === 'landing') {
+    if (appState === 'rules' || appState === 'game') {
       setAppState('path-selection');
     } else {
       setPathSelectionOpen(true);
@@ -117,7 +129,7 @@ function App() {
   };
 
   const handleBackToLanding = () => {
-    setAppState('landing');
+    setAppState('library');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -152,20 +164,15 @@ function App() {
 
   return (
     <div className="min-h-screen bg-paper overflow-x-hidden">
-      {/* Landing Page — pack picker, then the active pack's hero */}
-      {appState === 'landing' && (
-        <>
-          <PackPicker packs={PACKS} activePackId={pack.id} onPick={handlePickPack} />
-          <Header pack={pack} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />
-        </>
-      )}
+      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} />}
+      {appState === 'game' && <Header pack={pack} onBack={handleBackToLanding} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />}
 
       {/* Path Selection */}
       {appState === 'path-selection' && (
         <PathSelection
           onPathSelected={handlePathSelected}
           isVisible={appState === 'path-selection'}
-          onBack={handleBackToLanding}
+          onBack={() => setAppState('game')}
           initialPathId={selectedPathId}
           paths={pack.paths}
           categories={pack.categories}
@@ -209,7 +216,7 @@ function App() {
             packId={pack.id}
             categories={pack.categories}
           />
-          <BonusSection isVisible={true} isUnlocked={bonusUnlocked} bonusItems={pack.bonusItems} />
+          <BonusSection isVisible={true} isUnlocked={bonusUnlocked} total={progress.total} bonusItems={pack.bonusItems} />
           <Footer pack={pack} />
           {/* Collapsed rules at bottom during hunt */}
           <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} rules={pack.rules} />

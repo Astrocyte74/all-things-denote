@@ -5,6 +5,13 @@ export interface Challenge {
   photoTarget: string;
   gospelConnection: string;
   scripture?: string;
+  /** A passage shown BEFORE taking a photo, rather than a hidden answer. */
+  scriptureClue?: {
+    reference: string;
+    excerpt: string;
+    url: string;
+    collection: 'Bible' | 'Book of Mormon';
+  };
   completed: boolean;
 }
 
@@ -75,6 +82,15 @@ export interface GamePack {
   scriptureQuote: string;
   /** Landing-page blurb shown under the title. */
   blurb: string;
+  /** Game-library presentation; adding a pack requires no chooser markup. */
+  library: {
+    summary: string;
+    label: string;
+    color: string;
+    soft: string;
+  };
+  /** Optional theme-specific wrap-up prompt. */
+  discussionPrompt?: string;
   statChips: StatChip[];
   rules: Rule[];
   categories: Category[];

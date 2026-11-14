@@ -9,6 +9,7 @@ import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { StickerArt } from '@/components/StickerArt';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
+import { ScriptureClue } from '@/components/ScriptureClue';
 import { FinishScreen } from '@/components/FinishScreen';
 import { getCategoryTheme, readableTextOn } from '@/lib/theme';
 import { clearAllPhotos, getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
@@ -57,7 +58,13 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   const celebrate = useCallback(() => setBurstKey(k => k + 1), []);
 
-  // Reorder ALL challenges based on selected path and regroup into categories
+  // Keep the carousel in exact route order, even when a route crosses categories.
+  const orderedChallenges = useMemo(() => {
+    const all = categories.flatMap(category => category.challenges);
+    return pathOrder.length ? pathOrder.map(number => all[number - 1]).filter(Boolean) : all;
+  }, [categories, pathOrder]);
+
+  // The overview groups challenges for easier scanning.
   const orderedCategoryData = useMemo(() => {
     if (pathOrder.length === 0) return categories;
 
@@ -154,12 +161,12 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   // Check if all challenges are complete
   useEffect(() => {
-    const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
+    const allChallenges = orderedChallenges;
     const allCompleted = allChallenges.length > 0 && allChallenges.every(c => completedChallenges.has(c.id));
     if (allCompleted) {
       onAllComplete();
     }
-  }, [completedChallenges, orderedCategoryData, onAllComplete]);
+  }, [completedChallenges, orderedChallenges, onAllComplete]);
 
   const defaultExpandedCategory = useMemo(() => {
     if (!isVisible || orderedCategoryData.length === 0) return null;
@@ -232,10 +239,10 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   }, [resetProgress, onPhotoCountChange, packId]);
 
   const getTotalProgress = useCallback(() => {
-    const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
+    const allChallenges = orderedChallenges;
     const completed = allChallenges.filter(c => completedChallenges.has(c.id)).length;
     return { completed, total: allChallenges.length };
-  }, [orderedCategoryData, completedChallenges]);
+  }, [orderedChallenges, completedChallenges]);
 
   const totalProgress = getTotalProgress();
 
@@ -254,7 +261,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   }, [categories]);
 
   const enterDisplayMode = (category: CategoryType, challengeIndex: number) => {
-    const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
+    const allChallenges = orderedChallenges;
     const flatIndex = allChallenges.findIndex(c => c.id === category.challenges[challengeIndex].id);
     setDisplayModeChallenge({ category, challengeIndex, allChallenges, flatIndex });
     setLastChallengeByPath(prev => ({ ...prev, [selectedPathId]: category.challenges[challengeIndex].id }));
@@ -267,7 +274,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   // Open the carousel on the first incomplete challenge (used by the auto-open
   // effect, the Overview "Resume Hunt" button, and the "Next up" card).
   const openNextIncomplete = useCallback((restore = false) => {
-    const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
+    const allChallenges = orderedChallenges;
     const saved = restore ? allChallenges.find(c => c.id === lastChallengeByPath[selectedPathId]) : undefined;
     const firstIncomplete = saved ?? allChallenges.find(c => !completedChallenges.has(c.id));
     if (!firstIncomplete) return;
@@ -279,7 +286,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     if (lastChallengeByPath[selectedPathId] !== firstIncomplete.id) {
       setLastChallengeByPath(prev => ({ ...prev, [selectedPathId]: firstIncomplete.id }));
     }
-  }, [orderedCategoryData, completedChallenges, lastChallengeByPath, selectedPathId, setLastChallengeByPath]);
+  }, [orderedCategoryData, orderedChallenges, completedChallenges, lastChallengeByPath, selectedPathId, setLastChallengeByPath]);
 
   // Auto-open the carousel once per path when the hunt starts (or the path changes).
   // useLayoutEffect sets it before first paint so the busy checklist never flashes.
@@ -336,7 +343,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     return bonusUnlocked || showAnalogiesEarly;
   };
 
-  const allOrderedChallenges = orderedCategoryData.flatMap(category => category.challenges);
+  const allOrderedChallenges = orderedChallenges;
   const nextChallenge = allOrderedChallenges.find(challenge => !completedChallenges.has(challenge.id));
   const allComplete = totalProgress.total > 0 && totalProgress.completed === totalProgress.total;
 
@@ -353,7 +360,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     const { category, challengeIndex, allChallenges, flatIndex } = displayModeChallenge;
     const challenge = category.challenges[challengeIndex];
     const isCompleted = completedChallenges.has(challenge.id);
-    const showAnalogies = shouldShowAnalogies();
+    const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
     const isLastChallenge = flatIndex >= allChallenges.length - 1;
     const totalPhotos = Object.values(challengePhotoCounts).reduce((sum, n) => sum + n, 0);
     const theme = getCategoryTheme(category.id);
@@ -456,6 +463,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               {challenge.title}
             </h3>
 
+            {challenge.scriptureClue && <ScriptureClue clue={challenge.scriptureClue} />}
+
             {/* What to photograph. Never a spoiler (the gospel connection is separate), so it always shows. */}
             {challenge.photoTarget && (
               <p className="mx-auto mt-3 max-w-md text-center text-base font-semibold leading-snug text-ink/80">
@@ -507,7 +516,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                 style={{ backgroundColor: theme.soft }}
               >
                 <p className="text-sm font-extrabold" style={{ color: theme.text }}>
-                  💡 Gospel connection
+                  💡 {challenge.scriptureClue ? 'Discuss your discovery' : 'Gospel connection'}
                 </p>
                 <p className="mt-1.5 text-lg font-semibold leading-snug" style={{ color: theme.text }}>
                   {challenge.gospelConnection}
@@ -517,7 +526,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                     {challenge.scripture}
                   </p>
                 )}
-                {challenge.photoTarget && (
+                {challenge.photoTarget && !challenge.scriptureClue && (
                   <p className="mt-3 border-t-2 border-dashed border-ink/10 pt-3 text-sm font-semibold opacity-80" style={{ color: theme.text }}>
                     📸 Photo hint: {challenge.photoTarget}
                   </p>
@@ -526,7 +535,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
             ) : (
               <div className="mt-6 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-5 text-center">
                 <p className="text-lg font-semibold italic text-ink/70">
-                  🤔 Talk it over: what gospel truth hides in this one?
+                  🤔 {challenge.scriptureClue ? 'Which words in the scripture connect to your object? Explain your thinking.' : 'Talk it over: what gospel truth hides in this one?'}
                 </p>
               </div>
             )}
@@ -748,12 +757,12 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
                   {/* Challenges — expandable */}
                   <div className={`overflow-hidden border-t-2 transition-all duration-500 ${
-                    isExpanded ? 'max-h-[1200px] border-ink/10' : 'max-h-0 border-transparent'
+                    isExpanded ? 'max-h-none border-ink/10' : 'max-h-0 border-transparent'
                   }`}>
                     <div className="space-y-3 p-4 sm:p-5">
                       {category.challenges.map((challenge, challengeIndex) => {
                         const isCompleted = completedChallenges.has(challenge.id);
-                        const showAnalogies = shouldShowAnalogies();
+                        const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
 
                         return (
                           <div
@@ -814,6 +823,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                     </button>
                                   )}
 
+                                  {challenge.scriptureClue && <ScriptureClue clue={challenge.scriptureClue} />}
                                   <div className="mt-1.5 space-y-2">
                                     {showAnalogies ? (
                                       <>

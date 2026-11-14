@@ -281,6 +281,7 @@ const bonusArt: GamePack['bonusArt'] = {
 
 export const creationPack: GamePack = {
   id: 'creation',
+  library: { summary: 'Head outside and discover signs of the Creator.', label: 'Nature & wonder', color: '#2FBF71', soft: '#DFF6E9' },
   title: 'Creation Quest',
   tagline: 'Gospel Truths in the Outdoors · Youth Activity',
   setting: 'the outdoors',

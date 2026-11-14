@@ -69,7 +69,8 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
     try {
       onCaptureComplete?.(photo.challengeId);
       await onPhotoSaved?.();
-      toast.success('Photo saved on this device');
+      // This confirmation has no action; keep the camera and Next controls tappable.
+      toast.success('Photo saved on this device', { style: { pointerEvents: 'none' } });
     } catch (cause) {
       // The image is already committed. Never suggest re-saving it for a UI error.
       console.error('Photo saved, but refresh failed:', cause);

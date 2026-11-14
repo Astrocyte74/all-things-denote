@@ -52,7 +52,7 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
 
         <div className="sticker-card mt-8 bg-sun-soft p-6">
           <h2 className="font-display text-2xl">One photo, one discovery</h2>
-          <p className="mt-2 font-semibold">Choose a favorite photo. What does it teach you about God, and how could you put that lesson into practice this week?</p>
+          <p className="mt-2 font-semibold">{pack.discussionPrompt ?? 'Choose a favorite photo. What does it teach you about God, and how could you put that lesson into practice this week?'}</p>
           <p className="mt-3 text-sm font-bold text-ink/70">Take turns sharing. Your gospel connections and bonus discoveries are unlocked below.</p>
         </div>
 

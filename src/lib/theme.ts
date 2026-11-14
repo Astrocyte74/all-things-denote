@@ -1,12 +1,5 @@
-// Sticker Quest design tokens per category / bonus item.
-//
-// Each GamePack now owns its own `categoryTheme` and `bonusArt` maps (see
-// src/data/packs/*). This module holds the *active* pack (set by App on
-// mount/switch) and exposes lookup helpers the render layer can call without
-// knowing which pack is active. `art` names a PNG in /public/art; StickerArt
-// falls back to `emoji` when the PNG isn't there.
-
-import type { CategoryTheme, GamePack } from '@/types';
+import type { CategoryTheme } from '@/types';
+import { PACKS } from '@/data/packs';
 
 export type { CategoryTheme };
 
@@ -20,19 +13,16 @@ export const fallbackTheme: CategoryTheme = {
   emoji: '⭐',
 };
 
-let activePack: GamePack | null = null;
-
-/** Set the pack that lookups resolve against. Called by App when the pack changes. */
-export function setActivePack(pack: GamePack): void {
-  activePack = pack;
-}
+// Resolve stable IDs directly so switching games never renders the previous theme.
+const categoryThemes = Object.assign({}, ...PACKS.map(pack => pack.categoryTheme)) as Record<string, CategoryTheme>;
+const bonusArt = Object.assign({}, ...PACKS.map(pack => pack.bonusArt)) as Record<string, { art: string; emoji: string }>;
 
 export function getCategoryTheme(id: string): CategoryTheme {
-  return activePack?.categoryTheme[id] ?? fallbackTheme;
+  return categoryThemes[id] ?? fallbackTheme;
 }
 
 export function getBonusArt(id: string): { art: string; emoji: string } | undefined {
-  return activePack?.bonusArt[id];
+  return bonusArt[id];
 }
 
 const INK = '#2E2459';

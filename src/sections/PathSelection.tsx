@@ -59,7 +59,7 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths, ca
             Pick your path
           </h2>
           <p className="animate-rise-in mx-auto mt-3 max-w-xl font-semibold text-ink/75" style={{ animationDelay: '0.16s' }}>
-            Every team does the same {colorByNumber.length || 15} challenges in a different order, so you spread out
+            Every team does the same {colorByNumber.length} challenges in a different order, so you spread out
             and explore together. Each team should pick a different path.
           </p>
           <p className="animate-rise-in mx-auto mt-2 max-w-xl text-sm font-semibold text-ink/70" style={{ animationDelay: '0.2s' }}>

@@ -45,7 +45,7 @@ test('refresh and Continue restore the viewed challenge and saved progress', asy
   await page.getByRole('button', { name: /overview/i }).first().click();
   await page.getByRole('button', { name: 'More hunt options' }).click();
   await page.getByRole('menuitem', { name: 'Back to home' }).click();
-  await page.getByRole('button', { name: 'Continue your hunt' }).click();
+  await page.getByRole('button', { name: 'Continue Scavenger Hunt' }).click();
   await expect(page.locator('h3').first()).toHaveText(title!);
   await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
   await page.getByRole('button', { name: /overview/i }).first().click();
@@ -56,6 +56,7 @@ test('refresh and Continue restore the viewed challenge and saved progress', asy
 
 test('first-time setup and pre-existing hunts both support Continue', async ({ page }) => {
   await page.goto('./');
+  await page.getByRole('button', { name: 'Scavenger Hunt', exact: true }).click();
   await page.getByRole('button', { name: 'Start the hunt', exact: true }).click();
   await page.getByRole('button', { name: /Path A/ }).first().click();
   await page.getByRole('button', { name: /Let's go on Path A/ }).click();
@@ -70,7 +71,7 @@ test('first-time setup and pre-existing hunts both support Continue', async ({ p
     localStorage.setItem('completedChallenges:scavenger', JSON.stringify([firstId]));
   }, ids[0]);
   await page.reload();
-  await page.getByRole('button', { name: 'Continue your hunt' }).click();
+  await page.getByRole('button', { name: 'Continue Scavenger Hunt' }).click();
   await expect(page.getByRole('status', { name: '1 of 15 challenges done' })).toBeAttached();
 });
 
