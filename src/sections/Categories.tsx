@@ -30,9 +30,11 @@ interface CategoriesProps {
   categories: CategoryType[];
   teamName?: string;
   onReset: () => void;
+  /** Finish-screen entry to shared review for this game. */
+  onShareWithEvent?: () => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, categories, teamName, onReset }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, categories, teamName, onReset, onShareWithEvent }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
@@ -311,7 +313,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const allComplete = totalProgress.total > 0 && totalProgress.completed === totalProgress.total;
 
   if (allComplete && !reviewingCompleted) {
-    return <FinishScreen teamName={teamName} onReset={onReset} packId={packId} pathId={selectedPathId} total={totalProgress.total}
+    return <FinishScreen teamName={teamName} onReset={onReset} onShareWithEvent={onShareWithEvent} packId={packId} pathId={selectedPathId} total={totalProgress.total}
       onReview={() => { setReviewingCompleted(true); setDisplayModeChallenge(null); }}
       onPhotosChanged={handlePhotoSaved}
       galleryOpen={galleryOpen} setGalleryOpen={setGalleryOpen}

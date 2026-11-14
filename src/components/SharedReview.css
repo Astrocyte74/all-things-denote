@@ -1,0 +1,103 @@
+/* ============================================
+   Shared review — paper/sticker extras
+   ============================================ */
+
+/* Clue strip: thin, tidy horizontal scroll on phones. */
+.sr-strip {
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.sr-strip > * {
+  scroll-snap-align: center;
+}
+
+/* Upload picker tiles */
+.sr-pick {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+}
+.sr-pick:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+.sr-pick--on {
+  box-shadow: 4px 4px 0 0 #2e2459;
+  outline: 3px solid #58cc02;
+  outline-offset: 2px;
+}
+.sr-pick--sent {
+  opacity: 0.78;
+}
+.sr-pick:disabled {
+  cursor: default;
+}
+
+/* Leader tools disclosure */
+.sr-details summary::-webkit-details-marker { display: none; }
+.sr-details summary::after {
+  content: '';
+  margin-left: auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-right: 3px solid #2e2459;
+  border-bottom: 3px solid #2e2459;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.15s ease;
+}
+.sr-details[open] summary::after {
+  transform: rotate(225deg) translateY(-2px);
+}
+
+/* Dark stage for presenting and full-screen photos (matches the gallery viewer). */
+.sr-stage {
+  background-color: #1f1842;
+  background-image: radial-gradient(rgba(253, 246, 236, 0.06) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+}
+.sr-stage-round,
+.sr-stage-btn {
+  /* display comes from utilities (flex / hidden sm:flex) so responsive hiding works */
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 3rem;
+  min-width: 3rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(253, 246, 236, 0.3);
+  background: rgba(253, 246, 236, 0.1);
+  color: #fffdf7;
+  font-weight: 800;
+  transition: background-color 0.15s ease;
+}
+.sr-stage-btn {
+  padding: 0 1rem;
+}
+.sr-stage-round:hover:not(:disabled),
+.sr-stage-btn:hover:not(:disabled) {
+  background: rgba(253, 246, 236, 0.2);
+}
+.sr-stage-btn--go {
+  background: #58cc02;
+  border-color: #fffdf7;
+  color: #2e2459;
+}
+.sr-stage-btn--go:hover:not(:disabled) {
+  background: #66d811;
+}
+.sr-stage-round:disabled,
+.sr-stage-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.sr-stage button:focus-visible {
+  outline-color: #fffdf7;
+}
+
+/* Presentation grid: fill the stage, never more than two columns on phones. */
+.sr-present-grid {
+  grid-template-columns: repeat(var(--cols-sm, 1), minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+  .sr-present-grid {
+    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  }
+}

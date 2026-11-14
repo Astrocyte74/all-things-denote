@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { lazy, Suspense, useState, useRef, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
@@ -16,7 +16,10 @@ import { OfflineNotice } from '@/components/OfflineNotice';
 import { getPhotoCount } from '@/lib/photoStorage';
 import { resetGame } from '@/lib/resetGame';
 import { cleanTeamName, TEAM_NAME_LIMIT } from '@/lib/teamName';
+import { openReviewHome, readReviewRoute, type ReviewRoute } from '@/lib/sharedReview';
 import './App.css';
+
+const SharedReview = lazy(() => import('@/components/SharedReview').then(module => ({ default: module.SharedReview })));
 
 type AppState = 'library' | 'game' | 'path-selection' | 'rules' | 'hunt';
 
@@ -49,6 +52,20 @@ function App() {
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState<string | null>(null);
   const rulesRef = useRef<HTMLDivElement>(null);
+  // Shared review lives in the URL hash (private links + QR open it directly).
+  // It overlays the app; hunt state underneath is untouched.
+  const [reviewRoute, setReviewRoute] = useState<ReviewRoute | null>(readReviewRoute);
+  useEffect(() => {
+    const onHash = () => setReviewRoute(readReviewRoute());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const leaveReview = () => {
+    // pushState (not hash='') leaves a clean URL; browser Back returns to the event.
+    history.pushState(null, '', location.pathname + location.search);
+    setReviewRoute(null);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
 
   const handleProgressChange = useCallback((completed: number, total: number) => {
     setProgress(previous =>
@@ -192,7 +209,16 @@ function App() {
 
   return (
     <div className="min-h-screen bg-paper overflow-x-hidden">
-      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} onReset={setResetTarget} />}
+      {reviewRoute ? (
+        <Suspense fallback={<p role="status" className="p-8 text-center font-display text-2xl">Opening shared review…</p>}>
+        <SharedReview
+          route={reviewRoute}
+          onBack={() => { leaveReview(); setAppState('library'); }}
+          onPlay={packId => { leaveReview(); handlePickPack(packId); }}
+        />
+        </Suspense>
+      ) : <>
+      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} onReset={setResetTarget} onOpenSharedReview={() => openReviewHome()} />}
       {appState === 'game' && <Header pack={pack} onBack={handleBackToLanding} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />}
 
       {/* Path Selection */}
@@ -235,6 +261,7 @@ function App() {
             key={pack.id}
             teamName={teamName}
             onReset={() => setResetTarget(pack.id)}
+            onShareWithEvent={() => openReviewHome(pack.id)}
             isVisible={true}
             selectedPathId={selectedPathId}
             pathOrder={selectedPath.order}
@@ -285,6 +312,7 @@ function App() {
         onResetProgress={() => handleResetGame(false)}
         onResetAll={() => handleResetGame(true)}
       />
+      </>}
 
       {/* Toast notifications */}
       <OfflineNotice />

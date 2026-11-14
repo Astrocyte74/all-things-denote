@@ -66,6 +66,9 @@ test('names persist, label new JPEGs and exports, and never relabel older photos
   await expect(page.locator('.gl-card').filter({ has: page.getByRole('heading', { name: 'Christmas', exact: true }) })).toContainText('New Shepherds');
   await page.screenshot({ path: info.outputPath('team-library.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Continue Christmas', exact: true }).click();
+  // Wait for the asynchronous count: until it loads, the underlying navigation
+  // and the visible full-screen challenge briefly share the same gallery label.
+  await expect(page.getByRole('navigation', { name: 'Hunt controls' }).getByRole('button', { name: 'Open photo gallery (2 photos)', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Open photo gallery', exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save all photos', exact: true }).click();

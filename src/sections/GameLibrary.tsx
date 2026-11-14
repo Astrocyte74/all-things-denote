@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Camera, MapPin, Play, RotateCcw, Route, Trophy } from 'lucide-react';
+import { ArrowRight, Camera, MapPin, Play, RotateCcw, Route, Trophy, Users } from 'lucide-react';
 import type { GamePack } from '@/types';
 import './GameLibrary.css';
 
@@ -23,6 +23,8 @@ interface GameLibraryProps {
   onResume: (id: string) => void;
   /** Open the reset dialog for this game. */
   onReset: (id: string) => void;
+  /** Opens shared review (private events to compare teams' photos). */
+  onOpenSharedReview?: () => void;
 }
 
 /**
@@ -33,7 +35,7 @@ interface GameLibraryProps {
  * "stretched" title button whose ::after covers the whole card (opens
  * details), plus Continue / View results and Reset buttons layered above it.
  */
-export function GameLibrary({ packs, summaries, onSelect, onResume, onReset }: GameLibraryProps) {
+export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onOpenSharedReview }: GameLibraryProps) {
   return (
     <section className="paper-dots min-h-[100svh] px-4 pb-12 pt-8 md:px-8 md:pt-12" aria-labelledby="game-library-title">
       <div className="mx-auto max-w-5xl">
@@ -71,6 +73,27 @@ export function GameLibrary({ packs, summaries, onSelect, onResume, onReset }: G
             </li>
           ))}
         </ul>
+
+        {onOpenSharedReview && (
+          <div className="flat-card animate-rise-in mt-8 flex flex-col gap-4 bg-cream p-4 sm:flex-row sm:items-center sm:p-5" style={{ animationDelay: `${120 + packs.length * 70}ms` }}>
+            <span aria-hidden="true" className="flex h-14 w-14 flex-shrink-0 -rotate-3 items-center justify-center rounded-2xl border-2 border-ink bg-sky shadow-[3px_3px_0_0_#2E2459]">
+              <Users className="h-7 w-7 text-ink" strokeWidth={2.5} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-2xl leading-tight text-ink">Shared review</h2>
+              <p className="mt-0.5 text-[0.98rem] font-medium leading-snug text-ink/80">
+                Leaders: start a private event with a QR code. Teams: join with a link and send the photos you choose.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenSharedReview}
+              className="btn-3d btn-sky inline-flex min-h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl px-5 font-display text-lg tracking-wide text-ink"
+            >
+              Open shared review <ArrowRight className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

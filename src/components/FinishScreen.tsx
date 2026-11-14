@@ -5,7 +5,7 @@ import { PhotoGallery } from './PhotoGallery';
 import { SaveAllPhotos } from './SaveAllPhotos';
 import { StickerArt } from './StickerArt';
 import { ConfettiBurst } from './ConfettiBurst';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Users } from 'lucide-react';
 
 interface FinishScreenProps {
   packId: string;
@@ -19,9 +19,11 @@ interface FinishScreenProps {
   onReset?: () => void;
   /** Optional team name, shown beside the path. */
   teamName?: string;
+  /** Opens shared review for this game (compare with other teams). */
+  onShareWithEvent?: () => void;
 }
 
-export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen, onReset, teamName }: FinishScreenProps) {
+export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen, onReset, teamName, onShareWithEvent }: FinishScreenProps) {
   const team = teamName?.trim();
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +81,14 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
           <button onClick={onReview} className="btn-3d btn-sky rounded-full px-6 py-3 font-bold text-ink">Review challenges & connections</button>
           {photos.length > 0 && <button onClick={() => setGalleryOpen(true)} className="btn-3d btn-white rounded-full px-6 py-3 font-bold text-ink">Open photo gallery</button>}
         </div>
+        {onShareWithEvent && <div className="sticker-card mt-8 flex flex-col items-start gap-3 bg-sky-soft p-5 sm:flex-row sm:items-center">
+          <span aria-hidden="true" className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border-2 border-ink bg-sky shadow-sticker-sm"><Users className="h-6 w-6" strokeWidth={2.5} /></span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-2xl">Compare with other teams</h2>
+            <p className="text-sm font-semibold text-ink/75">Send the photos you choose to your leader’s private event, or start one, and see every team’s discovery clue by clue.</p>
+          </div>
+          <button onClick={onShareWithEvent} className="btn-3d btn-sky inline-flex min-h-12 flex-shrink-0 items-center gap-2 rounded-full px-5 font-extrabold text-ink">Share with an event</button>
+        </div>}
         {onReset && <div className="mt-10 border-t-2 border-dashed border-ink/20 pt-6 text-center">
           <p className="text-sm font-semibold text-ink/70">Playing again with a new group? Save your photos first.</p>
           <button onClick={onReset} aria-label={`Start over ${pack.title}`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink/50 bg-cream px-5 py-2 text-sm font-extrabold text-ink/80 transition-colors hover:border-ink hover:bg-coral-soft hover:text-ink">
