@@ -197,6 +197,7 @@ test('lost upload response retries safely; offline reload, saved sessions and li
   await page.getByRole('button',{name:'Try again',exact:true}).click();
   await expect(page.getByText('Everything on this phone has been sent.')).toBeVisible();
   await page.getByRole('button',{name:'All events',exact:true}).click();
+  await page.getByRole('button',{name:'Join an event',exact:true}).click();
   await page.getByRole('textbox',{name:'Or paste the link they sent',exact:true}).fill('https://unrelated.example/#event=11111111-1111-4111-8111-111111111111&leader='+'A'.repeat(43));
   await page.getByRole('button',{name:'Open link',exact:true}).click();
   await expect(page.getByText(/doesn’t look like a group event link/)).toBeVisible();

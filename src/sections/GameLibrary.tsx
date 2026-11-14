@@ -102,7 +102,7 @@ export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onO
               <EventCard
                 tone="join"
                 title="Join an event"
-                body="Got a QR code from your leader? Scan it with your camera, or tap below to paste their link."
+                body="Scan your leader’s QR code right here, or paste their invite link to set up your team."
                 chips={['Game', 'Team name', 'Path']}
                 chipsLabel="Set up for you"
                 cta="Join an event"

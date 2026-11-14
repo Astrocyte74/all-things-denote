@@ -38,8 +38,9 @@ team only. An event hunt keeps its event, team name and path after a reset.
 ## Group events
 
 1. The leader taps **Start an event**, names it, and selects a game.
-2. Teams scan the QR code or open the invite link. Each team enters its name
-   and picks its assigned path (Path A is the default) once.
+2. Teams tap **Join an event → Scan QR code**, allow camera access, and point
+   at the leader’s code. They can also paste an invite link or use their phone’s
+   Camera app. Each team enters its name and picks its path once (Path A is the default).
 3. **Open team hunt** carries the event's game, team name and path straight to
    the instructions, then the hunt. Reopening it resumes saved progress.
 4. **Back to event** opens that team's upload screen directly. Teams choose
@@ -47,6 +48,11 @@ team only. An event hunt keeps its event, team name and path after a reset.
 5. The leader opens the separate private **leader link** on a phone or laptop
    to compare teams' photos one clue at a time. **Present** opens the larger
    discussion view; **Leader tools** also has close/reopen, ZIP and deletion.
+
+Join and Start each show only their own setup, with a small link to switch.
+The in-app scanner reads QR codes locally, accepts only this app’s team invites,
+and stops the camera on close or when the page is hidden. It saves or uploads
+no camera frames. Denied or unavailable cameras leave the paste-link option available.
 
 **Your events** reopens cloud events saved on this device. **Saved team hunts
 on this device** resumes local event hunts offline, even after the cloud event

@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowRight, CalendarDays, Crown, Link2, Loader2, QrCode, ScanLine, Send, Sparkles, Trash2, Users } from 'lucide-react';
 import { PACKS, getPackById } from '@/data/packs';
-import { createReview, forgetReview, getSavedReviews, openReview, parseReviewLink, reviewConfigured, type SavedReview } from '@/lib/sharedReview';
+import { createReview, forgetReview, getSavedReviews, openReview, openReviewHome, parseReviewLink, reviewConfigured, type SavedReview } from '@/lib/sharedReview';
 import { describeError, formatExpiry } from './common';
 import { Notice, PackBadge, ReviewShell } from './ui';
+import { InviteScanner } from './InviteScanner';
 
 const TITLE_LIMIT = 60;
 
@@ -13,7 +14,7 @@ const LEAD_TINT: Record<ReviewIntent, string> = { join: '#E7F8D8', create: '#FFF
 
 interface ReviewHomeProps {
   packId?: string;
-  /** Which flow the visitor picked on the landing; that section leads and takes focus. */
+  /** One focused flow, or the saved-events hub when absent. */
   intent?: ReviewIntent;
   onBack: () => void;
 }
@@ -27,6 +28,8 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const scanButton = useRef<HTMLButtonElement>(null);
   const joinHeading = useRef<HTMLHeadingElement>(null);
   const createHeading = useRef<HTMLHeadingElement>(null);
 
@@ -70,11 +73,6 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
     setLinkError(null);
     openReview(access);
   };
-
-  // The picked flow gets the full sticker treatment and a tint; the other
-  // stays available as a quieter flat card.
-  const cardClass = (flow: ReviewIntent) => (intent && intent !== flow ? 'flat-card' : 'sticker-card');
-  const cardStyle = (flow: ReviewIntent) => (intent === flow ? { backgroundColor: LEAD_TINT[flow] } : undefined);
 
   const savedSection = sortedSaved.length > 0 && (
     <section key="saved" className="mb-7" aria-labelledby="sr-saved">
@@ -124,15 +122,17 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
   );
 
   const joinSection = (
-    <section key="join" className={`${cardClass('join')} mb-6 p-4 sm:p-6`} style={cardStyle('join')} aria-labelledby="sr-join">
+    <section key="join" className="sticker-card mb-6 p-4 sm:p-6" style={{ backgroundColor: LEAD_TINT.join }} aria-labelledby="sr-join">
       <h2 id="sr-join" ref={joinHeading} tabIndex={-1} className="flex items-center gap-2 font-display text-2xl focus:outline-none">
-        <QrCode className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /> Join an event
+        <QrCode className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /> Scan or open an invite
       </h2>
       <p className="mt-1 text-sm font-semibold text-ink/70">For teams. Joining sets up your hunt, so there’s nothing to enter twice.</p>
 
+      <button ref={scanButton} type="button" onClick={() => setScanning(true)} className="btn-3d btn-go mt-4 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl px-5 font-display text-xl text-ink"><ScanLine className="h-6 w-6" aria-hidden="true" />Scan QR code</button>
+      <p className="mt-2 text-center text-xs font-semibold text-ink/70">Your camera opens here. Allow camera access when asked.</p>
       <ol className="mt-4 flex flex-col gap-2.5" aria-labelledby="sr-join">
         <JoinStep n={1} icon={<ScanLine className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}>
-          <strong>Scan your leader’s QR code</strong> with your phone’s camera. The event opens right here.
+          <strong>Scan your leader’s QR code</strong> using the button above, or paste their invite link below.
         </JoinStep>
         <JoinStep n={2} icon={<Users className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}>
           <strong>Enter your team name and pick a path.</strong> That sets the game, team and path for your hunt.
@@ -171,9 +171,9 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
   );
 
   const createSection = (
-    <form key="create" onSubmit={create} className={`${cardClass('create')} mb-6 p-4 sm:p-6`} style={cardStyle('create')} aria-labelledby="sr-create" noValidate>
+    <form key="create" onSubmit={create} className="sticker-card mb-6 p-4 sm:p-6" style={{ backgroundColor: LEAD_TINT.create }} aria-labelledby="sr-create" noValidate>
       <h2 id="sr-create" ref={createHeading} tabIndex={-1} className="flex items-center gap-2 font-display text-2xl focus:outline-none">
-        <Sparkles className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /> Start an event
+        <Sparkles className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /> Event details
       </h2>
       <p className="mt-1 text-sm font-semibold text-ink/70">
         For leaders. Pick the game and share one QR code; teams join on their own phones. Review every clue together on your phone or a laptop. Events last 7 days.
@@ -227,20 +227,12 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
     </form>
   );
 
-  // The picked flow leads; saved events stay right under it so a team that
-  // already joined (or a leader returning) finds theirs without scrolling far.
-  const sections = intent === 'join'
-    ? [joinSection, savedSection, createSection]
-    : intent === 'create'
-      ? [createSection, savedSection, joinSection]
-      : [savedSection, joinSection, createSection];
-
   return (
     <ReviewShell onBack={onBack}>
       <header className="mb-7 text-center">
-        <h1 className="text-sticker-sun animate-pop-in text-[2.3rem] leading-[1.05] sm:text-5xl">Group events</h1>
+        <h1 className="text-sticker-sun animate-pop-in text-[2.3rem] leading-[1.05] sm:text-5xl">{intent === "join" ? "Join an event" : intent === "create" ? "Start an event" : "Group events"}</h1>
         <p className="mx-auto mt-3 max-w-lg font-semibold text-ink/75">
-          Play together on any phones. Teams join with one QR code and send the photos they choose; the leader compares every clue on a phone or a laptop.
+          {intent === 'join' ? 'Open your leader’s invite to get your team ready.' : intent === 'create' ? 'Choose a game, invite your teams, and compare their discoveries.' : 'Reopen an event saved on this device, or get a new group started.'}
         </p>
       </header>
 
@@ -250,7 +242,13 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
         </div>
       )}
 
-      {sections}
+      {intent === 'join' ? joinSection : intent === 'create' ? createSection : <div className="mb-6 grid gap-3 sm:grid-cols-2">
+        <button type="button" onClick={() => openReviewHome(packId, 'join')} className="btn-3d btn-go min-h-14 rounded-2xl px-5 font-display text-xl">Join an event</button>
+        <button type="button" onClick={() => openReviewHome(packId, 'create')} className="btn-3d btn-white min-h-14 rounded-2xl px-5 font-display text-xl">Start an event</button>
+      </div>}
+      {savedSection}
+      {intent && <p className="text-center text-sm font-semibold text-ink/70">{intent === 'join' ? 'Organizing the hunt?' : 'Joining someone else’s hunt?'} <button type="button" onClick={() => openReviewHome(packId, intent === 'join' ? 'create' : 'join')} className="min-h-11 px-2 font-extrabold text-ink underline underline-offset-4">{intent === 'join' ? 'Start an event instead' : 'Join an event instead'}</button></p>}
+      {scanning && <InviteScanner onClose={() => setScanning(false)} onReturnFocus={() => scanButton.current?.focus()} />}
     </ReviewShell>
   );
 }
