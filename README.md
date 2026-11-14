@@ -74,6 +74,14 @@ uses a Cloudflare Worker, D1, and private R2 storage. Set
 Without it, the hunt works and Group events shows a connection setup notice.
 See [the API deployment and operations guide](worker/README.md).
 
+## Adding games
+
+Use the [standard new-game template](src/data/packs/NEW_GAME_TEMPLATE.md) when
+working with Codex or Claude. It includes a plain-English content brief, copyable
+TypeScript pack, object-hunt and scripture-first examples, and a checklist for
+testing and publishing to both the app and event API. Keep the existing game-pack
+structure; no JSON conversion or new content system is needed.
+
 ## Getting Started
 
 Use Node.js 24 (the deployment workflow uses the same version).

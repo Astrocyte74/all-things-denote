@@ -1,5 +1,9 @@
 # Adding a game
 
+Use [the standard new-game template](NEW_GAME_TEMPLATE.md) for the content brief,
+copyable TypeScript starter, scripture-first variation, validation checklist,
+and app/API publishing steps. It is the shared authoring guide for Codex and Claude.
+
 Questions are bundled TypeScript content, available offline after the app reports
 “Ready for offline hunting.” There is no question API or database. The registry in
 `index.ts` drives the chooser, setup, gameplay, theme, and photo labels.
@@ -10,7 +14,8 @@ Questions are bundled TypeScript content, available offline after the app report
    and optional bonuses. Use `bonuses: []` if there is no bonus round.
 3. Export the pack and add it to `PACKS` in `index.ts`. No chooser or gameplay
    changes are needed.
-4. Run `npm run lint` and `npm run test:e2e`.
+4. Follow the template's checks and publish both the app and event API, which
+   import the same registry.
 
 `defineThemePack` prefixes challenge, category, and bonus IDs with the pack ID,
 numbers challenges, generates six complete team paths for any challenge count,
@@ -37,7 +42,10 @@ support emoji fallbacks. `discussionPrompt` customizes the finish screen.
 Progress, selected paths, and last-viewed clues are saved per pack in localStorage.
 Photos are saved per pack in this device's IndexedDB. Switching games preserves
 them; resetting or deleting one game's photos does not affect another game.
-They are not uploaded to a server or synchronized between phones.
+They are not uploaded automatically. Teams can explicitly send selected photos
+to a private group event for leader review; local originals remain on the device.
+Event team hunts have separate progress and photos from device-only games and
+other event teams. See [the app guide](../../../README.md#group-events).
 
 Team names are optional, limited to 40 characters, and saved per game. Each new
 photo stores the name as it was when captured, together with its path and clue
