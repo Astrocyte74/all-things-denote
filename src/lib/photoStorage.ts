@@ -14,6 +14,7 @@ export interface StoredPhoto {
   categoryIcon: string;
   categoryColor: string;
   pathId?: string; // Team path (A, B, C, etc.) - optional for backward compatibility
+  teamName?: string; // Snapshot at capture time; renaming a team never relabels older photos
   packId?: string; // Game pack id ('scavenger' | 'creation') - optional for pre-v3 rows
   imageData: string; // base64 encoded image
   timestamp: number;

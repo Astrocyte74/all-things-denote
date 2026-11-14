@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff } from 'lucide-react';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
@@ -12,7 +12,7 @@ import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ScriptureClue } from '@/components/ScriptureClue';
 import { FinishScreen } from '@/components/FinishScreen';
 import { getCategoryTheme, readableTextOn } from '@/lib/theme';
-import { clearAllPhotos, getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
+import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
 interface CategoriesProps {
   isVisible: boolean;
@@ -28,27 +28,19 @@ interface CategoriesProps {
   /** Active pack id — used to namespace progress/photos per game. */
   packId: string;
   categories: CategoryType[];
+  teamName?: string;
+  onReset: () => void;
 }
 
-export type CategoriesHandle = {
-  /** Re-open the focus-mode carousel on the next incomplete challenge. */
-  resume: () => void;
-  /** Clear completed challenges (and the analogies toggle); keep photos. */
-  resetProgress: () => void;
-  /** Clear completed challenges AND delete all photos, then refresh the count. */
-  resetAll: () => Promise<void>;
-};
-
-export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, categories }, ref) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, categories, teamName, onReset }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
   }>({ pathId: selectedPathId, categoryId: undefined });
-  const [completedChallenges, setCompletedChallenges, clearCompletedChallenges] = usePersistedState<Set<string>>(`completedChallenges:${packId}`, new Set());
+  const [completedChallenges, setCompletedChallenges] = usePersistedState<Set<string>>(`completedChallenges:${packId}`, new Set());
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
   const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle(`showAnalogiesEarly:${packId}`, false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
@@ -212,32 +204,6 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     });
   }, [setCompletedChallenges, celebrate]);
 
-  const handleResetProgress = () => {
-    clearCompletedChallenges();
-    setLastChallengeByPath({});
-    setReviewingCompleted(false);
-    if (showAnalogiesEarly) {
-      toggleAnalogiesEarly();
-    }
-    setShowResetConfirm(false);
-  };
-
-  // Imperative reset entry points (called from App via categoriesRef).
-  const resetProgress = useCallback(() => {
-    clearCompletedChallenges();
-    setLastChallengeByPath({});
-    setReviewingCompleted(false);
-    if (showAnalogiesEarly) {
-      toggleAnalogiesEarly();
-    }
-  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly, setLastChallengeByPath]);
-
-  const resetAll = useCallback(async () => {
-    await clearAllPhotos(packId);
-    resetProgress();
-    onPhotoCountChange(0);
-  }, [resetProgress, onPhotoCountChange, packId]);
-
   const getTotalProgress = useCallback(() => {
     const allChallenges = orderedChallenges;
     const completed = allChallenges.filter(c => completedChallenges.has(c.id)).length;
@@ -300,9 +266,6 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     openNextIncomplete(true);
   }, [isVisible, selectedPathId, openNextIncomplete]);
 
-  // Let the parent (sticky header "Resume Hunt" button) re-enter focus mode.
-  useImperativeHandle(ref, () => ({ resume: () => openNextIncomplete(), resetProgress, resetAll }), [openNextIncomplete, resetProgress, resetAll]);
-
   const navigateDisplayMode = (direction: 'prev' | 'next') => {
     if (!displayModeChallenge) return;
 
@@ -348,7 +311,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   const allComplete = totalProgress.total > 0 && totalProgress.completed === totalProgress.total;
 
   if (allComplete && !reviewingCompleted) {
-    return <FinishScreen packId={packId} pathId={selectedPathId} total={totalProgress.total}
+    return <FinishScreen teamName={teamName} onReset={onReset} packId={packId} pathId={selectedPathId} total={totalProgress.total}
       onReview={() => { setReviewingCompleted(true); setDisplayModeChallenge(null); }}
       onPhotosChanged={handlePhotoSaved}
       galleryOpen={galleryOpen} setGalleryOpen={setGalleryOpen}
@@ -601,7 +564,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               <ChevronLeft className="h-7 w-7" strokeWidth={3} />
             </button>
 
-            <PhotoCapture key={challenge.id} pathId={selectedPathId}
+            <PhotoCapture teamName={teamName} key={challenge.id} pathId={selectedPathId}
               challenge={challenge}
               category={category}
               onCaptureComplete={markChallengeComplete}
@@ -896,7 +859,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                     <Maximize2 className="h-5 w-5" strokeWidth={2.5} />
                                   </button>
 
-                                  <PhotoCapture pathId={selectedPathId}
+                                  <PhotoCapture teamName={teamName} pathId={selectedPathId}
                                     challenge={challenge}
                                     category={category}
                                     onCaptureComplete={markChallengeComplete}
@@ -920,34 +883,13 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
         {/* Reset */}
         <div className="mt-10 text-center">
           <button
-            onClick={() => setShowResetConfirm(true)}
+            onClick={onReset}
             className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
           >
             <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
-            Reset Progress
+            Start over
           </button>
-          {showResetConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4">
-              <div className="sticker-card animate-pop-in w-full max-w-md p-6 text-left">
-                <h3 className="font-display text-2xl text-ink">Reset Progress?</h3>
-                <p className="mt-1 font-semibold text-ink/70">This clears every completed challenge. Sure about that?</p>
-                <div className="mt-5 flex gap-3">
-                  <button
-                    onClick={() => setShowResetConfirm(false)}
-                    className="btn-3d btn-white flex-1 rounded-full px-4 py-2.5 font-extrabold text-ink"
-                  >
-                    Keep Going
-                  </button>
-                  <button
-                    onClick={handleResetProgress}
-                    className="btn-3d btn-coral flex-1 rounded-full px-4 py-2.5 font-extrabold text-white"
-                  >
-                    Yes, Reset
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     </section>
@@ -966,9 +908,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     />
   </>
   );
-});
-
-Categories.displayName = 'Categories';
+}
 
 // Progress Bar Component
 interface ProgressBarProps {

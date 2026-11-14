@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { savePhoto, type StoredPhoto } from '@/lib/photoStorage';
 import { processPhoto } from '@/lib/processPhoto';
 import { beginPhotoSave } from '@/lib/pwa';
+import { cleanTeamName } from '@/lib/teamName';
 import type { Category, Challenge } from '@/types';
 
 interface PhotoCaptureProps {
@@ -13,13 +14,14 @@ interface PhotoCaptureProps {
   onPhotoSaved?: () => void | Promise<void>; // Callback when photo is saved to gallery
   variant?: 'default' | 'display';
   pathId?: string;
+  teamName?: string;
   /** Pack id, stamped on the saved photo so it stays scoped to its game. */
   packId?: string;
   /** Draw attention to the button (focus mode, challenge not yet complete) */
   pulse?: boolean;
 };
 
-export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, packId, pulse = false }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, teamName, packId, pulse = false }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const pendingPhoto = useRef<StoredPhoto | null>(null);
@@ -45,8 +47,8 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         categoryTitle: category.title,
         categoryIcon: category.icon,
         categoryColor: category.color,
-        pathId, packId,
-        imageData: await processPhoto(file, challenge, category, pathId),
+        pathId, packId, teamName: cleanTeamName(teamName) || undefined,
+        imageData: await processPhoto(file, challenge, category, pathId, teamName),
         timestamp: Date.now(),
       };
       pendingPhoto.current = photo;

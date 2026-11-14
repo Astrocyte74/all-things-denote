@@ -1,4 +1,4 @@
-import { Camera, ChevronDown, Home, MapPinned, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { Camera, Home, MoreHorizontal, PencilLine, RotateCcw, Users } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface StickyHuntHeaderProps {
@@ -11,13 +11,17 @@ interface StickyHuntHeaderProps {
   photoCount?: number;
   onExit?: () => void;
   onStartOver?: () => void;
+  /** Optional team name; shown compactly beside the path. */
+  teamName?: string;
 }
 
-export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, completed, total, photoCount = 0, onExit, onStartOver }: StickyHuntHeaderProps) {
+export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, completed, total, photoCount = 0, onExit, onStartOver, teamName }: StickyHuntHeaderProps) {
+  const team = teamName?.trim();
+  const editLabel = team ? `Edit team and path. Team ${team}, path ${pathId}` : `Edit team and path. Current path ${pathId}`;
   return (
     <div className="safe-top fixed inset-x-0 top-0 z-50 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
       <nav aria-label="Hunt controls" className="mx-auto flex max-w-6xl items-center justify-between gap-1.5 px-3 py-3 sm:gap-3 sm:px-4">
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
           <button
             onClick={onOpenGallery}
             className="btn-3d btn-white relative inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-ink"
@@ -31,15 +35,25 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, complete
               </span>
             )}
           </button>
+          {/* Team + path chip. Tapping it edits both (same path-selection screen). */}
           <button
             onClick={onChangePath}
-            aria-label={`Change path, current path ${pathId}`}
-            className="inline-flex min-h-11 items-center gap-1 rounded-xl border-2 border-ink bg-grape-soft px-2 text-ink hover:bg-grape/20 sm:gap-1.5 sm:px-2.5"
+            aria-label={editLabel}
+            title="Edit team & path"
+            className="inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl border-2 border-ink bg-grape-soft px-2 text-ink hover:bg-grape/20 sm:px-2.5"
           >
-            <MapPinned className="hidden h-4 w-4 sm:block" strokeWidth={2.5} />
-            <span className="text-xs font-extrabold">Path</span>
-            <span className="font-display text-lg">{pathId}</span>
-            <ChevronDown className="h-3.5 w-3.5" strokeWidth={3} />
+            {team && (
+              <span className="flex min-w-0 items-center gap-1">
+                <Users className="hidden h-4 w-4 flex-shrink-0 sm:block" strokeWidth={2.5} aria-hidden="true" />
+                <span className="min-w-0 max-w-[6.5rem] truncate text-sm font-extrabold sm:max-w-[12rem]">{team}</span>
+                <span aria-hidden="true" className="text-ink/40">·</span>
+              </span>
+            )}
+            <span className="flex flex-shrink-0 items-baseline gap-0.5">
+              <span className="text-xs font-extrabold">Path</span>
+              <span className="font-display text-lg leading-none">{pathId}</span>
+            </span>
+            <PencilLine className="h-3.5 w-3.5 flex-shrink-0 text-ink/70" strokeWidth={2.75} aria-hidden="true" />
           </button>
         </div>
 
@@ -65,6 +79,9 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, complete
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content align="end" sideOffset={12} className="sticker-card z-[60] min-w-48 p-2 text-sm font-extrabold text-ink">
+                  <DropdownMenu.Item onSelect={onChangePath} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 outline-none focus:bg-grape-soft">
+                    <PencilLine className="h-4 w-4" /> Edit team & path
+                  </DropdownMenu.Item>
                   {onExit && (
                     <DropdownMenu.Item onSelect={onExit} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 outline-none focus:bg-grape-soft">
                       <Home className="h-4 w-4" /> Back to home

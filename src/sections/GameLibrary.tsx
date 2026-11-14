@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Camera, MapPin, Play, Route, Trophy } from 'lucide-react';
+import { ArrowRight, Camera, MapPin, Play, RotateCcw, Route, Trophy } from 'lucide-react';
 import type { GamePack } from '@/types';
 import './GameLibrary.css';
 
@@ -8,6 +8,10 @@ export interface GameSummary {
   total: number;
   started: boolean;
   pathId?: string;
+  /** Optional team name saved for this game. */
+  teamName?: string;
+  /** True when photos or other saved data exist even without progress. */
+  hasSavedData?: boolean;
 }
 
 interface GameLibraryProps {
@@ -17,6 +21,8 @@ interface GameLibraryProps {
   onSelect: (id: string) => void;
   /** Jump back into the saved hunt (or its results when finished). */
   onResume: (id: string) => void;
+  /** Open the reset dialog for this game. */
+  onReset: (id: string) => void;
 }
 
 /**
@@ -25,9 +31,9 @@ interface GameLibraryProps {
  *
  * Each card is an <article> holding sibling buttons (never nested): a
  * "stretched" title button whose ::after covers the whole card (opens
- * details), plus a Continue / View results button layered above it.
+ * details), plus Continue / View results and Reset buttons layered above it.
  */
-export function GameLibrary({ packs, summaries, onSelect, onResume }: GameLibraryProps) {
+export function GameLibrary({ packs, summaries, onSelect, onResume, onReset }: GameLibraryProps) {
   return (
     <section className="paper-dots min-h-[100svh] px-4 pb-12 pt-8 md:px-8 md:pt-12" aria-labelledby="game-library-title">
       <div className="mx-auto max-w-5xl">
@@ -37,6 +43,7 @@ export function GameLibrary({ packs, summaries, onSelect, onResume }: GameLibrar
           </p>
           <h1
             id="game-library-title"
+            tabIndex={-1}
             className="text-sticker-sun animate-pop-in text-[2.4rem] leading-[1.05] sm:text-5xl md:text-6xl"
           >
             Choose your adventure
@@ -59,6 +66,7 @@ export function GameLibrary({ packs, summaries, onSelect, onResume }: GameLibrar
                 summary={summaries[pack.id]}
                 onSelect={onSelect}
                 onResume={onResume}
+                onReset={onReset}
               />
             </li>
           ))}
@@ -76,6 +84,7 @@ interface GameCardProps {
   summary?: GameSummary;
   onSelect: (id: string) => void;
   onResume: (id: string) => void;
+  onReset: (id: string) => void;
 }
 
 function countChallenges(pack: GamePack) {
@@ -86,7 +95,7 @@ function capitalize(text: string) {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
 }
 
-function GameCard({ pack, index, summary, onSelect, onResume }: GameCardProps) {
+function GameCard({ pack, index, summary, onSelect, onResume, onReset }: GameCardProps) {
   const challengeCount = countChallenges(pack);
   const total = summary?.total || challengeCount;
   const done = Math.min(summary?.completed ?? 0, total);
@@ -94,7 +103,11 @@ function GameCard({ pack, index, summary, onSelect, onResume }: GameCardProps) {
   const finished = started && total > 0 && done >= total;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const location = capitalize(pack.locationLabel ?? pack.setting);
+  const teamName = summary?.teamName?.trim() || null;
   const pathLabel = summary?.pathId ? `Path ${summary.pathId}` : null;
+  const canReset = started || Boolean(summary?.hasSavedData);
+  // Saved data without progress (e.g. photos only): show who/where, no bar.
+  const showSavedLine = !started && (canReset || teamName);
 
   const descId = `game-${pack.id}-desc`;
   const progressId = `game-${pack.id}-progress`;
@@ -119,7 +132,7 @@ function GameCard({ pack, index, summary, onSelect, onResume }: GameCardProps) {
               type="button"
               className="gl-open text-left"
               onClick={() => onSelect(pack.id)}
-              aria-describedby={`${descId}${started ? ` ${progressId}` : ''}`}
+              aria-describedby={`${descId}${started || showSavedLine ? ` ${progressId}` : ''}`}
             >
               {pack.title}
             </button>
@@ -164,9 +177,9 @@ function GameCard({ pack, index, summary, onSelect, onResume }: GameCardProps) {
 
         {started && (
           <div id={progressId}>
-            <div className="mb-1 flex items-baseline justify-between text-sm font-bold text-ink">
-              <span>{finished ? 'All found!' : `${done} of ${total} found`}</span>
-              {pathLabel && <span className="text-ink/60">{pathLabel}</span>}
+            <div className="mb-1 flex items-baseline justify-between gap-3 text-sm font-bold text-ink">
+              <span className="flex-shrink-0">{finished ? 'All found!' : `${done} of ${total} found`}</span>
+              <TeamPath teamName={teamName} pathLabel={pathLabel} />
             </div>
             <div
               className="h-3.5 overflow-hidden rounded-full border-2 border-ink bg-cream"
@@ -184,38 +197,71 @@ function GameCard({ pack, index, summary, onSelect, onResume }: GameCardProps) {
           </div>
         )}
 
+        {showSavedLine && (
+          <div id={progressId} className="flex items-baseline justify-between gap-3 text-sm font-bold text-ink">
+            <span className="flex-shrink-0">{canReset ? 'Saved on this device' : 'Ready to start'}</span>
+            <TeamPath teamName={teamName} pathLabel={pathLabel} />
+          </div>
+        )}
+
         {/* Actions */}
-        <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-          {started ? (
-            <>
+        <div className="mt-auto flex flex-col gap-3 pt-1">
+          {started && (
+            <button
+              type="button"
+              onClick={() => onResume(pack.id)}
+              className={`gl-action btn-3d ${finished ? 'btn-sun' : 'btn-go'} inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 font-display text-lg tracking-wide text-ink`}
+              aria-label={finished ? `View ${pack.title} results` : `Continue ${pack.title}`}
+            >
+              {finished ? (
+                <Trophy className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" />
+              ) : (
+                <Play className="h-5 w-5 fill-current" strokeWidth={2.5} aria-hidden="true" />
+              )}
+              {finished ? 'View results' : 'Continue'}
+            </button>
+          )}
+
+          <div className="flex min-h-[44px] items-center justify-between gap-3">
+            {canReset && (
               <button
                 type="button"
-                onClick={() => onResume(pack.id)}
-                className={`gl-action btn-3d ${finished ? 'btn-sun' : 'btn-go'} inline-flex min-h-[44px] items-center gap-2 rounded-2xl px-4 py-2 font-display text-lg tracking-wide text-ink`}
-                aria-label={finished ? `View ${pack.title} results` : `Continue ${pack.title}`}
+                onClick={() => onReset(pack.id)}
+                className="gl-action gl-reset inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border-2 px-3 text-sm font-extrabold"
+                aria-label={`Reset ${pack.title}`}
               >
-                {finished ? (
-                  <Trophy className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" />
-                ) : (
-                  <Play className="h-5 w-5 fill-current" strokeWidth={2.5} aria-hidden="true" />
-                )}
-                {finished ? 'View results' : 'Continue'}
+                <RotateCcw className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />
+                Reset game
               </button>
-              <span className="gl-cue flex items-center gap-1 text-sm font-extrabold text-ink/70" aria-hidden="true">
+            )}
+            {started ? (
+              <span className="gl-cue ml-auto flex items-center gap-1 text-sm font-extrabold text-ink/70" aria-hidden="true">
                 Details <ArrowRight className="h-4 w-4" strokeWidth={3} />
               </span>
-            </>
-          ) : (
-            <span className="gl-cue ml-auto flex items-center gap-1.5 font-display text-lg tracking-wide text-ink" aria-hidden="true">
-              Let&rsquo;s play
-              <span className="gl-cue-dot flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink">
-                <ArrowRight className="h-4 w-4" strokeWidth={3.25} />
+            ) : (
+              <span className="gl-cue ml-auto flex items-center gap-1.5 font-display text-lg tracking-wide text-ink" aria-hidden="true">
+                Let&rsquo;s play
+                <span className="gl-cue-dot flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink">
+                  <ArrowRight className="h-4 w-4" strokeWidth={3.25} />
+                </span>
               </span>
-            </span>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </article>
+  );
+}
+
+/** "Team name · Path B", truncating a long team name on narrow cards. */
+function TeamPath({ teamName, pathLabel }: { teamName: string | null; pathLabel: string | null }) {
+  if (!teamName && !pathLabel) return null;
+  return (
+    <span className="flex min-w-0 items-baseline gap-1 text-ink/60">
+      {teamName && <span className="truncate text-ink/80" title={teamName}>{teamName}</span>}
+      {teamName && pathLabel && <span aria-hidden="true">·</span>}
+      {pathLabel && <span className="flex-shrink-0">{pathLabel}</span>}
+    </span>
   );
 }
 

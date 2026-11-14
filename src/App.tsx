@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Header } from '@/sections/Header';
 import { PathSelection } from '@/sections/PathSelection';
 import { Rules } from '@/sections/Rules';
-import { Categories, type CategoriesHandle } from '@/sections/Categories';
+import { Categories } from '@/sections/Categories';
 import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
 import { StickyHuntHeader } from '@/components/StickyHuntHeader';
@@ -13,7 +13,9 @@ import { PACKS, getPackById, DEFAULT_PACK_ID } from '@/data/packs';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Toaster } from '@/components/ui/sonner';
 import { OfflineNotice } from '@/components/OfflineNotice';
-import { toast } from 'sonner';
+import { getPhotoCount } from '@/lib/photoStorage';
+import { resetGame } from '@/lib/resetGame';
+import { cleanTeamName, TEAM_NAME_LIMIT } from '@/lib/teamName';
 import './App.css';
 
 type AppState = 'library' | 'game' | 'path-selection' | 'rules' | 'hunt';
@@ -37,14 +39,16 @@ function App() {
   // Per-pack path memory: { scavenger: 'A', creation: 'C' } so switching packs
   // doesn't lose each game's chosen path.
   const [pathByPack, setPathByPack] = usePersistedState<Record<string, string>>('pathByPack', {});
+  const [teamNameByPack, setTeamNameByPack] = usePersistedState<Record<string, string>>('teamNameByPack', {});
+  const [photoCountsByPack, setPhotoCountsByPack] = useState<Record<string, number>>({});
+  const [libraryRevision, setLibraryRevision] = useState(0);
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [photoCount, setPhotoCount] = useState(0);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
-  const [startOverOpen, setStartOverOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<string | null>(null);
   const rulesRef = useRef<HTMLDivElement>(null);
-  const categoriesRef = useRef<CategoriesHandle>(null);
 
   const handleProgressChange = useCallback((completed: number, total: number) => {
     setProgress(previous =>
@@ -60,6 +64,24 @@ function App() {
   const selectedPath = pack.paths.find((p) => p.id === selectedPathId);
   const appState = ['library', 'game', 'path-selection', 'rules', 'hunt'].includes(savedAppState)
     && (savedAppState !== 'hunt' || selectedPath) ? savedAppState : 'library';
+  const teamNameInput = teamNameByPack[pack.id] ?? '';
+  const teamName = cleanTeamName(teamNameInput);
+
+  useEffect(() => {
+    if (appState !== 'library') return;
+    let cancelled = false;
+    void Promise.all(PACKS.map(async game => [game.id, await getPhotoCount(game.id)] as const))
+      .then(entries => { if (!cancelled) setPhotoCountsByPack(Object.fromEntries(entries)); })
+      .catch(() => { /* Saved paths/progress still expose reset if photo storage is unavailable. */ });
+    return () => { cancelled = true; };
+  }, [appState, libraryRevision]);
+
+  useEffect(() => {
+    if (libraryRevision > 0 && !resetTarget && appState === 'library') {
+      document.getElementById('game-library-title')?.focus();
+    }
+  }, [libraryRevision, resetTarget, appState]);
+
   const canResume = Boolean(selectedPath && startedByPack[pack.id]);
   const summaries: Record<string, GameSummary> = Object.fromEntries(PACKS.map(game => {
     const ids = game.categories.flatMap(category => category.challenges.map(challenge => challenge.id));
@@ -69,11 +91,15 @@ function App() {
       if (Array.isArray(saved)) completed = ids.filter(id => saved.includes(id)).length;
     } catch { /* An unavailable save starts with no completed challenges. */ }
     const pathId = game.paths.find(path => path.id === pathByPack[game.id])?.id;
-    return [game.id, { completed, total: ids.length, started: Boolean(pathId && (startedByPack[game.id] || completed)), pathId }];
+    return [game.id, { completed, total: ids.length, started: Boolean(pathId && (startedByPack[game.id] || completed)), pathId, teamName: cleanTeamName(teamNameByPack[game.id]), hasSavedData: Boolean(pathId || teamNameByPack[game.id] || completed || photoCountsByPack[game.id]) }];
   }));
 
   const setSelectedPathId = (pathId: string) => {
     setPathByPack((prev) => ({ ...prev, [pack.id]: pathId }));
+  };
+
+  const handleTeamNameChange = (name: string) => {
+    setTeamNameByPack(prev => ({ ...prev, [pack.id]: name.slice(0, TEAM_NAME_LIMIT) }));
   };
 
   // ── Pack + flow handlers ────────────────────────────────────────────────
@@ -102,6 +128,7 @@ function App() {
 
   const handlePathSelected = (pathId: string) => {
     setSelectedPathId(pathId);
+    setTeamNameByPack(prev => ({ ...prev, [pack.id]: teamName }));
     setPathSelectionOpen(false);
 
     // If we're in initial flow (landing/path-selection), go to rules
@@ -138,23 +165,24 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const handleStartOverProgress = () => {
-    categoriesRef.current?.resetProgress();
-    setBonusUnlocked(false);
-    setStartedByPack(prev => ({ ...prev, [pack.id]: false }));
-    setAppState('path-selection');
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  };
-
-  const handleStartOverAll = async () => {
-    try {
-      await categoriesRef.current?.resetAll();
-      setBonusUnlocked(false);
-      setStartedByPack(prev => ({ ...prev, [pack.id]: false }));
+  const handleResetGame = async (deletePhotos: boolean) => {
+    if (!resetTarget) return;
+    const id = resetTarget;
+    await resetGame(id, deletePhotos);
+    setStartedByPack(prev => ({ ...prev, [id]: false }));
+    if (deletePhotos) {
+      setPathByPack(prev => { const next = { ...prev }; delete next[id]; return next; });
+      setTeamNameByPack(prev => { const next = { ...prev }; delete next[id]; return next; });
+      setPhotoCountsByPack(prev => ({ ...prev, [id]: 0 }));
+    }
+    setLibraryRevision(previous => previous + 1);
+    if (id === pack.id) setBonusUnlocked(false);
+    if (appState !== 'library') {
+      setActivePackId(id);
+      setGalleryOpen(false);
+      setPathSelectionOpen(false);
       setAppState('path-selection');
       window.scrollTo({ top: 0, behavior: 'instant' });
-    } catch {
-      toast.error('Could not clear photos. Your hunt is still here; please retry.');
     }
   };
 
@@ -164,7 +192,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-paper overflow-x-hidden">
-      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} />}
+      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} onReset={setResetTarget} />}
       {appState === 'game' && <Header pack={pack} onBack={handleBackToLanding} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />}
 
       {/* Path Selection */}
@@ -174,6 +202,7 @@ function App() {
           isVisible={appState === 'path-selection'}
           onBack={() => setAppState('game')}
           initialPathId={selectedPathId}
+          teamName={teamNameInput} onTeamNameChange={handleTeamNameChange}
           paths={pack.paths}
           categories={pack.categories}
         />
@@ -192,18 +221,20 @@ function App() {
           {/* Sticky Header */}
           <StickyHuntHeader
             pathId={selectedPathId}
+            teamName={teamName}
             onChangePath={handleChangePath}
             onOpenGallery={() => setGalleryOpen(true)}
             completed={progress.completed}
             total={progress.total}
             photoCount={photoCount}
             onExit={handleBackToLanding}
-            onStartOver={() => setStartOverOpen(true)}
+            onStartOver={() => setResetTarget(pack.id)}
           />
 
           <Categories
             key={pack.id}
-            ref={categoriesRef}
+            teamName={teamName}
+            onReset={() => setResetTarget(pack.id)}
             isVisible={true}
             selectedPathId={selectedPathId}
             pathOrder={selectedPath.order}
@@ -236,6 +267,7 @@ function App() {
                   onPathSelected={handlePathSelected}
                   isVisible={true}
                   initialPathId={selectedPathId}
+                  teamName={teamNameInput} onTeamNameChange={handleTeamNameChange}
                   paths={pack.paths}
                   categories={pack.categories}
                 />
@@ -243,15 +275,16 @@ function App() {
             </div>
           )}
 
-          {/* Start Over dialog */}
-          <StartOverDialog
-            isOpen={startOverOpen}
-            onClose={() => setStartOverOpen(false)}
-            onResetProgress={handleStartOverProgress}
-            onResetAll={handleStartOverAll}
-          />
         </>
       )}
+
+      <StartOverDialog
+        isOpen={resetTarget !== null}
+        gameTitle={resetTarget ? getPackById(resetTarget).title : undefined}
+        onClose={() => setResetTarget(null)}
+        onResetProgress={() => handleResetGame(false)}
+        onResetAll={() => handleResetGame(true)}
+      />
 
       {/* Toast notifications */}
       <OfflineNotice />

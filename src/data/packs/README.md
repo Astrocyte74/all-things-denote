@@ -38,3 +38,9 @@ Progress, selected paths, and last-viewed clues are saved per pack in localStora
 Photos are saved per pack in this device's IndexedDB. Switching games preserves
 them; resetting or deleting one game's photos does not affect another game.
 They are not uploaded to a server or synchronized between phones.
+
+Team names are optional, limited to 40 characters, and saved per game. Each new
+photo stores the name as it was when captured, together with its path and clue
+identity, and includes that name in its exported JPEG. Editing a team name does
+not rewrite older photos. Reset progress keeps photos, team name, and path;
+Start fresh confirms deletion of only the selected game's photos and settings.

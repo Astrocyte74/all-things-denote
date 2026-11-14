@@ -199,6 +199,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
   await page.getByRole('button', { name: 'More hunt options' }).click();
   await page.getByRole('menuitem', { name: 'Start over' }).click();
   await page.getByRole('button', { name: /^Start fresh/ }).click();
+  await page.getByRole('button', { name: 'Delete & start fresh', exact: true }).click();
   await expect.poll(() => photoCount(page)).toBe(0);
   expect(await photoCount(page, 'creation')).toBe(1);
 });

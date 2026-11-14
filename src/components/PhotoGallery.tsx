@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Download, Trash2, Image as ImageIcon, ExternalLink, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { photoFilename } from '@/lib/photoExport';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Download, Trash2, Image as ImageIcon, Share, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAllPhotos, deletePhoto, getPhotoCount, type StoredPhoto } from '@/lib/photoStorage';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,26 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     onSwipeRight: () => navigatePhoto(-1),
     threshold: 50
   });
+
+  const viewerOpen = selectedPhotoIndex !== null;
+  const closeViewerRef = useRef<HTMLButtonElement>(null);
+
+  // Viewer keyboard: Escape closes, arrows step. Paused while the delete
+  // confirmation is up so Escape doesn't close two layers at once.
+  useEffect(() => {
+    if (!viewerOpen || photoToDelete) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedPhotoIndex(null);
+      else if (e.key === 'ArrowRight') setSelectedPhotoIndex(i => (i !== null && i < photos.length - 1 ? i + 1 : i));
+      else if (e.key === 'ArrowLeft') setSelectedPhotoIndex(i => (i !== null && i > 0 ? i - 1 : i));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewerOpen, photoToDelete, photos.length]);
+
+  useEffect(() => {
+    if (viewerOpen) closeViewerRef.current?.focus({ preventScroll: true });
+  }, [viewerOpen]);
 
   const loadPhotos = useCallback(async () => {
     setLoading(true);
@@ -99,7 +120,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
         }
       }
 
-      toast.success('Photo deleted');
+      toast.success('Photo deleted', { style: { pointerEvents: 'none' } });
 
       // Update photo count
       const newCount = await getPhotoCount(packId);
@@ -153,13 +174,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `scavenger-hunt-${photo.challengeNumber}-${photo.challengeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`;
+      link.download = photoFilename(photo);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast.success('Photo downloaded');
+      toast.success('Photo downloaded', { style: { pointerEvents: 'none' } });
     } catch (error) {
       console.error('Failed to download photo:', error);
       toast.error('Failed to download photo');
@@ -177,7 +198,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       const byteArray = new Uint8Array(byteNumbers);
       const blob = new Blob([byteArray], { type: 'image/jpeg' });
 
-      const filename = `scavenger-hunt-${photo.challengeNumber}-${photo.challengeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`;
+      const filename = photoFilename(photo);
       const file = new File([blob], filename, { type: 'image/jpeg' });
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -186,7 +207,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
           title: `Challenge #${photo.challengeNumber}`,
           text: photo.challengeTitle
         });
-        toast.success('Photo shared!');
+        toast.success('Photo shared!', { style: { pointerEvents: 'none' } });
       } else {
         // Fallback to download
         handleDownload(photo);
@@ -273,26 +294,28 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                     key={photo.id}
                     className="rounded-2xl border-2 border-ink bg-cream shadow-sticker-sm overflow-hidden transition-transform hover:-translate-y-0.5"
                   >
-                    {/* Photo - larger, taller aspect ratio */}
-                    <div
-                      className="aspect-[4/3] bg-gray-100 cursor-pointer relative group"
+                    {/* Whole keepsake card, never cropped (older photos keep their original label) */}
+                    <button
+                      type="button"
+                      className="paper-dots block aspect-[4/5] w-full p-3"
                       onClick={() => setSelectedPhotoIndex(index)}
+                      aria-label={`View photo for #${photo.challengeNumber} ${photo.challengeTitle} full screen`}
                     >
                       <img
                         src={photo.imageData}
-                        alt={photo.challengeTitle}
-                        className="w-full h-full object-cover"
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-contain"
                       />
-                      {/* Challenge number badge overlay */}
-                      <div className="absolute top-2 left-2 border-2 border-ink bg-sun text-ink font-display text-sm px-3 py-1 rounded-full shadow-sticker-sm">
-                        #{photo.challengeNumber}
-                      </div>
-                    </div>
+                    </button>
 
                     {/* Actions bar */}
                     <div className="p-4 flex items-center justify-between border-t-2 border-ink/10 bg-paper">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1 text-xs font-bold text-ink/50">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <div className="truncate text-sm font-extrabold text-ink">
+                          #{photo.challengeNumber} {photo.challengeTitle}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs font-bold text-ink/60">
                           <Calendar className="w-3 h-3" />
                           {new Date(photo.timestamp).toLocaleDateString('en-US', {
                             month: 'short',
@@ -300,35 +323,35 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                             year: 'numeric'
                           })}
                         </div>
-                        <div className="text-xs font-bold text-sky-edge">
-                          Tap photo to view full screen
-                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-shrink-0 items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-10 w-10"
                           onClick={() => handleDownload(photo)}
-                          title="Download"
+                          title="Save"
+                          aria-label={`Save photo #${photo.challengeNumber}`}
                         >
                           <Download className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-10 w-10"
                           onClick={() => handleShare(photo)}
                           title="Share"
+                          aria-label={`Share photo #${photo.challengeNumber}`}
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <Share className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          className="h-10 w-10 text-coral-edge hover:bg-coral-soft hover:text-coral-edge"
                           onClick={() => handleDelete(photo)}
                           title="Delete"
+                          aria-label={`Delete photo #${photo.challengeNumber}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -343,88 +366,99 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
         </div>
       )}
 
-      {/* Full Screen Slideshow Viewer */}
-      {selectedPhotoIndex !== null && getSelectedPhoto() && (
-        <div
-          ref={swipeRef}
-          className="fixed inset-0 bg-black z-[60] flex items-center justify-center"
-        >
-          {/* Close button */}
-          <button
-            onClick={() => setSelectedPhotoIndex(null)}
-            className="absolute top-4 right-4 z-10 text-white/80 hover:text-white p-2 bg-black/20 rounded-full"
+      {/* Full-screen viewer: the card gets its own row; controls live in the
+          top and bottom bars (and side gutters on wider screens), so they
+          never sit on top of the baked caption. */}
+      {viewerOpen && getSelectedPhoto() && (() => {
+        const photo = getSelectedPhoto()!;
+        const index = selectedPhotoIndex!;
+        const atStart = index === 0;
+        const atEnd = index === photos.length - 1;
+        const navButton = 'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border-2 border-cream/25 bg-cream/10 text-cream transition-colors hover:bg-cream/20 disabled:cursor-not-allowed disabled:opacity-30';
+        return (
+          <div
+            ref={swipeRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Photo ${index + 1} of ${photos.length}: #${photo.challengeNumber} ${photo.challengeTitle}`}
+            className="fixed inset-0 z-[60] flex flex-col bg-[#1F1842] text-cream"
+            style={{ backgroundImage: 'radial-gradient(rgba(253,246,236,0.06) 1.1px, transparent 1.1px)', backgroundSize: '22px 22px' }}
           >
-            <X className="w-6 h-6" />
-          </button>
-
-          {/* Previous button */}
-          <button
-            onClick={() => navigatePhoto(-1)}
-            disabled={selectedPhotoIndex === 0}
-            className="absolute left-4 z-10 text-white/80 hover:text-white p-3 bg-black/20 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            <ChevronLeft className="w-8 h-8" />
-          </button>
-
-          {/* Photo */}
-          <div className="flex-1 flex items-center justify-center p-8">
-            <img
-              src={getSelectedPhoto()!.imageData}
-              alt={getSelectedPhoto()!.challengeTitle}
-              className="max-w-full max-h-full object-contain"
-            />
-          </div>
-
-          {/* Next button */}
-          <button
-            onClick={() => navigatePhoto(1)}
-            disabled={selectedPhotoIndex === photos.length - 1}
-            className="absolute right-4 z-10 text-white/80 hover:text-white p-3 bg-black/20 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            <ChevronRight className="w-8 h-8" />
-          </button>
-
-          {/* Action buttons */}
-          <div className="absolute bottom-20 right-6 flex gap-2 z-20">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="bg-white/90 hover:bg-white shadow-lg"
-              onClick={() => getSelectedPhoto() && handleDownload(getSelectedPhoto()!)}
-            >
-              <Download className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="bg-white/90 hover:bg-white shadow-lg"
-              onClick={() => getSelectedPhoto() && handleShare(getSelectedPhoto()!)}
-            >
-              <ExternalLink className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="shadow-lg"
-              onClick={() => getSelectedPhoto() && handleDelete(getSelectedPhoto()!)}
-            >
-              <Trash2 className="w-5 h-5" />
-            </Button>
-          </div>
-
-          {/* Photo counter overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pb-8">
-            <div className="flex items-center justify-between">
-              <div className="text-white/60 text-sm">
-                Swipe to navigate
-              </div>
-              <div className="text-white font-bold text-lg">
-                {selectedPhotoIndex + 1} / {photos.length}
+            {/* Top bar */}
+            <div className="safe-top flex-shrink-0">
+              <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 pt-3 sm:px-5 [@media(max-height:500px)]:pt-1.5">
+                <span className="flex-shrink-0 rounded-full border-2 border-ink bg-sun px-3 py-1 font-display text-lg leading-none text-ink tabular-nums shadow-[2px_2px_0_0_rgba(0,0,0,0.35)]">
+                  {index + 1}<span className="text-ink/60"> / {photos.length}</span>
+                </span>
+                <p className="min-w-0 flex-1 truncate text-sm font-extrabold text-cream/85">
+                  #{photo.challengeNumber} {photo.challengeTitle}
+                </p>
+                <button
+                  ref={closeViewerRef}
+                  onClick={() => setSelectedPhotoIndex(null)}
+                  className="btn-3d btn-white flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-ink [@media(max-height:500px)]:h-10 [@media(max-height:500px)]:w-10"
+                  aria-label="Close photo viewer"
+                >
+                  <X className="h-5 w-5" strokeWidth={3} />
+                </button>
               </div>
             </div>
+
+            {/* Card */}
+            <div className="relative flex min-h-0 flex-1 items-center justify-center px-3 py-3 sm:px-24 [@media(max-height:500px)]:py-2">
+              <img
+                key={photo.id}
+                src={photo.imageData}
+                alt={`Photo for #${photo.challengeNumber} ${photo.challengeTitle}`}
+                draggable={false}
+                className="animate-pop-in max-h-full max-w-full select-none rounded-xl object-contain shadow-[0_0_0_2px_rgba(253,246,236,0.85),6px_6px_0_2px_rgba(0,0,0,0.4)]"
+              />
+              <button onClick={() => navigatePhoto(-1)} disabled={atStart} aria-label="Previous photo" className={`${navButton} absolute left-5 top-1/2 hidden -translate-y-1/2 sm:flex`}>
+                <ChevronLeft className="h-7 w-7" strokeWidth={3} />
+              </button>
+              <button onClick={() => navigatePhoto(1)} disabled={atEnd} aria-label="Next photo" className={`${navButton} absolute right-5 top-1/2 hidden -translate-y-1/2 sm:flex`}>
+                <ChevronRight className="h-7 w-7" strokeWidth={3} />
+              </button>
+            </div>
+
+            {/* Bottom toolbar */}
+            <div className="flex-shrink-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 [@media(max-height:500px)]:pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+              <div className="mx-auto flex max-w-md items-center justify-between gap-2 max-[359px]:gap-1.5">
+                <button onClick={() => navigatePhoto(-1)} disabled={atStart} aria-label="Previous photo" className={`${navButton} sm:hidden`}>
+                  <ChevronLeft className="h-6 w-6" strokeWidth={3} />
+                </button>
+                <div className="flex flex-1 items-center justify-center gap-2 max-[359px]:gap-1.5">
+                  <button
+                    onClick={() => handleDownload(photo)}
+                    className="btn-3d btn-white inline-flex min-h-12 min-w-12 items-center justify-center gap-1.5 rounded-2xl px-3.5 font-extrabold max-[359px]:px-0 text-ink [@media(max-height:500px)]:min-h-10"
+                  >
+                    <Download className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /><span className="max-[359px]:sr-only">Save</span>
+                  </button>
+                  <button
+                    onClick={() => handleShare(photo)}
+                    className="btn-3d btn-sun inline-flex min-h-12 min-w-12 items-center justify-center gap-1.5 rounded-2xl px-3.5 font-extrabold max-[359px]:px-0 text-ink [@media(max-height:500px)]:min-h-10"
+                  >
+                    <Share className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /><span className="max-[359px]:sr-only">Share</span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(photo)}
+                    aria-label="Delete photo"
+                    className="btn-3d btn-coral flex h-12 w-12 items-center justify-center rounded-2xl text-ink [@media(max-height:500px)]:h-10 [@media(max-height:500px)]:w-10"
+                  >
+                    <Trash2 className="h-5 w-5" strokeWidth={2.75} />
+                  </button>
+                </div>
+                <button onClick={() => navigatePhoto(1)} disabled={atEnd} aria-label="Next photo" className={`${navButton} sm:hidden`}>
+                  <ChevronRight className="h-6 w-6" strokeWidth={3} />
+                </button>
+              </div>
+              {photos.length > 1 && (
+                <p className="mt-2 text-center text-xs font-bold text-cream/55 sm:hidden">Swipe for more photos</p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Delete Confirmation Dialog */}
       {photoToDelete && (
@@ -446,7 +480,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
               </button>
               <button
                 onClick={confirmDelete}
-                className="btn-3d btn-coral flex-1 text-white px-4 py-3 rounded-full font-extrabold"
+                className="btn-3d btn-coral flex-1 text-ink px-4 py-3 rounded-full font-extrabold"
               >
                 Delete
               </button>

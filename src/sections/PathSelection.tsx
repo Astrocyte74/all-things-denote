@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import type { Category, Path } from '@/types';
 import { getCategoryTheme } from '@/lib/theme';
+import { TEAM_NAME_LIMIT as TEAM_NAME_MAX } from '@/lib/teamName';
 
 interface PathSelectionProps {
   onPathSelected: (pathId: string) => void;
@@ -14,7 +15,12 @@ interface PathSelectionProps {
   paths: Path[];
   /** The pack's categories — used to color each dot in a path's preview strip. */
   categories: Category[];
+  /** Saved team name for this game (optional). */
+  teamName?: string;
+  /** Renders the optional Team name field; called on every edit (caller trims/persists). */
+  onTeamNameChange?: (name: string) => void;
 }
+
 
 const pathMeta: Record<string, { color: string; soft: string }> = {
   A: { color: '#FFB020', soft: '#FFF4D9' },
@@ -25,8 +31,10 @@ const pathMeta: Record<string, { color: string; soft: string }> = {
   F: { color: '#FF9DE2', soft: '#FFE9F7' },
 };
 
-export function PathSelection({ onPathSelected, onBack, initialPathId, paths, categories }: PathSelectionProps) {
+export function PathSelection({ onPathSelected, onBack, initialPathId, paths, categories, teamName, onTeamNameChange }: PathSelectionProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(initialPathId ?? null);
+  const [team, setTeam] = useState(teamName ?? '');
+  const teamFieldId = useId();
 
   // Challenge number (1-based) -> the color of its category. Lets each path card
   // show the actual rhythm of the route: runs of one color, or a rainbow shuffle.
@@ -66,6 +74,44 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths, ca
             Each dot is a challenge, in the order you will find it. Colors match the {categories.length} themes.
           </p>
         </div>
+
+        {onTeamNameChange && (
+          <div
+            className="animate-rise-in flat-card mx-auto mb-8 max-w-xl bg-cream p-4 sm:p-5"
+            style={{ animationDelay: '0.22s' }}
+          >
+            <label htmlFor={teamFieldId} className="flex items-baseline justify-between gap-3">
+              <span className="font-display text-xl text-ink">Team name</span>
+              <span className="text-sm font-bold text-ink/60">Optional</span>
+            </label>
+            <input
+              id={teamFieldId}
+              type="text"
+              value={team}
+              maxLength={TEAM_NAME_MAX}
+              autoComplete="off"
+              autoCapitalize="words"
+              enterKeyHint="done"
+              spellCheck={false}
+              placeholder="e.g. The Lost Sheep"
+              aria-describedby={`${teamFieldId}-help`}
+              onChange={(e) => {
+                setTeam(e.target.value);
+                onTeamNameChange(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              className="mt-2 block min-h-12 w-full rounded-2xl border-2 border-ink bg-white px-4 py-2 text-lg font-bold text-ink shadow-[inset_0_2px_0_rgba(46,36,89,0.08)] placeholder:font-semibold placeholder:text-ink/45 focus:outline-none focus-visible:ring-4 focus-visible:ring-grape/40"
+            />
+            <p id={`${teamFieldId}-help`} className="mt-2 flex justify-between gap-3 text-sm font-semibold leading-snug text-ink/70">
+              <span>Shows next to your path on new photos. Photos you've already taken keep their labels.</span>
+              {team.length >= TEAM_NAME_MAX - 10 && (
+                <span className="flex-shrink-0 tabular-nums" aria-live="polite">{team.length}/{TEAM_NAME_MAX}</span>
+              )}
+            </p>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {paths.map((path, index) => {

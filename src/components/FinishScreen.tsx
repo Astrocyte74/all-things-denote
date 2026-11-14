@@ -5,6 +5,7 @@ import { PhotoGallery } from './PhotoGallery';
 import { SaveAllPhotos } from './SaveAllPhotos';
 import { StickerArt } from './StickerArt';
 import { ConfettiBurst } from './ConfettiBurst';
+import { RotateCcw } from 'lucide-react';
 
 interface FinishScreenProps {
   packId: string;
@@ -14,9 +15,14 @@ interface FinishScreenProps {
   onPhotosChanged: () => Promise<void>;
   galleryOpen: boolean;
   setGalleryOpen: (open: boolean) => void;
+  /** Opens the per-game Start over dialog (secondary action). */
+  onReset?: () => void;
+  /** Optional team name, shown beside the path. */
+  teamName?: string;
 }
 
-export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen }: FinishScreenProps) {
+export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen, onReset, teamName }: FinishScreenProps) {
+  const team = teamName?.trim();
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -45,7 +51,7 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
           <StickerArt name={pack.mascotArt} emoji={pack.mascotEmoji} alt="" className="mx-auto h-28 w-28" />
-          <p className="mt-4 font-extrabold">{pack.title} · Path {pathId}</p>
+          <p className="mt-4 font-extrabold">{[pack.title, team, `Path ${pathId}`].filter(Boolean).join(' · ')}</p>
           <h1 ref={heading} tabIndex={-1} className="mt-2 font-display text-5xl focus:outline-none">Hunt complete!</h1>
           <p className="mt-3 text-lg font-bold">You finished all {total} challenges. Time to share what you found.</p>
         </div>
@@ -73,6 +79,12 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
           <button onClick={onReview} className="btn-3d btn-sky rounded-full px-6 py-3 font-bold text-ink">Review challenges & connections</button>
           {photos.length > 0 && <button onClick={() => setGalleryOpen(true)} className="btn-3d btn-white rounded-full px-6 py-3 font-bold text-ink">Open photo gallery</button>}
         </div>
+        {onReset && <div className="mt-10 border-t-2 border-dashed border-ink/20 pt-6 text-center">
+          <p className="text-sm font-semibold text-ink/70">Playing again with a new group? Save your photos first.</p>
+          <button onClick={onReset} aria-label={`Start over ${pack.title}`} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink/50 bg-cream px-5 py-2 text-sm font-extrabold text-ink/80 transition-colors hover:border-ink hover:bg-coral-soft hover:text-ink">
+            <RotateCcw className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Start over
+          </button>
+        </div>}
       </div>
     </section>
     <PhotoGallery isOpen={galleryOpen} onClose={() => setGalleryOpen(false)} packId={packId}
