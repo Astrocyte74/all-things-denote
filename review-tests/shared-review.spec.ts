@@ -27,6 +27,10 @@ async function capture(page: Page, color: string, name: string) {
 async function makeLeader(browser: Browser, baseURL: string, title: string) {
   const context = await browser.newContext({ baseURL, viewport:{width:1280,height:900}, isMobile:false, hasTouch:false, deviceScaleFactor:1 });
   const page = await context.newPage();
+  // Each fixture is a separate event creator. Keep the production five-per-IP
+  // limit intact; the API suite tests that limit independently.
+  const creator = `browser-test-${crypto.randomUUID()}`;
+  await page.route(`${API}/events`, route => route.continue({headers:{...route.request().headers(),'CF-Connecting-IP':creator}}));
   await page.goto('./');
   await page.getByRole('button', {name:'Open shared review'}).click();
   await page.getByRole('textbox',{name:'Event name'}).fill(title);
@@ -202,4 +206,75 @@ test('lost upload response retries safely; offline reload, saved sessions and li
   await expect(page.locator('.gl-card')).toHaveCount(4);
   await page.goBack(); await expect(page.getByRole('heading',{name:'Compare discoveries'})).toBeVisible();
   await leader.context.close();
+});
+
+test('teams delete single or all cloud copies, including from another device after uploads close', async ({page,browser,baseURL},info) => {
+  await capture(page,'#c5e7d7','Cloud cleanup');
+  for (const color of ['gold','plum']) {
+    await page.locator('input[type=file]').setInputFiles({name:'extra.svg',mimeType:'image/svg+xml',buffer:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="480"><rect width="320" height="480" fill="${color}"/></svg>`)});
+    await expect(page.getByRole('button',{name:'Take photo for this challenge',exact:true})).toBeEnabled();
+  }
+  await expect.poll(async()=>(await storedPhotos(page)).length).toBe(3);
+  const originals = await storedPhotos(page);
+  const leader = await makeLeader(browser,baseURL!,`Cloud deletion ${info.project.name}`);
+  await join(page,leader.invite,'Cloud cleanup');
+  await page.getByRole('button',{name:'Send 3 photos',exact:true}).click();
+  await expect(page.getByText('All 3 sent. The leader can see them now.')).toBeVisible();
+  const teamLink = page.url();
+  const otherContext = await browser.newContext({baseURL});
+  const other = await otherContext.newPage();
+  await capture(other,'#d6c9f1','Keep my photo');
+  await join(other,leader.invite,'Keep my photo');
+  await other.getByRole('button',{name:'Send 1 photo',exact:true}).click();
+  await expect(other.getByText('All 1 sent. The leader can see them now.')).toBeVisible();
+
+  await page.getByRole('button',{name:'Delete cloud copy',exact:true}).first().click();
+  let dialog = page.getByRole('alertdialog',{name:'Delete this cloud photo?'});
+  await dialog.getByRole('button',{name:'Cancel',exact:true}).click();
+  expect((await snapshot(leader.page)).photos).toHaveLength(4);
+  await page.getByRole('button',{name:'Delete cloud copy',exact:true}).first().click();
+  await dialog.getByRole('button',{name:'Delete cloud photo',exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(async()=>(await snapshot(page)).photos.length).toBe(2);
+  await expect(page.getByRole('button',{name:'Send photos',exact:true})).toBeDisabled();
+  expect((await storedPhotos(page)).map(photo=>photo.imageData)).toEqual(originals.map(photo=>photo.imageData));
+
+  await leader.page.getByText('Leader tools',{exact:true}).click();
+  await leader.page.getByRole('button',{name:'Close uploads',exact:true}).click();
+  await expect(leader.page.getByRole('button',{name:'Reopen uploads',exact:true})).toBeVisible();
+  const remoteContext = await browser.newContext({baseURL,viewport:{width:390,height:844}});
+  const remote = await remoteContext.newPage();
+  await remote.goto(teamLink);
+  await expect(remote.getByText(/No Christmas photos on this phone yet/)).toBeVisible();
+  const cloud = remote.getByRole('region',{name:'Your uploaded photos'});
+  await cloud.getByText('View uploaded photos',{exact:true}).click();
+  await expect(cloud.getByRole('img')).toHaveCount(2);
+  // One deletion succeeds; the next loses connectivity. Retry must finish
+  // without re-uploading originals or touching the other team's photo.
+  await remote.evaluate(()=>{
+    const original = window.fetch; let deletes = 0;
+    window.fetch = async (...args) => {
+      if (args[1]?.method === 'DELETE' && ++deletes === 2) {
+        window.fetch = original;
+        throw new TypeError('Synthetic network failure');
+      }
+      return original(...args);
+    };
+  });
+  await cloud.getByRole('button',{name:'Delete all my uploads',exact:true}).click();
+  dialog = remote.getByRole('alertdialog',{name:'Delete your 2 cloud photos?'});
+  await dialog.getByRole('button',{name:'Delete cloud photos',exact:true}).click();
+  await expect(dialog.getByRole('alert')).toContainText('1 deleted.');
+  await expect(dialog.getByRole('button',{name:'Delete cloud photos',exact:true})).toBeEnabled();
+  await dialog.getByRole('button',{name:'Delete cloud photos',exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(cloud.getByText('You have no photos stored in this event.')).toBeVisible();
+  const remaining = (await snapshot(leader.page)).photos;
+  expect(remaining).toHaveLength(1);
+  expect(remaining[0].teamName).toBe('Keep my photo');
+  expect((await storedPhotos(page)).map(photo=>photo.imageData)).toEqual(originals.map(photo=>photo.imageData));
+  await leader.page.getByRole('button',{name:'Delete event…',exact:true}).click();
+  await leader.page.getByRole('button',{name:'Delete for everyone',exact:true}).click();
+  await expect(leader.page.getByRole('heading',{name:'Compare discoveries'})).toBeVisible();
+  await remoteContext.close(); await otherContext.close(); await leader.context.close();
 });

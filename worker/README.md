@@ -24,7 +24,7 @@ Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
 
 Deployment verification (2026-11-14): 11 API tests passed, including a full expiry
-batch under the D1 Free request budget. The feature also passed four local browser
+batch under the D1 Free request budget. The feature also passed six local browser
 integration tests across Chromium/WebKit and 38 existing hunt regressions. On the
 live GitHub Pages app and Cloudflare API, separate Chromium Android and WebKit
 iPhone sessions captured and uploaded synthetic photos to one desktop leader.
@@ -97,6 +97,12 @@ and plan; do not enable public bucket access or change DNS.
   can read/upload/delete only its own photos. A leader link can be opened on
   another phone or laptop. Team and leader credentials are hashed in D1; the
   invite token is retained so the leader can recover the QR on another device.
+- Teams can delete one cloud copy or all their uploads immediately, even after
+  uploads close or from another device using their private team link. The cloud
+  photo manager uses server metadata and does not depend on local originals.
+  A confirmation explains the scope; partial failures remain retryable and never
+  select deleted originals for automatic re-upload. Other teams' uploads are
+  protected by the existing API authorization checks.
 - Photo bytes are the existing labeled JPEG from IndexedDB, including the
   capture-time team name, path, and clue label. Uploads never alter or delete the
   local original. D1 validates the game and uses its canonical clue ID/number/title.

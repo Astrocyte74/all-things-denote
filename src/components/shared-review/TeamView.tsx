@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, CheckCircle2, CloudUpload, Loader2, Lock, Play, RefreshCw, RotateCcw, X } from 'lucide-react';
+import { Check, CheckCircle2, CloudUpload, Loader2, Lock, Play, RefreshCw, RotateCcw } from 'lucide-react';
 import { getPackById } from '@/data/packs';
 import { getAllPhotos, type StoredPhoto } from '@/lib/photoStorage';
 import { deleteReviewPhoto, uploadReviewPhoto, type EventAccess, type ReviewPhoto, type ReviewSnapshot } from '@/lib/sharedReview';
-import { describeError, formatExpiry, isFatalUploadError, notify } from './common';
+import { describeError, errorStatus, forgetReviewPhoto, formatExpiry, isFatalUploadError, notify } from './common';
 import { Notice, PackBadge, PathPill } from './ui';
+import { DeleteUploadsDialog, TeamUploads } from './TeamUploads';
 
 type Status = { state: 'queued' } | { state: 'uploading'; percent: number } | { state: 'error'; message: string };
 
@@ -43,7 +44,10 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   }
   const [running, setRunning] = useState(false);
   const [summary, setSummary] = useState<{ ok: number; failed: number; stopped?: string } | null>(null);
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<ReviewPhoto[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const busy = running || deleting;
 
   const [localAttempt, setLocalAttempt] = useState(0);
   useEffect(() => {
@@ -92,7 +96,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   }, [running]);
 
   const upload = async () => {
-    if (running || !toSend.length) return;
+    if (busy || !toSend.length) return;
     setRunning(true);
     setSummary(null);
     const queue = [...toSend];
@@ -133,20 +137,38 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
     void refresh().catch(() => { /* status already reflects each confirmed upload */ });
   };
 
-  const removeUploaded = async (localId: string, remote: ReviewPhoto) => {
+  const askRemove = (photos: ReviewPhoto[]) => { setDeleteError(null); setConfirmRemove(photos); };
+  const removeUploaded = async () => {
+    if (!confirmRemove || busy) return;
+    setDeleting(true);
+    setDeleteError(null);
+    let deleted = 0;
+    const remainingSelection = new Set(selected);
     try {
-      await deleteReviewPhoto(access, remote.id);
-      setRemoved(prev => new Set(prev).add(localId));
-      setSentNow(prev => { const next = { ...prev }; delete next[localId]; return next; });
+      for (const remote of confirmRemove) {
+        try { await deleteReviewPhoto(access, remote.id); }
+        catch (error) { if (errorStatus(error) !== 404) throw error; }
+        deleted += 1;
+        const localId = remote.localPhotoId;
+        forgetReviewPhoto(event.id, remote.id);
+        setRemoved(prev => new Set(prev).add(localId));
+        setSentNow(prev => { const next = { ...prev }; delete next[localId]; return next; });
+        setStatus(prev => { const next = { ...prev }; delete next[localId]; return next; });
+        remainingSelection.delete(localId);
+        setSelection(new Set(remainingSelection));
+      }
       setConfirmRemove(null);
-      notify.success('Removed from the event. It’s still on this phone.');
-      void refresh().catch(() => {});
+      notify.success(`Deleted ${deleted} cloud ${deleted === 1 ? 'photo' : 'photos'}. Device originals are unchanged.`);
     } catch (error) {
-      notify.error(describeError(error));
+      setDeleteError(`${deleted ? `${deleted} deleted. ` : ''}${describeError(error)} Retry to delete the remaining cloud copies.`);
+    } finally {
+      setSummary(null);
+      await refresh();
+      setDeleting(false);
     }
   };
 
-  const uploadedCount = (local ?? []).filter(photo => uploaded.has(photo.id)).length;
+  const uploadedCount = uploaded.size;
 
   return (
     <div className="mx-auto max-w-4xl pb-28">
@@ -174,6 +196,9 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
           <Notice tone="warn"><span className="inline-flex items-center gap-1.5"><Lock className="h-4 w-4" strokeWidth={3} aria-hidden="true" />The leader closed uploads. They can still see the photos you already sent.</span></Notice>
         </div>
       )}
+
+      <TeamUploads access={access} photos={[...uploaded.values()]} busy={busy} onRemove={askRemove} refresh={refresh} />
+      <DeleteUploadsDialog photos={confirmRemove} busy={deleting} error={deleteError} onClose={() => setConfirmRemove(null)} onDelete={() => void removeUploaded()} />
 
       <h2 className="font-display text-2xl">Choose photos to send</h2>
       <p className="mt-1 text-sm font-semibold text-ink/70">
@@ -211,7 +236,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
                 <li key={photo.id} className="relative">
                   <button
                     type="button"
-                    disabled={Boolean(remote) || running || event.closed}
+                    disabled={Boolean(remote) || busy || event.closed}
                     onClick={() => toggle(photo.id)}
                     aria-pressed={remote ? undefined : isSelected}
                     aria-label={`#${photo.challengeNumber} ${photo.challengeTitle}${remote ? ', sent' : isSelected ? ', selected' : ''}`}
@@ -241,17 +266,8 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
                   )}
                   {state?.state === 'queued' && <p className="mt-1 text-xs font-bold text-ink/60">Waiting…</p>}
                   {!remote && state?.state === 'error' && <p role="alert" className="mt-1 text-xs font-bold leading-snug text-ink"><span className="mr-1 inline-block rounded bg-coral-soft px-1">Not sent</span>{state.message}</p>}
-                  {remote && !running && (
-                    confirmRemove === photo.id ? (
-                      <div className="mt-1.5 flex gap-1.5">
-                        <button type="button" onClick={() => void removeUploaded(photo.id, remote)} className="btn-3d btn-coral min-h-9 flex-1 rounded-full px-2 text-xs font-extrabold text-ink">Remove</button>
-                        <button type="button" onClick={() => setConfirmRemove(null)} aria-label="Keep in event" className="btn-3d btn-white flex h-9 w-9 items-center justify-center rounded-full text-ink"><X className="h-4 w-4" strokeWidth={3} /></button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setConfirmRemove(photo.id)} className="mt-1 min-h-9 px-1 text-xs font-extrabold text-ink/60 underline-offset-2 hover:text-ink hover:underline">
-                        Remove from event
-                      </button>
-                    )
+                  {remote && (
+                    <button type="button" disabled={busy} onClick={() => askRemove([remote])} className="mt-1 min-h-11 px-1 text-xs font-extrabold text-ink/70 underline underline-offset-2">Delete cloud copy</button>
                   )}
                 </li>
               );
@@ -272,13 +288,13 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
                 : `${toSend.length} of ${pending.length} unsent ${pending.length === 1 ? 'photo' : 'photos'} selected`}
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => void refresh()} disabled={running} aria-label="Refresh sent status" className="btn-3d btn-white flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-ink">
+              <button type="button" onClick={() => void refresh()} disabled={busy} aria-label="Refresh sent status" className="btn-3d btn-white flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-ink">
                 <RefreshCw className="h-5 w-5" strokeWidth={2.75} />
               </button>
               <button
                 type="button"
                 onClick={() => void upload()}
-                disabled={running || !toSend.length || event.closed}
+                disabled={busy || !toSend.length || event.closed}
                 className="btn-3d btn-go inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl px-5 font-display text-lg tracking-wide text-ink sm:flex-none"
               >
                 {running ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={3} aria-hidden="true" />

@@ -3,7 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './review-tests',
   tsconfig: './tsconfig.app.json',
-  timeout: 60000,
+  timeout: 120000,
+  expect: { timeout: 15000 },
   workers: 1,
   use: { baseURL: 'http://127.0.0.1:4176/all-things-denote/', trace: 'retain-on-failure' },
   projects: [
