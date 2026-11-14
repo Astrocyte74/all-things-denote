@@ -13,8 +13,8 @@ domain, object access keys, or user accounts are required.
 - D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
 - R2: `scavenger-review-photos`, Standard storage, public access disabled.
 - Retention: hourly cron `17 * * * *`, with seven-day event expiry.
-- Worker version: `08fbaa4a-8653-4564-9904-4aa05966befd` (2026-11-14),
-  deployed from source commit `f89e80e2`, after migration `0003_leader_dashboard.sql`.
+- Worker version: `596c8745-f6cf-4756-b066-09663e518dbe` (2026-11-14),
+  deployed from source commit `196e8564`, after migration `0004_auto_photo_sync.sql`.
 - The public API URL is committed in `.env.production`; local review tests
   override it with their isolated Miniflare endpoint.
 
@@ -22,6 +22,16 @@ The owner approved creation and deployment on the existing plan. Workers Free
 was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was made.
 Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
+
+Automatic photo sharing release checks (2026-11-14): lint, production build and
+Worker dry-run passed, along with 30 API cases, all 43 applicable shared-review
+browser checks (one WebKit native fake-camera skip), and 38 hunt regressions.
+New coverage includes leader defaults and team overrides, automatic captures,
+retakes that preserve originals on failed saves, offline deletion/reload recovery,
+queue cancellation, older-photo exclusion, lost-response retry after cloud
+removal, closed uploads, removal-marker cleanup, and failed join-time opt-out
+persistence. The lost-response fixture uses the real XHR response callback since
+WebKit's service-worker requests bypass Playwright routing.
 
 Leader dashboard release checks (2026-11-14): lint and production builds passed,
 along with all 25 API cases, 35 shared-review browser checks and 38 existing hunt
