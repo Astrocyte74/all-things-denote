@@ -1,15 +1,16 @@
-import { useRef, useCallback } from 'react';
-import { Camera } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Camera, LoaderCircle, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Category, Challenge } from '@/types';
 import { savePhoto, type StoredPhoto } from '@/lib/photoStorage';
-import { getCategoryTheme } from '@/lib/theme';
+import { processPhoto } from '@/lib/processPhoto';
+import { beginPhotoSave } from '@/lib/pwa';
+import type { Category, Challenge } from '@/types';
 
 interface PhotoCaptureProps {
   challenge: Challenge;
   category: Category;
   onCaptureComplete?: (challengeId: string) => void;
-  onPhotoSaved?: () => void; // Callback when photo is saved to gallery
+  onPhotoSaved?: () => void | Promise<void>; // Callback when photo is saved to gallery
   variant?: 'default' | 'display';
   pathId?: string;
   /** Pack id, stamped on the saved photo so it stays scoped to its game. */
@@ -20,220 +21,102 @@ interface PhotoCaptureProps {
 
 export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, packId, pulse = false }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const busy = useRef(false);
+  const pendingPhoto = useRef<StoredPhoto | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [retryFile, setRetryFile] = useState<File | null>(null);
+  const [error, setError] = useState('');
 
-  const handlePhotoCapture = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const capture = async (file: File) => {
+    if (busy.current) return;
+    busy.current = true;
+    setSaving(true);
+    setError('');
+    const endSave = beginPhotoSave();
+    let photo: StoredPhoto;
     try {
-      // Create image from file
-      const img = new Image();
-      const imageUrl = URL.createObjectURL(file);
-
-      img.onload = () => {
-        // Create canvas with high resolution
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          URL.revokeObjectURL(imageUrl);
-          toast.error('Failed to process photo');
-          return;
-        }
-
-        // Set canvas dimensions (higher resolution for better quality)
-        const maxWidth = 1920;
-        const maxHeight = 1920;
-        const frameHeight = 300; // More height for 2 lines of text
-        const padding = 24; // Padding on sides
-        const topPadding = 12; // Minimal top padding
-        const lineHeight = 1.1; // Tighter line height
-
-        let width = img.width;
-        let height = img.height;
-
-        // Scale image to fit within max dimensions while maintaining aspect ratio
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
-          width *= ratio;
-          height *= ratio;
-        }
-
-        canvas.width = width;
-        canvas.height = height + frameHeight;
-
-        // Draw the photo
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Draw frame overlay — colors come from the active pack's theme.
-        const theme = getCategoryTheme(category.id);
-        const colors = { from: theme.main, to: theme.edge };
-
-        // Create gradient background for frame
-        const gradient = ctx.createLinearGradient(0, height, 0, canvas.height);
-        gradient.addColorStop(0, colors.from);
-        gradient.addColorStop(1, colors.to);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, height, width, frameHeight);
-
-        // Add semi-transparent overlay for better text readability
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillRect(0, height, width, frameHeight);
-
-        // Configure text styles
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-
-        const availableWidth = width - (padding * 2);
-        let currentY = height + topPadding; // Start with minimal top padding
-
-        // Row 1: Team Path (centered, at the very top) - only if pathId provided
-        if (pathId) {
-          const fontSizePath = Math.max(32, Math.floor(width * 0.035)); // Much smaller for better fit
-          ctx.font = `bold ${fontSizePath}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.98)';
-          ctx.textAlign = 'center';
-          ctx.fillText(`Path ${pathId}`, width / 2, currentY);
-          ctx.textAlign = 'left';
-          currentY += fontSizePath + 4; // Tight spacing after path
-        }
-
-        // Row 2: Challenge number + title (with wrapping support)
-        const fontSizeTitle = Math.max(36, Math.floor(width * 0.04)); // Smaller for better fit
-        ctx.font = `bold ${fontSizeTitle}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-        ctx.fillStyle = '#FFFFFF';
-
-        const titleText = `#${challenge.number} ${challenge.title}`;
-        const words = titleText.split(' ');
-        let line = '';
-        const lines: string[] = [];
-
-        // Wrap text to fit within max width
-        for (let i = 0; i < words.length; i++) {
-          const testLine = line + words[i] + ' ';
-          const metrics = ctx.measureText(testLine);
-          const testWidth = metrics.width;
-
-          if (testWidth > availableWidth && i > 0) {
-            lines.push(line);
-            line = words[i] + ' ';
-          } else {
-            line = testLine;
-          }
-        }
-        lines.push(line);
-
-        // Draw each line of the title with proper line height
-        const titleLineHeight = Math.floor(fontSizeTitle * lineHeight);
-        for (let i = 0; i < lines.length; i++) {
-          ctx.fillText(lines[i].trim(), padding, currentY);
-          currentY += titleLineHeight;
-        }
-
-        // Export canvas to blob and save to IndexedDB
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            toast.error('Failed to process photo');
-            URL.revokeObjectURL(imageUrl);
-            return;
-          }
-
-          try {
-            // Convert blob to base64 for storage
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              const base64data = reader.result as string;
-
-              // Create stored photo object
-              const storedPhoto: StoredPhoto = {
-                id: `${challenge.id}-${Date.now()}`,
-                challengeId: challenge.id,
-                challengeNumber: challenge.number,
-                challengeTitle: challenge.title,
-                categoryId: category.id,
-                categoryTitle: category.title,
-                categoryIcon: category.icon,
-                categoryColor: category.color,
-                pathId: pathId, // Save the team path
-                packId: packId, // Scope the photo to its game pack
-                imageData: base64data,
-                timestamp: Date.now()
-              };
-
-              // Save to IndexedDB
-              await savePhoto(storedPhoto);
-
-              // Mark challenge as complete
-              if (onCaptureComplete) {
-                onCaptureComplete(challenge.id);
-              }
-
-              // Notify parent component
-              if (onPhotoSaved) {
-                onPhotoSaved();
-              }
-
-              // Cleanup
-              URL.revokeObjectURL(imageUrl);
-            };
-
-            reader.onerror = () => {
-              toast.error('Failed to process photo');
-              URL.revokeObjectURL(imageUrl);
-            };
-
-            reader.readAsDataURL(blob);
-          } catch (error) {
-            console.error('Failed to save photo:', error);
-            toast.error('Failed to save photo to gallery');
-            URL.revokeObjectURL(imageUrl);
-          }
-        }, 'image/jpeg', 0.92); // Slightly lower quality for storage
+      // Retain the same ID and processed image on retry, so a retry is idempotent.
+      photo = pendingPhoto.current ?? {
+        id: `${challenge.id}-${crypto.randomUUID()}`,
+        challengeId: challenge.id,
+        challengeNumber: challenge.number,
+        challengeTitle: challenge.title,
+        categoryId: category.id,
+        categoryTitle: category.title,
+        categoryIcon: category.icon,
+        categoryColor: category.color,
+        pathId, packId,
+        imageData: await processPhoto(file, challenge, category, pathId),
+        timestamp: Date.now(),
       };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(imageUrl);
-        toast.error('Failed to load photo');
-      };
-
-      // Load the image
-      img.src = imageUrl;
-
-    } catch (error) {
-      console.error('Photo capture error:', error);
-      toast.error('Failed to process photo');
+      pendingPhoto.current = photo;
+      await savePhoto(photo);
+    } catch (cause) {
+      console.error('Photo save failed:', cause);
+      const message = cause instanceof DOMException && cause.name === 'QuotaExceededError'
+        ? 'Your device is out of storage. Save your gallery, free some space, then retry.'
+        : 'Photo not saved. Keep this screen open and retry, or choose another photo.';
+      setError(message);
+      setRetryFile(file);
+      setSaving(false);
+      busy.current = false;
+      endSave();
+      return;
     }
 
-    // Reset file input so same file can be selected again
-    event.target.value = '';
-  }, [challenge, category, onCaptureComplete, onPhotoSaved, pathId, packId]);
-
-  const triggerCapture = () => {
-    fileInputRef.current?.click();
+    pendingPhoto.current = null;
+    setRetryFile(null);
+    try {
+      onCaptureComplete?.(photo.challengeId);
+      await onPhotoSaved?.();
+      toast.success('Photo saved on this device');
+    } catch (cause) {
+      // The image is already committed. Never suggest re-saving it for a UI error.
+      console.error('Photo saved, but refresh failed:', cause);
+      toast.error('Photo saved. Reopen the hunt to refresh your progress.');
+    } finally {
+      setSaving(false);
+      busy.current = false;
+      endSave();
+    }
   };
 
+  const Icon = saving ? LoaderCircle : retryFile ? RotateCcw : Camera;
   return (
-    <>
+    <div className="flex flex-shrink-0 flex-col items-center gap-2">
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={handlePhotoCapture}
+        onChange={event => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) {
+            pendingPhoto.current = null;
+            void capture(file);
+          }
+        }}
         className="hidden"
         aria-label="Take photo"
+        disabled={saving}
       />
       <button
-        onClick={triggerCapture}
-        className={`flex-shrink-0 ${
-          variant === 'display'
-            ? `btn-3d btn-go rounded-full p-6 text-ink ${pulse ? 'animate-pulse-ring' : ''}`
-            : 'btn-3d btn-sky rounded-xl p-2 text-ink'
-        }`}
-        title="Take Photo"
-        aria-label="Take photo for this challenge"
+        onClick={() => retryFile ? void capture(retryFile) : fileInputRef.current?.click()}
+        disabled={saving}
+        aria-busy={saving}
+        className={variant === 'display'
+          ? `btn-3d btn-go rounded-full p-6 text-ink ${pulse && !saving && !error ? 'animate-pulse-ring' : ''}`
+          : 'btn-3d btn-sky rounded-xl p-2 text-ink'}
+        aria-label={saving ? 'Saving photo' : retryFile ? 'Retry saving photo' : 'Take photo for this challenge'}
       >
-        <Camera className={variant === 'display' ? 'h-10 w-10' : 'h-5 w-5'} strokeWidth={2.5} />
+        <Icon className={`${variant === 'display' ? 'h-10 w-10' : 'h-5 w-5'} ${saving ? 'animate-spin' : ''}`} strokeWidth={2.5} />
       </button>
-    </>
+      {saving && <span role="status" className="text-sm font-bold text-ink">Saving…</span>}
+      {error && <div role="alert" className="max-w-40 text-center text-xs font-bold text-ink">
+        <p>{error}</p>
+        <button disabled={saving} onClick={() => fileInputRef.current?.click()} className="min-h-11 underline">Choose another photo</button>
+      </div>}
+    </div>
   );
 }

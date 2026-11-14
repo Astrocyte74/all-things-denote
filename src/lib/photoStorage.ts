@@ -23,9 +23,18 @@ export interface StoredPhoto {
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let blocked = false;
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      if (blocked) { request.result.close(); return; }
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
+    request.onblocked = () => {
+      blocked = true;
+      reject(new Error('Close other hunt tabs and retry.'));
+    };
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
@@ -61,16 +70,23 @@ function openDB(): Promise<IDBDatabase> {
 
 // Save a photo to IndexedDB
 export async function savePhoto(photo: StoredPhoto): Promise<void> {
+  return writePhotos(store => { store.put(photo); });
+}
+
+// Request success precedes transaction commit. Report success only once the
+// complete transaction is durable; aborts (including quota failures) reject.
+async function writePhotos(write: (store: IDBObjectStore) => void): Promise<void> {
   const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(photo);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error ?? new Error('Photo storage was interrupted.'));
+      write(transaction.objectStore(STORE_NAME));
+    });
+  } finally {
+    db.close();
+  }
 }
 
 // Get all photos from IndexedDB (optionally limited to one pack)
@@ -79,6 +95,8 @@ export async function getAllPhotos(packId?: string): Promise<StoredPhoto[]> {
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onabort = () => db.close();
     const store = transaction.objectStore(STORE_NAME);
     const request = packId ? store.index('packId').getAll(packId) : store.getAll();
 
@@ -93,6 +111,8 @@ export async function getPhotosByChallenge(challengeId: string): Promise<StoredP
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onabort = () => db.close();
     const store = transaction.objectStore(STORE_NAME);
     const index = store.index('challengeId');
     const request = index.getAll(challengeId);
@@ -104,41 +124,17 @@ export async function getPhotosByChallenge(challengeId: string): Promise<StoredP
 
 // Delete a specific photo
 export async function deletePhoto(photoId: string): Promise<void> {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(photoId);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
+  return writePhotos(store => { store.delete(photoId); });
 }
 
 // Clear all photos (optionally only those for one pack)
 export async function clearAllPhotos(packId?: string): Promise<void> {
-  const db = await openDB();
-
-  // No filter -> wipe the whole store (existing "Start fresh" behavior).
-  if (!packId) {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.clear();
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  }
-
-  // Otherwise delete only rows matching this pack via a cursor on the index.
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
+  return writePhotos(store => {
+    if (!packId) {
+      store.clear();
+      return;
+    }
     const request = store.index('packId').openCursor(IDBKeyRange.only(packId));
-
-    request.onerror = () => reject(request.error);
     request.onsuccess = function () {
       const cursor = this.result;
       if (cursor) {
@@ -146,7 +142,6 @@ export async function clearAllPhotos(packId?: string): Promise<void> {
         cursor.continue();
       }
     };
-    transaction.oncomplete = () => resolve();
   });
 }
 
@@ -156,6 +151,8 @@ export async function getPhotoCount(packId?: string): Promise<number> {
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([STORE_NAME], 'readonly');
+    transaction.oncomplete = () => db.close();
+    transaction.onabort = () => db.close();
     const store = transaction.objectStore(STORE_NAME);
     const request = packId ? store.index('packId').count(packId) : store.count();
 

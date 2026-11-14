@@ -1,10 +1,12 @@
+import { useState } from 'react';
+
 interface StartOverDialogProps {
   isOpen: boolean;
   onClose: () => void;
   /** Clear completed challenges only; keep photos. */
   onResetProgress: () => void;
   /** Clear completed challenges AND delete all photos. */
-  onResetAll: () => void;
+  onResetAll: () => Promise<void>;
 }
 
 /**
@@ -13,10 +15,11 @@ interface StartOverDialogProps {
  * only fires the chosen action and closes.
  */
 export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll }: StartOverDialogProps) {
+  const [resetting, setResetting] = useState(false);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-ink/70 p-4" onClick={() => { if (!resetting) onClose(); }}>
       <div
         className="sticker-card animate-pop-in w-full max-w-md p-6 text-left"
         onClick={(e) => e.stopPropagation()}
@@ -29,6 +32,7 @@ export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll }
 
         <div className="mt-5 flex flex-col gap-3">
           <button
+            disabled={resetting}
             onClick={() => {
               onResetProgress();
               onClose();
@@ -40,18 +44,21 @@ export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll }
           </button>
 
           <button
-            onClick={() => {
-              onResetAll();
-              onClose();
+            disabled={resetting}
+            onClick={async () => {
+              setResetting(true);
+              try { await onResetAll(); onClose(); }
+              finally { setResetting(false); }
             }}
             className="btn-3d btn-coral w-full rounded-2xl px-4 py-3 text-left font-extrabold text-white"
           >
-            <span className="block">Start fresh</span>
+            <span className="block">{resetting ? 'Clearing photos…' : 'Start fresh'}</span>
             <span className="block text-xs font-bold text-white/80">Clears progress AND deletes all photos</span>
           </button>
         </div>
 
         <button
+          disabled={resetting}
           onClick={onClose}
           className="mx-auto mt-4 block rounded-full px-4 py-2 text-sm font-extrabold text-ink/50 transition-colors hover:bg-ink/5 hover:text-ink"
         >

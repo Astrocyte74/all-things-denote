@@ -9,6 +9,7 @@ import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { StickerArt } from '@/components/StickerArt';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
+import { FinishScreen } from '@/components/FinishScreen';
 import { getCategoryTheme, readableTextOn } from '@/lib/theme';
 import { clearAllPhotos, getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
@@ -34,7 +35,7 @@ export type CategoriesHandle = {
   /** Clear completed challenges (and the analogies toggle); keep photos. */
   resetProgress: () => void;
   /** Clear completed challenges AND delete all photos, then refresh the count. */
-  resetAll: () => void;
+  resetAll: () => Promise<void>;
 };
 
 export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, categories }, ref) {
@@ -51,6 +52,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
   const [burstKey, setBurstKey] = useState(0);
+  const [lastChallengeByPath, setLastChallengeByPath] = usePersistedState<Record<string, string>>(`lastChallenge:${packId}`, {});
+  const [reviewingCompleted, setReviewingCompleted] = useState(false);
 
   const celebrate = useCallback(() => setBurstKey(k => k + 1), []);
 
@@ -180,6 +183,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   };
 
   const toggleChallenge = (challengeId: string) => {
+    setReviewingCompleted(false);
     const newCompleted = new Set(completedChallenges);
     if (newCompleted.has(challengeId)) {
       newCompleted.delete(challengeId);
@@ -193,6 +197,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   // Idempotent completion used for photo capture: taking another photo on an
   // already-complete task must never mark it incomplete.
   const markChallengeComplete = useCallback((challengeId: string) => {
+    setReviewingCompleted(false);
     setCompletedChallenges(prev => {
       if (prev.has(challengeId)) return prev;
       celebrate();
@@ -202,6 +207,8 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   const handleResetProgress = () => {
     clearCompletedChallenges();
+    setLastChallengeByPath({});
+    setReviewingCompleted(false);
     if (showAnalogiesEarly) {
       toggleAnalogiesEarly();
     }
@@ -211,21 +218,18 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
   // Imperative reset entry points (called from App via categoriesRef).
   const resetProgress = useCallback(() => {
     clearCompletedChallenges();
+    setLastChallengeByPath({});
+    setReviewingCompleted(false);
     if (showAnalogiesEarly) {
       toggleAnalogiesEarly();
     }
-  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly]);
+  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly, setLastChallengeByPath]);
 
-  const resetAll = useCallback(() => {
-    clearCompletedChallenges();
-    if (showAnalogiesEarly) {
-      toggleAnalogiesEarly();
-    }
-    // Wipe this pack's photos, then push the new count up so the header badge updates.
-    clearAllPhotos(packId).then(() => {
-      getPhotoCount(packId).then(onPhotoCountChange);
-    });
-  }, [clearCompletedChallenges, showAnalogiesEarly, toggleAnalogiesEarly, onPhotoCountChange, packId]);
+  const resetAll = useCallback(async () => {
+    await clearAllPhotos(packId);
+    resetProgress();
+    onPhotoCountChange(0);
+  }, [resetProgress, onPhotoCountChange, packId]);
 
   const getTotalProgress = useCallback(() => {
     const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
@@ -253,6 +257,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
     const flatIndex = allChallenges.findIndex(c => c.id === category.challenges[challengeIndex].id);
     setDisplayModeChallenge({ category, challengeIndex, allChallenges, flatIndex });
+    setLastChallengeByPath(prev => ({ ...prev, [selectedPathId]: category.challenges[challengeIndex].id }));
   };
 
   const exitDisplayMode = () => {
@@ -261,16 +266,20 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   // Open the carousel on the first incomplete challenge (used by the auto-open
   // effect, the Overview "Resume Hunt" button, and the "Next up" card).
-  const openNextIncomplete = useCallback(() => {
+  const openNextIncomplete = useCallback((restore = false) => {
     const allChallenges = orderedCategoryData.flatMap(c => c.challenges);
-    const firstIncomplete = allChallenges.find(c => !completedChallenges.has(c.id));
+    const saved = restore ? allChallenges.find(c => c.id === lastChallengeByPath[selectedPathId]) : undefined;
+    const firstIncomplete = saved ?? allChallenges.find(c => !completedChallenges.has(c.id));
     if (!firstIncomplete) return;
     const category = orderedCategoryData.find(cat => cat.challenges.some(c => c.id === firstIncomplete.id));
     if (!category) return;
     const challengeIndex = category.challenges.findIndex(c => c.id === firstIncomplete.id);
     const flatIndex = allChallenges.indexOf(firstIncomplete);
     setDisplayModeChallenge({ category, challengeIndex, allChallenges, flatIndex });
-  }, [orderedCategoryData, completedChallenges]);
+    if (lastChallengeByPath[selectedPathId] !== firstIncomplete.id) {
+      setLastChallengeByPath(prev => ({ ...prev, [selectedPathId]: firstIncomplete.id }));
+    }
+  }, [orderedCategoryData, completedChallenges, lastChallengeByPath, selectedPathId, setLastChallengeByPath]);
 
   // Auto-open the carousel once per path when the hunt starts (or the path changes).
   // useLayoutEffect sets it before first paint so the busy checklist never flashes.
@@ -281,11 +290,11 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     if (autoOpenedForPath.current === selectedPathId) return;
     autoOpenedForPath.current = selectedPathId;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-time open on hunt start / path change
-    openNextIncomplete();
+    openNextIncomplete(true);
   }, [isVisible, selectedPathId, openNextIncomplete]);
 
   // Let the parent (sticky header "Resume Hunt" button) re-enter focus mode.
-  useImperativeHandle(ref, () => ({ resume: openNextIncomplete, resetProgress, resetAll }), [openNextIncomplete, resetProgress, resetAll]);
+  useImperativeHandle(ref, () => ({ resume: () => openNextIncomplete(), resetProgress, resetAll }), [openNextIncomplete, resetProgress, resetAll]);
 
   const navigateDisplayMode = (direction: 'prev' | 'next') => {
     if (!displayModeChallenge) return;
@@ -310,6 +319,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
           allChallenges,
           flatIndex: newFlatIndex
         });
+        setLastChallengeByPath(prev => ({ ...prev, [selectedPathId]: newChallenge.id }));
       }
     }
   };
@@ -328,6 +338,15 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
 
   const allOrderedChallenges = orderedCategoryData.flatMap(category => category.challenges);
   const nextChallenge = allOrderedChallenges.find(challenge => !completedChallenges.has(challenge.id));
+  const allComplete = totalProgress.total > 0 && totalProgress.completed === totalProgress.total;
+
+  if (allComplete && !reviewingCompleted) {
+    return <FinishScreen packId={packId} pathId={selectedPathId} total={totalProgress.total}
+      onReview={() => { setReviewingCompleted(true); setDisplayModeChallenge(null); }}
+      onPhotosChanged={handlePhotoSaved}
+      galleryOpen={galleryOpen} setGalleryOpen={setGalleryOpen}
+    />;
+  }
 
   // ============ FOCUS MODE (one challenge at a time) ============
   if (displayModeChallenge) {
@@ -573,7 +592,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               <ChevronLeft className="h-7 w-7" strokeWidth={3} />
             </button>
 
-            <PhotoCapture pathId={selectedPathId}
+            <PhotoCapture key={challenge.id} pathId={selectedPathId}
               challenge={challenge}
               category={category}
               onCaptureComplete={markChallengeComplete}
@@ -615,6 +634,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
     <>
     <section className="paper-dots relative pb-16 pt-24 md:pb-20 md:pt-28">
       <div className="mx-auto max-w-3xl px-4 md:px-8">
+        {allComplete && <button onClick={() => setReviewingCompleted(false)} className="btn-3d btn-go mb-6 w-full rounded-full px-5 py-3 font-bold text-ink">See hunt celebration & photos</button>}
         {/* Header */}
         <div className="mb-8 text-center">
           <h2 className="font-display text-4xl text-ink md:text-5xl">
@@ -653,7 +673,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                 </div>
               </div>
               <button
-                onClick={openNextIncomplete}
+                onClick={() => openNextIncomplete()}
                 className="btn-3d btn-go inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-lg tracking-wide text-ink"
               >
                 Resume hunt

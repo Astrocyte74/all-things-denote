@@ -13,12 +13,27 @@ import { PACKS, getPackById, DEFAULT_PACK_ID } from '@/data/packs';
 import { setActivePack } from '@/lib/theme';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Toaster } from '@/components/ui/sonner';
+import { OfflineNotice } from '@/components/OfflineNotice';
+import { toast } from 'sonner';
 import './App.css';
 
 type AppState = 'landing' | 'path-selection' | 'rules' | 'hunt';
 
+function findExistingHunts(): Record<string, boolean> {
+  const existing: Record<string, boolean> = {};
+  for (const pack of PACKS) {
+    try {
+      const completed = JSON.parse(localStorage.getItem(`completedChallenges:${pack.id}`) ?? '[]');
+      existing[pack.id] = Array.isArray(completed) && completed.length > 0;
+    } catch { /* Ignore malformed or unavailable old storage. */ }
+  }
+  return existing;
+}
+
 function App() {
-  const [appState, setAppState] = useState<AppState>('landing');
+  const [existingHunts] = useState(findExistingHunts);
+  const [savedAppState, setAppState] = usePersistedState<AppState>('huntScreen', 'landing');
+  const [startedByPack, setStartedByPack] = usePersistedState<Record<string, boolean>>('startedByPack', existingHunts);
   const [activePackId, setActivePackId] = usePersistedState<string>('activePackId', DEFAULT_PACK_ID);
   // Per-pack path memory: { scavenger: 'A', creation: 'C' } so switching packs
   // doesn't lose each game's chosen path.
@@ -49,6 +64,10 @@ function App() {
   }, [pack]);
 
   const selectedPathId = pathByPack[pack.id] ?? '';
+  const selectedPath = pack.paths.find((p) => p.id === selectedPathId);
+  const appState = ['landing', 'path-selection', 'rules', 'hunt'].includes(savedAppState)
+    && (savedAppState !== 'hunt' || selectedPath) ? savedAppState : 'landing';
+  const canResume = Boolean(selectedPath && startedByPack[pack.id]);
 
   const setSelectedPathId = (pathId: string) => {
     setPathByPack((prev) => ({ ...prev, [pack.id]: pathId }));
@@ -92,6 +111,7 @@ function App() {
   };
 
   const handleStartHunt = () => {
+    setStartedByPack(prev => ({ ...prev, [pack.id]: true }));
     setAppState('hunt');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -108,21 +128,27 @@ function App() {
 
   const handleStartOverProgress = () => {
     categoriesRef.current?.resetProgress();
+    setBonusUnlocked(false);
+    setStartedByPack(prev => ({ ...prev, [pack.id]: false }));
     setAppState('path-selection');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const handleStartOverAll = () => {
-    categoriesRef.current?.resetAll();
-    setAppState('path-selection');
-    window.scrollTo({ top: 0, behavior: 'instant' });
+  const handleStartOverAll = async () => {
+    try {
+      await categoriesRef.current?.resetAll();
+      setBonusUnlocked(false);
+      setStartedByPack(prev => ({ ...prev, [pack.id]: false }));
+      setAppState('path-selection');
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } catch {
+      toast.error('Could not clear photos. Your hunt is still here; please retry.');
+    }
   };
 
-  const handleAllCategoriesComplete = () => {
+  const handleAllCategoriesComplete = useCallback(() => {
     setBonusUnlocked(true);
-  };
-
-  const selectedPath = pack.paths.find((p) => p.id === selectedPathId);
+  }, []);
 
   return (
     <div className="min-h-screen bg-paper overflow-x-hidden">
@@ -130,7 +156,7 @@ function App() {
       {appState === 'landing' && (
         <>
           <PackPicker packs={PACKS} activePackId={pack.id} onPick={handlePickPack} />
-          <Header pack={pack} onStart={handleStart} />
+          <Header pack={pack} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />
         </>
       )}
 
@@ -169,6 +195,7 @@ function App() {
           />
 
           <Categories
+            key={pack.id}
             ref={categoriesRef}
             isVisible={true}
             selectedPathId={selectedPathId}
@@ -220,6 +247,7 @@ function App() {
       )}
 
       {/* Toast notifications */}
+      <OfflineNotice />
       <Toaster />
     </div>
   );

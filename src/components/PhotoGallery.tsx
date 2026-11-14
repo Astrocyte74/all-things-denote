@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { getAllPhotos, deletePhoto, getPhotoCount, type StoredPhoto } from '@/lib/photoStorage';
 import { Button } from '@/components/ui/button';
 import { useSwipe } from '@/hooks/useSwipe';
+import { SaveAllPhotos } from './SaveAllPhotos';
 
 interface PhotoGalleryProps {
   isOpen: boolean;
@@ -87,6 +88,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       // Remove from state
       const newPhotos = photos.filter(p => p.id !== photoToDelete.id);
       setPhotos(newPhotos);
+      setAllPhotosForFilter(previous => previous.filter(p => p.id !== photoToDelete.id));
 
       // Update selected index if needed
       if (selectedPhotoIndex !== null) {
@@ -100,7 +102,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       toast.success('Photo deleted');
 
       // Update photo count
-      const newCount = await getPhotoCount();
+      const newCount = await getPhotoCount(packId);
       onPhotoCountChange?.(newCount);
 
       // Notify parent component
@@ -178,7 +180,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       const filename = `scavenger-hunt-${photo.challengeNumber}-${photo.challengeTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`;
       const file = new File([blob], filename, { type: 'image/jpeg' });
 
-      if (navigator.share && navigator.canShare({ files: [file] })) {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Challenge #${photo.challengeNumber}`,
@@ -209,12 +211,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
           <div className="p-4 border-b-2 border-ink/10 bg-paper">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-display text-2xl text-ink">📸 Photo Gallery <span className="text-ink/40">({photos.length})</span></h2>
-              <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
+              <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0" aria-label="Close photo gallery">
                 <X className="w-6 h-6" />
               </Button>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
+              <SaveAllPhotos photos={allPhotosForFilter} packId={packId ?? 'scavenger'} />
               {/* Filter and Sort dropdowns */}
               {allPhotosForFilter.length > 0 && (
                 <>

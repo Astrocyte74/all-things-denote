@@ -30,3 +30,6 @@ Thumbs.db
 
 # Playwright CLI scratch output
 .playwright-cli/
+.playwright-tests/
+playwright-report/
+test-results/

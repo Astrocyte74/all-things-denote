@@ -7,6 +7,7 @@ import type { GamePack } from '@/types';
 interface HeaderProps {
   pack: GamePack;
   onStart: () => void;
+  onContinue?: () => void;
 }
 
 // Split a title into two stacked lines for the display heading, breaking on
@@ -26,7 +27,7 @@ const decorSlots = [
   { position: 'bottom-[16%] left-[9%]', tilt: '6deg', anim: 'animate-bob' },
 ];
 
-export function Header({ pack, onStart }: HeaderProps) {
+export function Header({ pack, onStart, onContinue }: HeaderProps) {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [titleLine1, titleLine2] = splitTitle(pack.title);
 
@@ -82,13 +83,14 @@ export function Header({ pack, onStart }: HeaderProps) {
         </p>
 
         <button
-          onClick={onStart}
+          onClick={onContinue ?? onStart}
           className="btn-3d btn-go animate-rise-in mt-6 inline-flex items-center gap-3 rounded-full px-8 py-4 font-display text-2xl tracking-wide text-ink"
           style={{ animationDelay: '0.3s' }}
         >
-          Start the hunt
+          {onContinue ? 'Continue your hunt' : 'Start the hunt'}
           <ArrowRight className="h-6 w-6" strokeWidth={3} />
         </button>
+        {onContinue && <button onClick={onStart} className="mt-2 min-h-11 px-4 font-bold text-ink underline">Review path and rules</button>}
         <p className="mt-3 text-sm font-semibold text-ink/70">
           Free, no sign-up. Progress saves on this device.
         </p>

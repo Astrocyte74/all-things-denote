@@ -24,8 +24,12 @@ function fromStoredValue<T>(stored: string, defaultValue: T): T {
 export function usePersistedState<T>(key: string, defaultValue: T): [T, (newValue: T | ((prev: T) => T)) => void, () => void] {
   const [value, setValue] = useState<T>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(key);
-      return stored ? fromStoredValue(stored, defaultValue) : defaultValue;
+      try {
+        const stored = localStorage.getItem(key);
+        return stored ? fromStoredValue(stored, defaultValue) : defaultValue;
+      } catch {
+        return defaultValue;
+      }
     }
     return defaultValue;
   });
