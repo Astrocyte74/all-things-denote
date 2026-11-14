@@ -12,6 +12,7 @@ export interface ReviewEvent {
   maxPhotos: number;
   teamNaming?: TeamNamingSettings;
   settingsRevision: number;
+  autoUploadDefault?: boolean;
 }
 export interface ReviewProgress { completedChallengeIds: string[]; updatedAt: number; clientUpdatedAt: number }
 export interface ReviewTeam { id: string; name: string; pathId?: string; joinedAt: number; progress?: ReviewProgress }
@@ -51,7 +52,8 @@ export const reviewConfigured = Boolean(API_BASE);
 
 export class ReviewError extends Error {
   status: number;
-  constructor(message: string, status: number) { super(message); this.name = 'ReviewError'; this.status = status; }
+  code?: string;
+  constructor(message: string, status: number, code?: string) { super(message); this.name = 'ReviewError'; this.status = status; this.code = code; }
 }
 
 async function request<T>(path: string, access?: EventAccess, options: RequestInit = {}): Promise<T> {
@@ -65,7 +67,7 @@ async function request<T>(path: string, access?: EventAccess, options: RequestIn
   } catch { throw new ReviewError('Could not connect. Check your connection and retry; your photos are still on this device.', 0); }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new ReviewError(body.error || 'The request could not be completed. Please retry.', response.status);
+    throw new ReviewError(body.error || 'The request could not be completed. Please retry.', response.status, body.code);
   }
   return response.json() as Promise<T>;
 }
@@ -129,8 +131,8 @@ export function openReview(access: EventAccess) {
   location.hash = new URL(reviewLink(access)).hash;
 }
 
-export async function createReview(title: string, packId: string, teamNaming?: TeamNamingSettings): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
-  const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>('/events', undefined, { method: 'POST', body: JSON.stringify({ title, packId, teamNaming }) });
+export async function createReview(title: string, packId: string, teamNaming?: TeamNamingSettings, autoUploadDefault = true): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
+  const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>('/events', undefined, { method: 'POST', body: JSON.stringify({ title, packId, teamNaming, autoUploadDefault }) });
   rememberReview(result.access, result.snapshot.event);
   return result;
 }
@@ -152,13 +154,13 @@ export async function joinReview(access: EventAccess, name: string, pathId?: str
   return result;
 }
 
-export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto, onProgress?: (percent: number) => void): Promise<ReviewPhoto> {
+export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto, onProgress?: (percent: number) => void, options: { automatic?: boolean; signal?: AbortSignal } = {}): Promise<ReviewPhoto> {
   if (!API_BASE) throw new ReviewError('Group events are not connected yet.', 503);
   const body = new FormData();
   const bytes = atob(photo.imageData.split(',')[1] || '');
   if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new ReviewError('This photo is too large to upload (5 MB maximum).', 413);
   body.set('photo', new Blob([Uint8Array.from(bytes, char => char.charCodeAt(0))], { type: 'image/jpeg' }), 'photo.jpg');
-  body.set('metadata', JSON.stringify({ localPhotoId: photo.id, packId: photo.packId || 'scavenger', challengeId: photo.challengeId, teamName: photo.teamName, pathId: photo.pathId, capturedAt: photo.timestamp }));
+  body.set('metadata', JSON.stringify({ localPhotoId: photo.id, packId: photo.packId || 'scavenger', challengeId: photo.challengeId, teamName: photo.teamName, pathId: photo.pathId, capturedAt: photo.timestamp, automatic: options.automatic === true }));
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_BASE}/events/${access.eventId}/photos`);
@@ -169,9 +171,14 @@ export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto,
       let result;
       try { result = JSON.parse(xhr.responseText); } catch { reject(new ReviewError('Upload did not finish. Please retry.', xhr.status)); return; }
       if (xhr.status >= 200 && xhr.status < 300) resolve(result.photo);
-      else reject(new ReviewError(result.error || 'Upload failed. Please retry.', xhr.status));
+      else reject(new ReviewError(result.error || 'Upload failed. Please retry.', xhr.status, result.code));
     };
     xhr.onerror = xhr.ontimeout = () => reject(new ReviewError('Upload interrupted. Your photo is still on this device; reconnect and retry.', 0));
+    const abort = () => xhr.abort();
+    xhr.onabort = () => reject(new ReviewError('Photo sending paused.', 0, 'ABORTED'));
+    xhr.onloadend = () => options.signal?.removeEventListener('abort', abort);
+    if (options.signal?.aborted) { reject(new ReviewError('Photo sending paused.', 0, 'ABORTED')); return; }
+    options.signal?.addEventListener('abort', abort, { once: true });
     xhr.send(body);
   });
 }
@@ -188,7 +195,7 @@ export async function setReviewClosed(access: EventAccess, closed: boolean) {
   return request<ReviewSnapshot>(`/events/${access.eventId}`, access, { method: 'PATCH', body: JSON.stringify({ closed }) });
 }
 
-export async function updateReviewSettings(access: EventAccess, changes: { title: string; teamNaming: TeamNamingSettings; settingsRevision: number }) {
+export async function updateReviewSettings(access: EventAccess, changes: { title: string; teamNaming: TeamNamingSettings; settingsRevision: number; autoUploadDefault?: boolean }) {
   const snapshot = await request<ReviewSnapshot>(`/events/${access.eventId}`, access, { method: 'PATCH', body: JSON.stringify(changes) });
   rememberReview(access, snapshot.event);
   return snapshot;
@@ -205,4 +212,9 @@ export async function deleteReviewPhoto(access: EventAccess, photoId: string) {
 export async function deleteReview(access: EventAccess) {
   await request<{ ok: true }>(`/events/${access.eventId}`, access, { method: 'DELETE' });
   forgetReview(access.eventId);
+}
+
+/** Delete by the original device ID, even if its upload response was lost. */
+export function deleteReviewLocalPhoto(access: EventAccess, localPhotoId: string) {
+  return request<{ ok: true }>(`/events/${access.eventId}/local-photos/${encodeURIComponent(localPhotoId)}`, access, { method: 'DELETE' });
 }

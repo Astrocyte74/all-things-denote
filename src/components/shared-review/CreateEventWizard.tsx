@@ -8,6 +8,7 @@ import { DEFAULT_TEAM_NAMING, type TeamNamingSettings } from '@/lib/teamNaming';
 import { describeError, packClues } from './common';
 import { Notice, PackBadge } from './ui';
 import { TeamNamingStep } from './TeamNamingStep';
+import { AutoSendDefaultField, AutoSendSummary } from './PhotoAutoSendControl';
 import { Chip } from './Chip';
 import { describeTeamNaming, normalizedTeamNaming, teamNamingProblem } from './teamNamingText';
 
@@ -41,6 +42,8 @@ export function CreateEventWizard({ packId }: { packId?: string }) {
   const [ideas, setIdeas] = useState(() => ideasFor(pack));
   const [naming, setNaming] = useState<TeamNamingSettings>(DEFAULT_TEAM_NAMING);
   const [customPermissionEdited, setCustomPermissionEdited] = useState(false);
+  // Live photo sending is on by default for new events; teams can still turn it off.
+  const [autoUpload, setAutoUpload] = useState(true);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export function CreateEventWizard({ packId }: { packId?: string }) {
     setCreating(true);
     setCreateError(null);
     try {
-      const { access } = await createReview(cleanTitle, gameId, normalizedTeamNaming(naming));
+      const { access } = await createReview(cleanTitle, gameId, normalizedTeamNaming(naming), autoUpload);
       openReview(access);
     } catch (error) {
       // Keep every choice so the leader can just retry.
@@ -136,7 +139,9 @@ export function CreateEventWizard({ packId }: { packId?: string }) {
         {step === 2 && (
           <>
             <TeamNamingStep value={naming} onChange={value => { setNaming(value); setCreateError(null); }} customPermissionEdited={customPermissionEdited} onCustomPermissionEdited={setCustomPermissionEdited} />
-            <Summary pack={pack} title={cleanTitle} naming={naming} onEdit={target => goTo(target)} />
+            <h3 className="mb-2 mt-6 font-display text-xl">Photos</h3>
+            <AutoSendDefaultField checked={autoUpload} onChange={value => { setAutoUpload(value); setCreateError(null); }} scope="create" />
+            <Summary pack={pack} title={cleanTitle} naming={naming} autoUpload={autoUpload} onEdit={target => goTo(target)} />
             {!reviewConfigured && <div className="mt-4"><Notice tone="warn">Group events aren’t connected on this site yet, so events can’t be created here.</Notice></div>}
             {createError && (
               <div className="mt-4">
@@ -326,11 +331,12 @@ function NameStep({ title, titleSource, ideas, error, onTitle, onMoreIdeas, onEn
 
 // ── Summary ─────────────────────────────────────────────────────────────────
 
-function Summary({ pack, title, naming, onEdit }: { pack: GamePack; title: string; naming: TeamNamingSettings; onEdit: (step: Step) => void }) {
+function Summary({ pack, title, naming, autoUpload, onEdit }: { pack: GamePack; title: string; naming: TeamNamingSettings; autoUpload: boolean; onEdit: (step: Step) => void }) {
   const rows: Array<{ label: string; value: ReactNode; edit?: Step }> = [
     { label: 'Game', value: pack.title, edit: 0 },
     { label: 'Event', value: title || '—', edit: 1 },
     { label: 'Teams', value: describeTeamNaming(naming) },
+    { label: 'Photos', value: <AutoSendSummary on={autoUpload} /> },
     { label: 'Paths', value: <span className="inline-flex items-center gap-1"><Shuffle className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />Balanced automatically</span> },
   ];
   return (

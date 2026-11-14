@@ -15,6 +15,7 @@ import { getCategoryTheme, readableTextOn } from '@/lib/theme';
 import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
 interface CategoriesProps {
+  photoSyncControl?: import('react').ReactNode;
   isVisible: boolean;
   selectedPathId: string;
   pathOrder: number[];
@@ -36,7 +37,7 @@ interface CategoriesProps {
   onShareWithEvent?: () => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, onCompletedChange, packId, huntId, categories, teamName, onReset, onShareWithEvent }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, onCompletedChange, packId, huntId, categories, teamName, onReset, onShareWithEvent, photoSyncControl }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
@@ -398,6 +399,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           </button>
         </div>
 
+        {photoSyncControl && <div className="mx-4 mt-2 flex-shrink-0">{photoSyncControl}</div>}
         {huntId && onShareWithEvent && <button onClick={onShareWithEvent} className="mx-4 mt-3 min-h-10 flex-shrink-0 rounded-xl border-2 border-ink bg-cream px-3 text-sm font-extrabold text-ink">Back to event · send photos</button>}
 
         {/* Challenge card */}

@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { ArrowRight, Loader2, Lock, PencilLine, RefreshCw, ShieldCheck, Shuffle } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Loader2, Lock, PencilLine, RefreshCw, ShieldCheck, Shuffle } from 'lucide-react';
 import { getPackById } from '@/data/packs';
 import { cleanTeamName, TEAM_NAME_LIMIT } from '@/lib/teamName';
 import { fetchReview, getSavedReviews, joinReview, openReview, type EventAccess, type ReviewSnapshot } from '@/lib/sharedReview';
@@ -7,11 +7,17 @@ import { shuffledSuggestions } from '@/lib/eventNames';
 import { DEFAULT_TEAM_NAMING, teamNameKey } from '@/lib/teamNaming';
 import { describeError, errorStatus, formatExpiry, savedTeamDefaults } from './common';
 import { Notice, PackBadge } from './ui';
+import { makeEventHunt } from '@/lib/eventHunt';
+import { configurePhotoSync } from '@/lib/photoSyncStore';
+import { AUTO_SEND_LABEL, AutoSendSwitch } from './PhotoAutoSendControl';
 
 const CHOICE_COUNT = 6;
 
 /** What the team has picked: a name from the list, their own typed name, or nothing yet. */
 type Choice = { kind: 'suggested'; name: string } | { kind: 'custom' } | null;
+
+/** Joined on the server, but this phone couldn't store the photo-sending choice yet. */
+type Joined = { access: EventAccess; snapshot: ReviewSnapshot; name: string };
 
 /**
  * Invite screen. The leader's naming rules decide what shows: name chips to
@@ -33,7 +39,7 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
   // The server replenishes an exhausted pool; an unexpected empty list is retryable.
   const outOfNames = !legacy && !random && available.length === 0;
 
-  const ids = { name: useId(), choices: useId(), status: useId() };
+  const ids = { name: useId(), choices: useId(), status: useId(), autoLabel: useId(), autoHint: useId() };
   const savedTeam = getSavedReviews().find(item => item.access.eventId === event.id && item.access.role === 'team');
   const [showForm, setShowForm] = useState(!savedTeam);
   const [shown, setShown] = useState(() => shuffledSuggestions(available, CHOICE_COUNT));
@@ -43,6 +49,13 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
   const customInput = useRef<HTMLInputElement>(null);
+  // Auto-send follows the leader's default (older events: off) until the team
+  // flips it; an explicit choice survives refreshes and stale-policy retries.
+  const [autoSendChoice, setAutoSendChoice] = useState<boolean | null>(null);
+  const autoSend = autoSendChoice ?? (event.autoUploadDefault ?? false);
+  const [joined, setJoined] = useState<Joined | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Keep the chips in step with the server's list (after a refresh some may be gone).
   const availableKeys = new Set(available.map(teamNameKey));
@@ -99,7 +112,11 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
     try {
       // No path: the server balances paths across teams.
       const result = await joinReview(access, name, undefined, source);
-      onJoined(result.access, result.snapshot);
+      // The team now exists. Whatever happens next, never join again from here.
+      const ok = await storeAutoSend(result.access, result.snapshot);
+      if (ok) onJoined(result.access, result.snapshot);
+      else setJoined({ access: result.access, snapshot: result.snapshot, name: result.snapshot.team?.name ?? name });
+      return;
     } catch (err) {
       const status = errorStatus(err);
       if (status === 409 || status === 400) {
@@ -125,6 +142,28 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
     }
   };
 
+  /** Save this phone's auto-send choice for the new team. Returns false if it couldn't be stored. */
+  async function storeAutoSend(teamAccess: EventAccess, teamSnapshot: ReviewSnapshot) {
+    const hunt = makeEventHunt(teamAccess, teamSnapshot);
+    if (!hunt) return true; // Nothing to configure (not a team snapshot); carry on as before.
+    try {
+      await configurePhotoSync(hunt, autoSend);
+      return true;
+    } catch (err) {
+      setSyncError(err instanceof Error && err.message ? err.message : 'This phone couldn’t save the setting.');
+      return false;
+    }
+  }
+
+  const retrySync = async () => {
+    if (!joined || syncBusy) return;
+    setSyncBusy(true);
+    setSyncError(null);
+    const ok = await storeAutoSend(joined.access, joined.snapshot);
+    setSyncBusy(false);
+    if (ok) onJoined(joined.access, joined.snapshot);
+  };
+
   // One stable label: the chosen name is already highlighted above, and
   // joining drops the team straight into the hunt.
   const buttonLabel = busy ? 'Joining…' : 'Join & start hunt';
@@ -142,7 +181,7 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
         </div>
 
         <div className="p-4 sm:p-5">
-          {savedTeam && (
+          {savedTeam && !joined && (
             <div className="mb-4">
               <p className="font-bold">This phone already joined this event.</p>
               <button
@@ -160,7 +199,26 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
             </div>
           )}
 
-          {event.closed ? (
+          {joined ? (
+            <div role="alert" className="rounded-2xl border-2 border-ink bg-sun-soft p-4">
+              <p className="flex items-start gap-2 font-display text-xl leading-tight">
+                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0" strokeWidth={2.75} aria-hidden="true" />
+                You’re in as {joined.name}!
+              </p>
+              <p className="mt-1.5 text-sm font-semibold leading-snug text-ink/80">
+                This phone couldn’t save your photo-sending choice{syncError ? ` (${syncError})` : ''}. Your team is joined either way, so you won’t lose your spot.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button type="button" onClick={() => void retrySync()} disabled={syncBusy} className="btn-3d btn-white inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl px-4 font-extrabold text-ink">
+                  {syncBusy ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={3} aria-hidden="true" /> : <RefreshCw className="h-4 w-4" strokeWidth={3} aria-hidden="true" />} Try again
+                </button>
+                <button type="button" onClick={() => onJoined(joined.access, joined.snapshot)} disabled={syncBusy} className="btn-3d btn-go inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl px-4 font-display text-lg tracking-wide text-ink">
+                  Start the hunt <ArrowRight className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
+                </button>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-ink/65">You can turn “{AUTO_SEND_LABEL}” on or off from the hunt at any time.</p>
+            </div>
+          ) : event.closed ? (
             <Notice tone="warn">
               <span className="flex items-center gap-1.5"><Lock className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> The leader has closed this event to new teams and uploads.</span>
             </Notice>
@@ -237,9 +295,27 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
                 </div>
               )}
 
+              <div className="mt-5 rounded-2xl border-2 border-ink bg-white p-3.5">
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p id={ids.autoLabel} className="font-display text-xl leading-tight">{AUTO_SEND_LABEL}</p>
+                    <p className="text-xs font-extrabold uppercase tracking-wide text-ink/60">
+                      {autoSend ? 'On' : 'Off'}{autoSendChoice === null && event.autoUploadDefault ? ' · your leader’s suggestion' : ''}
+                    </p>
+                  </div>
+                  <AutoSendSwitch checked={autoSend} onChange={setAutoSendChoice} disabled={busy} labelledBy={ids.autoLabel} describedBy={ids.autoHint} />
+                </div>
+                <p id={ids.autoHint} className="mt-2 text-sm font-semibold leading-snug text-ink/70">
+                  {autoSend
+                    ? 'Each new photo goes to your leader as you take it, while this app is open. Deleting or retaking one updates their copy. Uses mobile data.'
+                    : 'You’ll choose which photos to send after you play.'}
+                  {' '}You can change this during the hunt.
+                </p>
+              </div>
+
               <p className="mt-4 flex gap-2 rounded-2xl bg-sky-soft p-3 text-sm font-bold leading-snug">
                 <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={3} aria-hidden="true" />
-                <span>Your path is assigned automatically. Your leader sees your team’s clue progress when you’re online, and only the photos you choose to send.</span>
+                <span>Your path is assigned automatically. Your leader sees your team’s clue progress when you’re online, and {autoSend ? 'the new photos you take' : 'only the photos you choose to send'}.</span>
               </p>
 
               <div id={ids.status} aria-live="polite">

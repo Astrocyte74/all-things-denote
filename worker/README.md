@@ -136,7 +136,8 @@ and plan; do not enable public bucket access or change DNS.
 - A database reservation enforces limits before R2 storage. Retrying the same
   local photo for the same team returns its existing result, without duplication.
   Interrupted reservations can be reclaimed after two minutes.
-- Teams send explicitly selected photos sequentially and stop on connectivity or
+- Teams can send explicitly selected photos or enable automatic sending of new
+  captures. Both send sequentially and stop on connectivity or
   permission failures. A refresh reconciles server-confirmed uploads when the
   phone lost the success response. A later retry sends only missing photos.
 
@@ -147,6 +148,32 @@ and keep the global event cap in place. This implementation is intended for smal
 group events; a broader public launch would need stronger abuse controls.
 
 ## Routine operation
+
+Migration `0004_auto_photo_sync.sql` adds `auto_upload_default` (off on existing
+rows) and private `photo_removals` markers scoped to event/team/local photo ID.
+New frontend event creation explicitly defaults on; omitted fields from older
+clients remain manual. Leader edits use the existing settings revision, and only
+future joins inherit the new default. Each device/team persists its own override.
+
+Automatic uploads set `metadata.automatic: true` and cannot restore removal
+markers; intentional manual re-sends can. Team-only idempotent DELETE
+`/events/:id/local-photos/:localPhotoId` handles deletion even before the upload
+or after a lost response, including when uploads are closed. Cloud deletion by
+photo ID also records a marker first. Reservation and commit SQL both exclude
+markers, so a late R2 PUT cannot revive a deleted photo. Markers contain no image
+bytes and cascade away with the event/team during the existing expiry cleanup.
+
+IndexedDB v4 migrates existing photos intact and adds settings/jobs stores. A
+capture/deletion/retake and its queue entry share one transaction. Only newly
+captured, opted-in event photos enqueue; other events and device-only photos do
+not. Queue entries reference image IDs rather than duplicating bytes. One visible
+online tab sends at a time via Web Locks where available; server idempotency is
+the fallback. Failed operations back off, permanent errors offer Retry, and a
+version check prevents an old response from overwriting a newer deletion. Turning
+off cancels waiting uploads, but previously requested deletions still complete.
+No service-worker background upload is promised. A failed join-time preference
+write preserves the user's explicit choice for retry rather than enabling the
+leader's default accidentally.
 
 Migration `0003_leader_dashboard.sql` adds a settings revision to events and an
 optional progress report to each team. Leader-only PATCH accepts `title` and/or

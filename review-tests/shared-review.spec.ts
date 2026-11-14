@@ -7,7 +7,7 @@ import type { StoredPhoto } from '../src/lib/photoStorage';
 const API = 'http://127.0.0.1:8788';
 async function storedPhotos(page: Page): Promise<StoredPhoto[]> {
   return page.evaluate(() => new Promise(resolve => {
-    const req = indexedDB.open('ScavengerHuntPhotos', 3);
+    const req = indexedDB.open('ScavengerHuntPhotos');
     req.onsuccess = () => { const db = req.result; const tx = db.transaction('photos'); tx.objectStore('photos').getAll().onsuccess = event => resolve((event.target as IDBRequest).result); tx.oncomplete = () => db.close(); };
   }));
 }
@@ -38,6 +38,7 @@ async function makeLeader(browser: Browser, baseURL: string, title: string) {
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('textbox',{name:'Event name',exact:true}).fill(title);
   await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('switch',{name:'Send photos as we go',exact:true}).click(); // Explicit manual-send fixture.
   await page.getByRole('button',{name:'Create event & show QR',exact:true}).click();
   await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
   await page.getByText('View invite link',{exact:true}).click();

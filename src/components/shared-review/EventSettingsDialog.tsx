@@ -7,6 +7,7 @@ import { DEFAULT_TEAM_NAMING, type TeamNamingSettings } from '@/lib/teamNaming';
 import { describeError, errorStatus, notify } from './common';
 import { Notice } from './ui';
 import { TeamNamingStep } from './TeamNamingStep';
+import { AutoSendDefaultField } from './PhotoAutoSendControl';
 import { defaultAllowCustom, describeTeamNaming, normalizedTeamNaming, teamNamingProblem } from './teamNamingText';
 
 const TITLE_LIMIT = 60;
@@ -22,17 +23,22 @@ interface EventSettingsDialogProps {
   refresh: () => Promise<void>;
 }
 
-interface Draft { title: string; naming: TeamNamingSettings; customEdited: boolean }
+interface Draft { title: string; naming: TeamNamingSettings; customEdited: boolean; autoUpload: boolean }
+type Settings = { title: string; naming: TeamNamingSettings; autoUpload: boolean };
 
 const revisionOf = (event: ReviewEvent) => event.settingsRevision ?? 0;
 const namingOf = (event: ReviewEvent) => event.teamNaming ?? DEFAULT_TEAM_NAMING;
+// Older events have no default; they stay off until a leader turns it on here.
+const autoUploadOf = (event: ReviewEvent) => event.autoUploadDefault ?? false;
+const settingsOf = (event: ReviewEvent): Settings => ({ title: event.title, naming: namingOf(event), autoUpload: autoUploadOf(event) });
 const draftFrom = (event: ReviewEvent): Draft => {
   const naming = namingOf(event);
   // An own-name setting that differs from its mode's default was a deliberate choice.
-  return { title: event.title, naming, customEdited: naming.allowCustom !== defaultAllowCustom(naming.assignment) };
+  return { title: event.title, naming, customEdited: naming.allowCustom !== defaultAllowCustom(naming.assignment), autoUpload: autoUploadOf(event) };
 };
-const sameSettings = (a: { title: string; naming: TeamNamingSettings }, b: { title: string; naming: TeamNamingSettings }) =>
+const sameSettings = (a: Settings, b: Settings) =>
   a.title.replace(/\s+/g, ' ').trim() === b.title.replace(/\s+/g, ' ').trim()
+  && a.autoUpload === b.autoUpload
   && JSON.stringify(normalizedTeamNaming(a.naming)) === JSON.stringify(normalizedTeamNaming(b.naming));
 
 /**
@@ -45,7 +51,7 @@ export function EventSettingsDialog({ access, event, pack, onClose, onSaved, ref
   const ids = { title: useId(), desc: useId() };
   const [draft, setDraft] = useState<Draft>(() => draftFrom(event));
   // The settings this draft started from (changes when the leader resolves a conflict).
-  const [base, setBase] = useState(() => ({ revision: revisionOf(event), title: event.title, naming: namingOf(event) }));
+  const [base, setBase] = useState(() => ({ revision: revisionOf(event), ...settingsOf(event) }));
   const [formKey, setFormKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +69,7 @@ export function EventSettingsDialog({ access, event, pack, onClose, onSaved, ref
 
   const useLatest = () => {
     setDraft(draftFrom(event));
-    setBase({ revision: latestRevision, title: event.title, naming: namingOf(event) });
+    setBase({ revision: latestRevision, ...settingsOf(event) });
     setFormKey(k => k + 1); // remount the naming controls so their open/closed state matches
     setError(null);
     setConflictReported(false);
@@ -88,7 +94,7 @@ export function EventSettingsDialog({ access, event, pack, onClose, onSaved, ref
     setBusy(true);
     setError(null);
     try {
-      const snapshot = await updateReviewSettings(access, { title: cleanTitle, teamNaming: normalizedTeamNaming(draft.naming), settingsRevision: base.revision });
+      const snapshot = await updateReviewSettings(access, { title: cleanTitle, teamNaming: normalizedTeamNaming(draft.naming), settingsRevision: base.revision, autoUploadDefault: draft.autoUpload });
       onSaved(snapshot);
       notify.success('Event updated');
       onClose();
@@ -122,7 +128,7 @@ export function EventSettingsDialog({ access, event, pack, onClose, onSaved, ref
           <div className="flex items-start gap-3 border-b-2 border-ink p-4 sm:px-6" style={{ backgroundColor: pack.library.soft }}>
             <div className="min-w-0 flex-1">
               <Dialog.Title ref={heading} tabIndex={-1} className="font-display text-[1.7rem] leading-tight focus:outline-none">Edit event</Dialog.Title>
-              <p id={ids.desc} className="mt-0.5 text-sm font-semibold text-ink/70">Change the name and how new teams get theirs.</p>
+              <p id={ids.desc} className="mt-0.5 text-sm font-semibold text-ink/70">Change the name, and the team-name and photo defaults for new teams.</p>
             </div>
             <Dialog.Close disabled={busy} aria-label="Close without saving" className="btn-3d btn-white flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-ink">
               <X className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
@@ -137,7 +143,7 @@ export function EventSettingsDialog({ access, event, pack, onClose, onSaved, ref
                   Another leader changed these settings while you were editing.
                 </p>
                 <p className="mt-1.5 text-sm font-semibold text-ink/75">
-                  Their version: <strong className="text-ink">“{event.title}”</strong> · {describeTeamNaming(namingOf(event))}
+                  Their version: <strong className="text-ink">“{event.title}”</strong> · {describeTeamNaming(namingOf(event))} · photos sent as teams go {autoUploadOf(event) ? 'on' : 'off'}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-ink/75">Your edits are kept below until you choose.</p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -201,6 +207,11 @@ export function EventSettingsDialog({ access, event, pack, onClose, onSaved, ref
               customPermissionEdited={draft.customEdited}
               onCustomPermissionEdited={customEdited => setDraft(d => ({ ...d, customEdited }))}
             />
+
+            <h3 className="mt-6 font-display text-2xl">Photos</h3>
+            <div className="mt-2">
+              <AutoSendDefaultField checked={draft.autoUpload} onChange={autoUpload => { setDraft(d => ({ ...d, autoUpload })); setError(null); }} scope="edit" />
+            </div>
 
             {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}
           </div>

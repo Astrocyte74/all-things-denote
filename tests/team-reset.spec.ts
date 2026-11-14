@@ -7,7 +7,7 @@ import type { StoredPhoto } from '../src/lib/photoStorage';
 const image = (width = 640, height = 480) => ({ name: 'team.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="gold"/></svg>`) });
 async function photos(page: Page): Promise<StoredPhoto[]> {
   return page.evaluate(() => new Promise(resolve => {
-    const request = indexedDB.open('ScavengerHuntPhotos', 3);
+    const request = indexedDB.open('ScavengerHuntPhotos');
     request.onsuccess = () => {
       const db = request.result;
       const tx = db.transaction('photos');
@@ -87,7 +87,7 @@ test('library reset keeps photos and team; confirmed clear removes only the chos
     localStorage.setItem('teamNameByPack', JSON.stringify({ christmas: 'The Lost Sheep', creation: 'The Explorers' }));
     localStorage.setItem('startedByPack', JSON.stringify({ christmas: true, creation: true }));
     localStorage.setItem('completedChallenges:creation', JSON.stringify(['c-1']));
-    const request = indexedDB.open('ScavengerHuntPhotos', 3);
+    const request = indexedDB.open('ScavengerHuntPhotos');
     request.onsuccess = () => {
       const db = request.result;
       const tx = db.transaction('photos', 'readwrite');

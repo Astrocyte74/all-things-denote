@@ -1,10 +1,14 @@
 import { photoFilename } from '@/lib/photoExport';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Download, Trash2, Image as ImageIcon, Share, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Download, Trash2, Image as ImageIcon, Share, Calendar, Camera, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAllPhotos, deletePhoto, getPhotoCount, type StoredPhoto } from '@/lib/photoStorage';
+import { getAllPhotos, deletePhoto, getPhotoCount, savePhoto, type StoredPhoto } from '@/lib/photoStorage';
 import { Button } from '@/components/ui/button';
 import { useSwipe } from '@/hooks/useSwipe';
+import { getPackById } from '@/data/packs';
+import { processPhoto } from '@/lib/processPhoto';
+import { readPhotoSync, PHOTO_SYNC_CHANGED } from '@/lib/photoSyncStore';
+import { beginPhotoSave } from '@/lib/pwa';
 import { SaveAllPhotos } from './SaveAllPhotos';
 
 interface PhotoGalleryProps {
@@ -24,6 +28,16 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
   const [loading, setLoading] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<string | null>(filterChallengeId || null);
   const [photoToDelete, setPhotoToDelete] = useState<StoredPhoto | null>(null); // For delete confirmation
+  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [retaking, setRetaking] = useState(false);
+  const retakeInput = useRef<HTMLInputElement>(null);
+  const retakeTarget = useRef<StoredPhoto | null>(null);
+  useEffect(() => {
+    let stopped = false;
+    const load = () => { if (huntId) void readPhotoSync(huntId).then(({settings}) => { if (!stopped) setSyncEnabled(Boolean(settings[0]?.enabled)); }).catch(() => {}); };
+    load(); window.addEventListener(PHOTO_SYNC_CHANGED, load);
+    return () => { stopped = true; window.removeEventListener(PHOTO_SYNC_CHANGED, load); };
+  }, [huntId]);
   const [sortBy, setSortBy] = useState<'newest' | 'challenge'>('newest'); // Sort order
 
   // Swipe navigation for slideshow
@@ -39,7 +53,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
   // Viewer keyboard: Escape closes, arrows step. Paused while the delete
   // confirmation is up so Escape doesn't close two layers at once.
   useEffect(() => {
-    if (!viewerOpen || photoToDelete) return;
+    if (!viewerOpen || photoToDelete || retaking) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelectedPhotoIndex(null);
       else if (e.key === 'ArrowRight') setSelectedPhotoIndex(i => (i !== null && i < photos.length - 1 ? i + 1 : i));
@@ -47,7 +61,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [viewerOpen, photoToDelete, photos.length]);
+  }, [viewerOpen, photoToDelete, photos.length, retaking]);
 
   useEffect(() => {
     if (viewerOpen) closeViewerRef.current?.focus({ preventScroll: true });
@@ -96,6 +110,26 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       setSortBy('newest');
     }
   }, [isOpen, filterChallengeId]);
+
+  const retake = async (file: File) => {
+    const old = retakeTarget.current;
+    if (!old || retaking) return;
+    setRetaking(true);
+    const endSave = beginPhotoSave();
+    try {
+      const pack = getPackById(old.packId ?? 'scavenger');
+      const category = pack.categories.find(category => category.challenges.some(clue => clue.id === old.challengeId));
+      const challenge = category?.challenges.find(clue => clue.id === old.challengeId);
+      if (!category || !challenge) throw new Error('Clue not found');
+      const photo = { ...old, id: `${old.challengeId}-${crypto.randomUUID()}`, timestamp: Date.now(), imageData: await processPhoto(file, challenge, category, old.pathId, old.teamName) };
+      // One durable transaction keeps the old image if processing or saving fails.
+      await savePhoto(photo, old.id);
+      setSelectedPhotoIndex(null);
+      await loadPhotos(); onPhotoDeleted?.();
+      toast.success(syncEnabled ? 'Photo replaced. The leader’s copy will update when connected.' : 'Photo replaced on this device. Cloud copies are unchanged.');
+    } catch { toast.error('Couldn’t save the retake. Your previous photo is still here. Try again.'); }
+    finally { endSave(); setRetaking(false); if (retakeInput.current) retakeInput.current.value = ''; }
+  };
 
   const handleDelete = (photo: StoredPhoto) => {
     // Show confirmation dialog
@@ -225,6 +259,8 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
 
   return (
     <>
+      <input ref={retakeInput} type="file" accept="image/*" capture="environment" className="hidden" aria-label="Retake photo file" disabled={retaking}
+        onChange={e => { const file = e.target.files?.[0]; if (file) void retake(file); }} />
       {/* Gallery Modal - hidden when in full-screen mode */}
       {selectedPhotoIndex === null && (
         <div className="fixed inset-0 bg-ink/80 z-[55] flex items-center justify-center p-4">
@@ -350,7 +386,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                           variant="ghost"
                           size="icon"
                           className="h-10 w-10 text-coral-edge hover:bg-coral-soft hover:text-coral-edge"
-                          onClick={() => handleDelete(photo)}
+                          disabled={retaking} onClick={() => handleDelete(photo)}
                           title="Delete"
                           aria-label={`Delete photo #${photo.challengeNumber}`}
                         >
@@ -394,7 +430,12 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                 <p className="min-w-0 flex-1 truncate text-sm font-extrabold text-cream/85">
                   #{photo.challengeNumber} {photo.challengeTitle}
                 </p>
+                <button type="button" disabled={retaking} onClick={() => { retakeTarget.current = photo; retakeInput.current?.click(); }} aria-label="Retake photo"
+                  className="btn-3d btn-sun inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold text-ink">
+                  {retaking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}<span className="hidden sm:inline">Retake</span>
+                </button>
                 <button
+                  disabled={retaking}
                   ref={closeViewerRef}
                   onClick={() => setSelectedPhotoIndex(null)}
                   className="btn-3d btn-white flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-ink [@media(max-height:500px)]:h-10 [@media(max-height:500px)]:w-10"
@@ -405,6 +446,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
               </div>
             </div>
 
+            {retaking && <p role="status" className="px-4 text-center text-sm font-bold text-cream">Saving retake… your previous photo stays until this succeeds.</p>}
             {/* Card */}
             <div className="relative flex min-h-0 flex-1 items-center justify-center px-3 py-3 sm:px-24 [@media(max-height:500px)]:py-2">
               <img
@@ -442,7 +484,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                     <Share className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /><span className="max-[359px]:sr-only">Share</span>
                   </button>
                   <button
-                    onClick={() => handleDelete(photo)}
+                    disabled={retaking} onClick={() => handleDelete(photo)}
                     aria-label="Delete photo"
                     className="btn-3d btn-coral flex h-12 w-12 items-center justify-center rounded-2xl text-ink [@media(max-height:500px)]:h-10 [@media(max-height:500px)]:w-10"
                   >
@@ -472,6 +514,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             <p className="text-coral-edge font-extrabold mb-6">
               #{photoToDelete.challengeNumber} {photoToDelete.challengeTitle}
             </p>
+            <p className="mb-4 text-sm font-semibold text-ink/75">{!photoToDelete.huntId ? 'This removes the photo from this device.' : syncEnabled ? 'Auto-send is on: this also removes the leader’s cloud copy when connected. Any separately downloaded copies remain.' : 'Auto-send is off: this deletes only the device original. You can delete any uploaded copy from Back to event.'}</p>
             <div className="flex gap-3">
               <button
                 onClick={cancelDelete}

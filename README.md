@@ -54,7 +54,29 @@ team only. An event hunt keeps its event, team name and path after a reset.
 4. **Back to event** opens that team's upload screen directly. Teams choose
    photos and tap **Send**; taking a photo never uploads it automatically.
 5. The leader opens the separate private **leader link** on a phone or laptop
-   to see **Team progress** and compare teams' photos one clue at a time. **Present** opens the larger
+   to see **Send photos as we go** defaults on in the new-event wizard. Each team can turn
+it off before joining or at any time in the hunt or event page. The choice stays
+with that event/team on this device; later leader edits only change the default
+for new joins. Existing events retain manual sending until their default is edited.
+Only new captures made with auto-send on are queued. Earlier photos remain
+available for manual selection; turning on never uploads a backlog unexpectedly.
+
+Photos and pending cloud changes are committed together on the device. While the
+app is open, visible and online, photos send one at a time. Offline captures and
+deletions survive reload and catch up when the app is reopened/reconnected. This
+uses the team's internet/mobile data; it is not a background upload service.
+Turning off cancels waiting uploads. A transfer already in flight may finish, and
+deletions already requested with auto-send on still finish.
+
+While auto-send is on, gallery deletion also removes the event's cloud copy.
+**Retake photo** in the photo viewer replaces the selected photo after its new
+image is safely saved, then updates the cloud. Taking another normal photo adds
+another discovery instead. If auto-send is off, deletion/retake only changes the
+local gallery. Cloud deletion from the event page never deletes device originals;
+a server removal marker prevents delayed automatic retries from restoring it.
+Manual selection and sending can deliberately restore a deleted cloud copy.
+
+**Team progress** and compare teams' photos one clue at a time. **Present** opens the larger
    discussion view; **Leader tools** also has close/reopen, ZIP and deletion.
 
 Join and Start each show only their own setup, with a small link to switch.
@@ -82,8 +104,8 @@ additions, up to 50), random assignment, and a separate custom-name switch. Each
 name is reserved once per event; retries recover the same team, name, and path.
 These settings belong to the event and do not change device-only game setup.
 
-Leaders can use **Edit event** at any time to change the event name and naming
-options. New naming rules apply to future joins; existing team names, paths,
+Leaders can use **Edit event** at any time to change the event name, naming
+options, and the photo-sending default for new teams. New naming rules apply to future joins; existing team names, paths,
 photos, QR/invite links, and the seven-day end date stay the same. The game cannot
 be changed after creation. If two leaders edit at once, the second save asks which
 version to keep rather than silently replacing the first edit.

@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, CheckCircle2, CloudUpload, Loader2, Lock, Play, RefreshCw, RotateCcw } from 'lucide-react';
-import { eventHuntId } from '@/lib/eventHunt';
+import { eventHuntId, makeEventHunt } from '@/lib/eventHunt';
 import { getPackById } from '@/data/packs';
 import { getAllPhotos, type StoredPhoto } from '@/lib/photoStorage';
 import { deleteReviewPhoto, uploadReviewPhoto, type EventAccess, type ReviewPhoto, type ReviewSnapshot } from '@/lib/sharedReview';
 import { describeError, errorStatus, forgetReviewPhoto, formatExpiry, isFatalUploadError, notify } from './common';
 import { Notice, PackBadge, PathPill } from './ui';
 import { DeleteUploadsDialog, TeamUploads } from './TeamUploads';
+
+import { PhotoAutoSendControl } from './PhotoAutoSendControl';
+import { PHOTO_SYNC_SENT, cancelPhotoUpload } from '@/lib/photoSyncStore';
+import { pausePhotoSync } from '@/lib/photoSync';
 
 type Status = { state: 'queued' } | { state: 'uploading'; percent: number } | { state: 'error'; message: string };
 
@@ -29,6 +33,7 @@ function readSelection(eventId: string): Set<string> | null {
 export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   const { event, team } = snapshot;
   const pack = getPackById(event.packId);
+  const hunt = useMemo(() => makeEventHunt(access, snapshot), [access, snapshot]);
   const [local, setLocal] = useState<StoredPhoto[] | null>(null);
   const [localError, setLocalError] = useState(false);
   const [selection, setSelectionState] = useState<Set<string> | null>(() => readSelection(event.id));
@@ -49,6 +54,12 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const busy = running || deleting;
+  useEffect(() => busy ? pausePhotoSync() : undefined, [busy]);
+  useEffect(() => {
+    const sent = (e: Event) => { if ((e as CustomEvent).detail?.huntId === eventHuntId(event.id, team!.id)) void refresh(); };
+    window.addEventListener(PHOTO_SYNC_SENT, sent);
+    return () => window.removeEventListener(PHOTO_SYNC_SENT, sent);
+  }, [refresh, event.id, team]);
 
   const [localAttempt, setLocalAttempt] = useState(0);
   useEffect(() => {
@@ -110,6 +121,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
       setStatus(prev => ({ ...prev, [photo.id]: { state: 'uploading', percent: 0 } }));
       try {
         const result = await uploadReviewPhoto(access, photo, percent => setStatus(prev => ({ ...prev, [photo.id]: { state: 'uploading', percent } })));
+        await cancelPhotoUpload(eventHuntId(event.id, team!.id), photo.id);
         ok += 1;
         remaining.delete(photo.id);
         setSentNow(prev => ({ ...prev, [photo.id]: result }));
@@ -147,6 +159,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
     const remainingSelection = new Set(selected);
     try {
       for (const remote of confirmRemove) {
+        await cancelPhotoUpload(eventHuntId(event.id, team!.id), remote.localPhotoId);
         try { await deleteReviewPhoto(access, remote.id); }
         catch (error) { if (errorStatus(error) !== 404) throw error; }
         deleted += 1;
@@ -193,9 +206,11 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
       </div>
 
       <section className="sticker-card mb-5 flex flex-col gap-3 bg-go/10 p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Your event hunt">
-        <div><h2 className="font-display text-2xl">Your hunt is ready</h2><p className="mt-1 text-sm font-semibold text-ink/75">{pack.title} · {team?.name} · Path {team?.pathId ?? pack.paths[0].id}. Everything is set. Come back here to send your photos.</p></div>
+        <div><h2 className="font-display text-2xl">Your hunt is ready</h2><p className="mt-1 text-sm font-semibold text-ink/75">{pack.title} · {team?.name} · Path {team?.pathId ?? pack.paths[0].id}. Everything is set. Manage photo sharing below, or send selected photos yourself.</p></div>
         <button type="button" disabled={busy} onClick={onPlay} className="btn-3d btn-go inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl px-5 font-display text-xl text-ink"><Play className="h-5 w-5" aria-hidden="true" /> Open team hunt</button>
       </section>
+
+      {hunt && <div className="mb-5"><PhotoAutoSendControl hunt={hunt} /></div>}
 
       {event.closed && (
         <div className="mb-5">
@@ -208,7 +223,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
 
       <h2 className="font-display text-2xl">Choose photos to send</h2>
       <p className="mt-1 text-sm font-semibold text-ink/70">
-        Only the photos you choose are sent, and they stay on this phone too. The leader sees them under “{team?.name ?? 'your team'}”. Each photo keeps the label it was taken with.
+        You can send older photos or choose individual photos here. Auto-send handles new captures when it’s on. Originals stay on this phone too. The leader sees them under “{team?.name ?? 'your team'}”. Each photo keeps the label it was taken with.
       </p>
 
       {localError ? (

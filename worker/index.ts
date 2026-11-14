@@ -7,7 +7,7 @@ interface EventRow {
   created_at: number; expires_at: number; closed: number; deleted: number;
   photo_count: number; photo_bytes: number;
   team_naming: string | null;
-  settings_revision: number;
+  settings_revision: number; auto_upload_default: number;
 }
 interface TeamRow { id: string; event_id: string; token_hash: string; name: string; path_id: string | null; joined_at: number; completed_challenges: string | null; progress_updated_at: number | null; progress_client_at: number | null }
 interface PhotoRow {
@@ -17,7 +17,7 @@ interface PhotoRow {
   bytes: number; digest: string; ready: number;
 }
 interface Auth { event: EventRow; role: 'leader' | 'join' | 'team'; team?: TeamRow }
-class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
+class HttpError extends Error { constructor(public status: number, message: string, public code?: string) { super(message); } }
 const DAY = 86_400_000;
 const MAX_FILE = 5 * 1024 * 1024;
 const MAX_EVENT_BYTES = 100 * 1024 * 1024;
@@ -88,7 +88,7 @@ async function bodyJSON(request: Request): Promise<Record<string, unknown>> {
   } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'Invalid details.'); }
 }
 function eventView(event: EventRow) {
-  return { id: event.id, title: event.title, packId: event.pack_id, createdAt: event.created_at, expiresAt: event.expires_at, closed: Boolean(event.closed), maxTeams: MAX_TEAMS, maxPhotos: MAX_PHOTOS, teamNaming: eventNaming(event), settingsRevision: event.settings_revision };
+  return { id: event.id, title: event.title, packId: event.pack_id, createdAt: event.created_at, expiresAt: event.expires_at, closed: Boolean(event.closed), maxTeams: MAX_TEAMS, maxPhotos: MAX_PHOTOS, teamNaming: eventNaming(event), settingsRevision: event.settings_revision, autoUploadDefault: Boolean(event.auto_upload_default) };
 }
 function progressView(team: TeamRow) {
   return team.completed_challenges === null ? undefined : { completedChallengeIds: JSON.parse(team.completed_challenges), updatedAt: team.progress_updated_at!, clientUpdatedAt: team.progress_client_at! };
@@ -140,6 +140,7 @@ async function createEvent(request: Request, env: Env) {
   const pack = PACKS.find(pack => pack.id === input.packId);
   if (!pack) throw new HttpError(400, 'Choose a game for this event.');
   const settings = namingSettings(input.teamNaming);
+  if (input.autoUploadDefault !== undefined && typeof input.autoUploadDefault !== 'boolean') throw new HttpError(400, 'Choose whether photos send automatically by default.');
   const now = Date.now();
   const rateKey = await hash(`${request.headers.get('CF-Connecting-IP') || 'local'}:${Math.floor(now / 3_600_000)}`);
   const rate = await env.DB.prepare('INSERT INTO rate_limits(key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 WHERE count < 5 RETURNING count').bind(rateKey, now + 2 * 3_600_000).first();
@@ -147,8 +148,8 @@ async function createEvent(request: Request, env: Env) {
   const id = crypto.randomUUID();
   const leaderToken = token();
   const joinToken = token();
-  const created = await env.DB.prepare('INSERT INTO events(id, title, pack_id, leader_hash, join_token, created_at, expires_at, team_naming) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM events WHERE deleted = 0 AND expires_at > ?) < ?')
-    .bind(id, title, pack.id, await hash(leaderToken), joinToken, now, now + 7 * DAY, JSON.stringify(settings), now, MAX_ACTIVE_EVENTS).run();
+  const created = await env.DB.prepare('INSERT INTO events(id, title, pack_id, leader_hash, join_token, created_at, expires_at, team_naming, auto_upload_default) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM events WHERE deleted = 0 AND expires_at > ?) < ?')
+    .bind(id, title, pack.id, await hash(leaderToken), joinToken, now, now + 7 * DAY, JSON.stringify(settings), input.autoUploadDefault === true ? 1 : 0, now, MAX_ACTIVE_EVENTS).run();
   if (!created.meta.changes) throw new HttpError(503, 'Shared review is at capacity. Please try again later.');
   const event = (await env.DB.prepare('SELECT * FROM events WHERE id = ?').bind(id).first<EventRow>())!;
   return json({ access: { eventId: id, role: 'leader', token: leaderToken }, snapshot: await snapshot(env, { event, role: 'leader' }) }, 201);
@@ -162,7 +163,7 @@ async function joinEvent(request: Request, env: Env, auth: Auth) {
   let team = await env.DB.prepare('SELECT * FROM teams WHERE event_id = ? AND token_hash = ?').bind(auth.event.id, digest).first<TeamRow>();
   // Recover the original name/path on a lost response, even after the event closes.
   if (!team) {
-    if (auth.event.closed) throw new HttpError(409, 'Uploads are closed for this event. Ask your leader to reopen them.');
+    if (auth.event.closed) throw new HttpError(409, 'Uploads are closed for this event. Ask your leader to reopen them.', 'UPLOADS_CLOSED');
     const settings = eventNaming(auth.event);
     const requestedName = text(input.name, 40);
     const pathId = path(input.pathId); // Older app versions can still supply a valid path.
@@ -214,8 +215,9 @@ async function joinEvent(request: Request, env: Env, auth: Auth) {
 async function updateEvent(request: Request, env: Env, auth: Auth) {
   const input = await bodyJSON(request);
   const keys = Object.keys(input);
-  if (keys.some(key => !['title', 'teamNaming', 'settingsRevision', 'closed'].includes(key))) throw new HttpError(400, 'Only the event name, team-name options and upload status can be changed.');
-  const editing = 'title' in input || 'teamNaming' in input;
+  if (keys.some(key => !['title', 'teamNaming', 'settingsRevision', 'closed', 'autoUploadDefault'].includes(key))) throw new HttpError(400, 'Only the event name, team-name options and upload status can be changed.');
+  const editing = 'title' in input || 'teamNaming' in input || 'autoUploadDefault' in input;
+  if ('autoUploadDefault' in input && typeof input.autoUploadDefault !== 'boolean') throw new HttpError(400, 'Choose whether photos send automatically by default.');
   if (!editing && !('closed' in input)) throw new HttpError(400, 'Choose event settings to update.');
   if ('closed' in input && typeof input.closed !== 'boolean') throw new HttpError(400, 'Choose whether uploads are open.');
   if (editing && (!Number.isSafeInteger(input.settingsRevision) || (input.settingsRevision as number) < 0)) throw new HttpError(400, 'Reload the event settings before saving.');
@@ -225,9 +227,9 @@ async function updateEvent(request: Request, env: Env, auth: Auth) {
   // One conditional update prevents a second leader from overwriting a newer edit.
   // Omitted fields retain their current values, including an upload toggle in flight.
   const event = await env.DB.prepare(`UPDATE events SET title = COALESCE(?, title), team_naming = COALESCE(?, team_naming),
-    closed = COALESCE(?, closed), settings_revision = settings_revision + ?
+    closed = COALESCE(?, closed), auto_upload_default = COALESCE(?, auto_upload_default), settings_revision = settings_revision + ?
     WHERE id = ? AND deleted = 0 AND expires_at > ? AND (? IS NULL OR settings_revision = ?) RETURNING *`)
-    .bind(title, naming, 'closed' in input ? (input.closed ? 1 : 0) : null, editing ? 1 : 0, auth.event.id, Date.now(), revision, revision).first<EventRow>();
+    .bind(title, naming, 'closed' in input ? (input.closed ? 1 : 0) : null, 'autoUploadDefault' in input ? (input.autoUploadDefault ? 1 : 0) : null, editing ? 1 : 0, auth.event.id, Date.now(), revision, revision).first<EventRow>();
   if (!event) throw new HttpError(409, 'Another leader changed this event. Reload the latest settings before saving again.');
   return json(await snapshot(env, { ...auth, event }));
 }
@@ -256,7 +258,7 @@ function objectKey(photo: Pick<PhotoRow, 'id' | 'event_id'>) { return `events/${
 
 async function uploadPhoto(request: Request, env: Env, auth: Auth) {
   if (auth.role !== 'team') throw new HttpError(403, 'Join a team before uploading photos.');
-  if (auth.event.closed) throw new HttpError(409, 'Uploads are closed for this event. Ask your leader to reopen them.');
+  if (auth.event.closed) throw new HttpError(409, 'Uploads are closed for this event. Ask your leader to reopen them.', 'UPLOADS_CLOSED');
   const contentType = request.headers.get('Content-Type') || '';
   if (!contentType.startsWith('multipart/form-data;')) throw new HttpError(415, 'Send a JPEG photo with its clue details.');
   const data = await boundedBody(request, MAX_FILE + 16384);
@@ -276,6 +278,8 @@ async function uploadPhoto(request: Request, env: Env, auth: Auth) {
   const challenge = pack.categories.flatMap(category => category.challenges).find(clue => clue.id === input.challengeId);
   if (!challenge) throw new HttpError(400, 'This clue does not belong to the event game.');
   const localId = text(input.localPhotoId, 150, true);
+  const automatic = input.automatic === true;
+  if (input.automatic !== undefined && typeof input.automatic !== 'boolean') throw new HttpError(400, 'Invalid photo sending mode.');
   const teamName = text(input.teamName, 40);
   const pathId = path(input.pathId);
   const captured = input.capturedAt;
@@ -285,6 +289,13 @@ async function uploadPhoto(request: Request, env: Env, auth: Auth) {
   if (prefix[0] !== 0xff || prefix[1] !== 0xd8 || prefix[2] !== 0xff || prefix[prefix.length - 2] !== 0xff || prefix[prefix.length - 1] !== 0xd9) throw new HttpError(415, 'This file is not a JPEG photo.');
   const digest = await hash(bytes);
   const now = Date.now();
+  if (automatic) {
+    const removed = await env.DB.prepare('SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?').bind(auth.event.id, auth.team!.id, localId).first();
+    if (removed) throw new HttpError(409, 'This cloud photo was deleted. It will not be sent again automatically.', 'PHOTO_REMOVED');
+  } else {
+    // A deliberate manual re-send may restore a deleted cloud copy.
+    await env.DB.prepare('DELETE FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?').bind(auth.event.id, auth.team!.id, localId).run();
+  }
   // Release an interrupted reservation only after the old upload's lease expires.
   const existing = await env.DB.prepare('SELECT * FROM photos WHERE event_id = ? AND team_id = ? AND local_photo_id = ?').bind(auth.event.id, auth.team!.id, localId).first<PhotoRow>();
   if (existing) {
@@ -300,25 +311,38 @@ async function uploadPhoto(request: Request, env: Env, auth: Auth) {
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ? AND photo_count < ? AND photo_bytes + ? <= ?)
     AND (SELECT COUNT(*) FROM photos WHERE team_id = ?) < 60
+    AND NOT EXISTS (SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?)
     ON CONFLICT(event_id, team_id, local_photo_id) DO NOTHING`)
     .bind(id, auth.event.id, auth.team!.id, localId, challenge.id, challenge.number, challenge.title, teamName || null, pathId, captured, now, bytes.byteLength, digest,
-      auth.event.id, now, MAX_PHOTOS, bytes.byteLength, MAX_EVENT_BYTES, auth.team!.id).run();
+      auth.event.id, now, MAX_PHOTOS, bytes.byteLength, MAX_EVENT_BYTES, auth.team!.id, auth.event.id, auth.team!.id, localId).run();
   if (!reserved.meta.changes) throw new HttpError(409, 'This event is closed, an upload is already finishing, or the photo limit has been reached (60 per team, 300 photos / 100 MB per event).');
   const key = objectKey({ id, event_id: auth.event.id });
   try {
     await env.PHOTOS.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg', cacheControl: 'private, no-store' } });
-    const committed = await env.DB.prepare('UPDATE photos SET ready = 1 WHERE id = ? AND EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND expires_at > ?)')
-      .bind(id, auth.event.id, Date.now()).run();
-    if (!committed.meta.changes) throw new HttpError(410, 'The event ended before the upload finished. Your local photo is safe.');
+    const committed = await env.DB.prepare('UPDATE photos SET ready = 1 WHERE id = ? AND EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND expires_at > ?) AND NOT EXISTS (SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?)')
+      .bind(id, auth.event.id, Date.now(), auth.event.id, auth.team!.id, localId).run();
+    if (!committed.meta.changes) throw new HttpError(409, 'This photo was removed or the event ended before sending finished.', 'PHOTO_REMOVED');
   } catch (error) {
     await env.PHOTOS.delete(key);
     await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id).run();
     throw error;
   }
   const photo = (await env.DB.prepare('SELECT * FROM photos WHERE id = ?').bind(id).first<PhotoRow>())!;
+  if (!photo) throw new HttpError(409, 'This photo was removed while sending.', 'PHOTO_REMOVED');
   return json({ photo: photoView(photo) }, 201);
 }
 
+/** Record removal before deleting bytes/rows. Late automatic uploads cannot
+ * resurrect the image, including when a delete overtakes an in-flight PUT. */
+async function removeLocalPhoto(env: Env, eventId: string, teamId: string, localId: string) {
+  await env.DB.prepare('INSERT OR IGNORE INTO photo_removals(event_id, team_id, local_photo_id) VALUES (?, ?, ?)').bind(eventId, teamId, localId).run();
+  const photo = await env.DB.prepare('SELECT * FROM photos WHERE event_id = ? AND team_id = ? AND local_photo_id = ?').bind(eventId, teamId, localId).first<PhotoRow>();
+  if (photo) {
+    await env.PHOTOS.delete(objectKey(photo));
+    await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(photo.id).run();
+  }
+  return json({ ok: true });
+}
 async function selectedPhoto(env: Env, auth: Auth, id: string) {
   if (auth.role === 'join') throw new HttpError(403, 'The invite link cannot view photos.');
   const photo = await env.DB.prepare('SELECT * FROM photos WHERE id = ? AND event_id = ? AND ready = 1').bind(id, auth.event.id).first<PhotoRow>();
@@ -379,14 +403,18 @@ async function route(request: Request, env: Env) {
   }
   if (parts[2] === 'teams' && parts.length === 3 && request.method === 'POST') return joinEvent(request, env, auth);
   if (parts[2] === 'progress' && parts.length === 3 && request.method === 'POST') return updateProgress(request, env, auth);
+  if (parts[2] === 'local-photos' && parts.length === 4 && request.method === 'DELETE') {
+    if (auth.role !== 'team') throw new HttpError(403, 'Only a team can sync its local photo deletions.');
+    let localId: string;
+    try { localId = text(decodeURIComponent(parts[3]), 150, true); } catch { throw new HttpError(400, 'Invalid photo identifier.'); }
+    return removeLocalPhoto(env, auth.event.id, auth.team!.id, localId);
+  }
   if (parts[2] === 'photos') {
     if (parts.length === 3 && request.method === 'POST') return uploadPhoto(request, env, auth);
     if (parts.length === 4 && ['GET', 'DELETE'].includes(request.method)) {
       const photo = await selectedPhoto(env, auth, parts[3]);
       if (request.method === 'DELETE') {
-        await env.PHOTOS.delete(objectKey(photo));
-        await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(photo.id).run();
-        return json({ ok: true });
+        return removeLocalPhoto(env, auth.event.id, photo.team_id, photo.local_photo_id);
       }
       const object = await env.PHOTOS.get(objectKey(photo));
       if (!object) throw new HttpError(404, 'Photo not found. Please refresh.');
@@ -409,7 +437,7 @@ export default {
     let response: Response;
     try { response = await route(request, env); }
     catch (error) {
-      response = error instanceof HttpError ? json({ error: error.message }, error.status) : json({ error: 'The service could not finish this request. Please retry; your local photos are safe.' }, 500);
+      response = error instanceof HttpError ? json({ error: error.message, code: error.code }, error.status) : json({ error: 'The service could not finish this request. Please retry; your local photos are safe.' }, 500);
       // No tokens, headers, names, photo bytes, or request URLs in logs.
       if (!(error instanceof HttpError)) console.error('Shared review request failed', error instanceof Error ? error.name : 'unknown');
     }

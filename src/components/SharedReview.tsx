@@ -40,7 +40,7 @@ function ReviewEvent({ access, onBack, onPlay, onJoined }: { access: EventAccess
   const applySnapshot = useCallback((next: ReviewSnapshot) => {
     requestSequence.current++;
     setSnapshot(previous => previous && previous.event.settingsRevision > next.event.settingsRevision
-      ? { ...next, event: { ...next.event, title: previous.event.title, teamNaming: previous.event.teamNaming, settingsRevision: previous.event.settingsRevision } }
+      ? { ...next, event: { ...next.event, title: previous.event.title, teamNaming: previous.event.teamNaming, autoUploadDefault: previous.event.autoUploadDefault, settingsRevision: previous.event.settingsRevision } }
       : next);
     setUpdatedAt(Date.now());
     setRefreshing(false);

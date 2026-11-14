@@ -9,6 +9,7 @@ import { CompareClues } from './CompareClues';
 import { LeaderDashboard } from './LeaderDashboard';
 import { EventSettingsDialog } from './EventSettingsDialog';
 import { describeTeamNaming } from './teamNamingText';
+import { AutoSendSummary } from './PhotoAutoSendControl';
 import { DEFAULT_TEAM_NAMING } from '@/lib/teamNaming';
 import { Notice, PackBadge, QrImage } from './ui';
 
@@ -190,7 +191,7 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
           <div className="flex flex-col gap-4 border-t-2 border-ink/10 p-4">
             <div>
               <h3 className="flex items-center gap-1.5 font-extrabold"><Pencil className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Event settings</h3>
-              <p className="mt-1 text-sm font-semibold text-ink/70">{describeTeamNaming(event.teamNaming ?? DEFAULT_TEAM_NAMING)}. New rules apply to teams that join afterwards.</p>
+              <p className="mt-1 text-sm font-semibold text-ink/70">{describeTeamNaming(event.teamNaming ?? DEFAULT_TEAM_NAMING)}. New rules apply to teams that join afterwards.</p><p className="mt-1 text-sm font-semibold text-ink/70">Photos: <AutoSendSummary on={event.autoUploadDefault ?? false} />.</p>
               <button type="button" onClick={openEditor} className="btn-3d btn-white mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-extrabold text-ink">
                 <Pencil className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Edit name & team names
               </button>

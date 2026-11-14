@@ -21,7 +21,7 @@ async function start(page: Page, completed: string[] = []) {
 
 async function photoCount(page: Page, packId = 'scavenger') {
   return page.evaluate(pack => new Promise<number>((resolve, reject) => {
-    const request = indexedDB.open('ScavengerHuntPhotos', 3);
+    const request = indexedDB.open('ScavengerHuntPhotos');
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result;
@@ -114,7 +114,7 @@ test('finish screen exports every photo for this pack, with unique labeled JPEGs
   await expect(page.getByRole('heading', { name: 'Your team’s photos (1)' })).toBeVisible();
   // A second photo of the same challenge must not overwrite the first in a ZIP.
   await page.evaluate(() => new Promise<void>(resolve => {
-    const request = indexedDB.open('ScavengerHuntPhotos', 3);
+    const request = indexedDB.open('ScavengerHuntPhotos');
     request.onsuccess = () => {
       const db = request.result;
       const tx = db.transaction('photos', 'readwrite');
@@ -189,7 +189,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
   await expect(page.getByRole('button', { name: 'Take photo for this challenge' })).toBeVisible();
   await page.getByRole('button', { name: /overview/i }).first().click();
   await page.evaluate(({ other }) => new Promise<void>(resolve => {
-    const request = indexedDB.open('ScavengerHuntPhotos', 3);
+    const request = indexedDB.open('ScavengerHuntPhotos');
     request.onsuccess = () => {
       const db = request.result;
       const tx = db.transaction('photos', 'readwrite');

@@ -107,7 +107,7 @@ function DialogBody({ gameTitle, eventTeam, busy, setBusy, onClose, onResetProgr
         {gameTitle ? `Start over ${gameTitle}?` : 'Start over?'}
       </AlertDialog.Title>
       <AlertDialog.Description className="mt-1.5 font-semibold text-ink/75">
-        This only changes <strong className="font-extrabold text-ink">{game}{eventTeam ? ` for ${eventTeam}` : " on this device"}</strong>. Your other hunts and cloud uploads stay as they are.
+        This only changes <strong className="font-extrabold text-ink">{game}{eventTeam ? ` for ${eventTeam}` : " on this device"}</strong>. {eventTeam ? 'Your other hunts stay as they are. With auto-send on, clearing photos also removes their cloud copies when connected.' : 'Your other hunts and cloud uploads stay as they are.'}
       </AlertDialog.Description>
 
       {step === 'choose' ? (
@@ -166,6 +166,7 @@ function DialogBody({ gameTitle, eventTeam, busy, setBusy, onClose, onResetProgr
             <p className="mt-1.5 text-sm font-bold leading-snug">
               {eventTeam ? `The local photos and progress for ${eventTeam} in this event will be deleted. Your event, team name and path stay set up.` : `The photos from this local ${game} hunt will be deleted, along with its progress, team name and path.`}
             </p>
+            {eventTeam && <p className="mt-2 text-sm font-bold leading-snug">If “Send photos as we go” is on, these photos are also removed from the event when connected. Reset progress alone keeps all photos.</p>}
             <p className="mt-2 text-sm font-bold leading-snug">
               Want to keep the photos? Cancel, then save them from this game&rsquo;s photo gallery first.
             </p>
