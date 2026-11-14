@@ -17,7 +17,7 @@ export function describeError(error: unknown): string {
       case 401: return 'This link isn’t valid. Ask the leader to send it again, and copy the whole link.';
       case 404:
       case 410: return 'This event has ended or was deleted.';
-      case 503: return error.message || 'Shared review is temporarily unavailable. Your hunt and photos still work on this device.';
+      case 503: return error.message || 'Group events are temporarily unavailable. Your hunt and photos still work on this device.';
       default: return error.message || 'Something went wrong. Please try again.';
     }
   }

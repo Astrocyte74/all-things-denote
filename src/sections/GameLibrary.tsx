@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowRight, Camera, MapPin, Play, RotateCcw, Route, Trophy, Users } from 'lucide-react';
+import { ArrowRight, CalendarDays, Camera, Check, ChevronDown, Crown, MapPin, Play, QrCode, RotateCcw, Route, Smartphone, Trophy } from 'lucide-react';
+import { getSavedReviews, reviewConfigured } from '@/lib/sharedReview';
 import type { GamePack } from '@/types';
 import './GameLibrary.css';
 
@@ -23,79 +24,227 @@ interface GameLibraryProps {
   onResume: (id: string) => void;
   /** Open the reset dialog for this game. */
   onReset: (id: string) => void;
-  /** Opens shared review (private events to compare teams' photos). */
-  onOpenSharedReview?: () => void;
+  /**
+   * Opens Group events. `'join'` / `'create'` emphasise that flow; no intent
+   * opens the events home (saved events first). When omitted, the library
+   * falls back to the plain game picker.
+   */
+  onOpenSharedReview?: (intent?: 'create' | 'join') => void;
 }
 
 /**
- * "Choose your adventure" library. Renders one card per registered pack:
- * nothing here is game-specific, so a new pack shows up automatically.
+ * Event-first landing. Group events (Join / Start) lead; every registered
+ * pack still renders as a card under a secondary "Play on this device"
+ * disclosure, which opens on its own when a hunt is saved here.
  *
  * Each card is an <article> holding sibling buttons (never nested): a
  * "stretched" title button whose ::after covers the whole card (opens
  * details), plus Continue / View results and Reset buttons layered above it.
  */
 export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onOpenSharedReview }: GameLibraryProps) {
+  const eventsFirst = Boolean(onOpenSharedReview);
+  const savedHunts = packs.filter(pack => summaries[pack.id]?.started || summaries[pack.id]?.hasSavedData).length;
+  // `null` until the user toggles, so late-arriving summaries can still auto-open it.
+  const [deviceChoice, setDeviceChoice] = useState<boolean | null>(null);
+  const deviceOpen = !eventsFirst || (deviceChoice ?? (savedHunts > 0 || !reviewConfigured));
+  const [savedEvents] = useState(() => {
+    try { return getSavedReviews().length; } catch { return 0; }
+  });
+
+  const openEvents = (intent?: 'create' | 'join') => onOpenSharedReview?.(intent);
+
+  const grid = (
+    <ul className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 md:gap-7" role="list">
+      {packs.map((pack, index) => (
+        <li
+          key={pack.id}
+          className="animate-rise-in"
+          style={{ animationDelay: `${(eventsFirst ? 0 : 80) + index * 70}ms` }}
+        >
+          <GameCard
+            pack={pack}
+            index={index}
+            summary={summaries[pack.id]}
+            onSelect={onSelect}
+            onResume={onResume}
+            onReset={onReset}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <section className="paper-dots min-h-[100svh] px-4 pb-12 pt-8 md:px-8 md:pt-12" aria-labelledby="game-library-title">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-6 text-center md:mb-10">
+        <header className="mb-6 text-center md:mb-9">
           <p className="mb-1 text-sm font-bold uppercase tracking-[0.14em] text-ink/60">
-            {packs.length} photo {packs.length === 1 ? 'game' : 'games'}
+            {eventsFirst ? 'Photo scavenger hunts' : `${packs.length} photo ${packs.length === 1 ? 'game' : 'games'}`}
           </p>
           <h1
             id="game-library-title"
             tabIndex={-1}
             className="text-sticker-sun animate-pop-in text-[2.4rem] leading-[1.05] sm:text-5xl md:text-6xl"
           >
-            Choose your adventure
+            {eventsFirst ? 'Hunt together' : 'Choose your adventure'}
           </h1>
           <p className="mx-auto mt-3 max-w-lg text-base font-medium text-ink/75 md:text-lg">
-            Pick a game for your group. Each one saves its own progress.
+            {eventsFirst
+              ? 'Playing with a group? Join your leader’s event and your game, team name and path are set up for you.'
+              : 'Pick a game for your group. Each one saves its own progress.'}
           </p>
         </header>
 
-        <ul className="grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 md:gap-7" role="list">
-          {packs.map((pack, index) => (
-            <li
-              key={pack.id}
-              className="animate-rise-in"
-              style={{ animationDelay: `${80 + index * 70}ms` }}
-            >
-              <GameCard
-                pack={pack}
-                index={index}
-                summary={summaries[pack.id]}
-                onSelect={onSelect}
-                onResume={onResume}
-                onReset={onReset}
+        {eventsFirst && (
+          <section aria-labelledby="gl-events-title" className="mb-8 md:mb-10">
+            <h2 id="gl-events-title" className="sr-only">Group events</h2>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-7">
+              <EventCard
+                tone="join"
+                title="Join an event"
+                body="Got a QR code from your leader? Scan it with your camera, or tap below to paste their link."
+                chips={['Game', 'Team name', 'Path']}
+                chipsLabel="Set up for you"
+                cta="Join an event"
+                delay={80}
+                onClick={() => openEvents('join')}
               />
+              <EventCard
+                tone="create"
+                title="Start an event"
+                body="For leaders. Pick a game and share one QR code. Teams send the photos they choose, and you review every clue on a phone or laptop."
+                chips={['QR invite', 'Private', '7 days']}
+                chipsLabel="Includes"
+                cta="Start an event"
+                delay={150}
+                onClick={() => openEvents('create')}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openEvents()}
+              className="gl-events-link animate-rise-in mt-4 flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 border-ink bg-cream px-4 py-2.5 text-left"
+              style={{ animationDelay: '210ms' }}
+            >
+              <CalendarDays className="h-6 w-6 flex-shrink-0" strokeWidth={2.5} aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-xl leading-tight tracking-wide text-ink">Your events</span>
+                <span className="block text-sm font-semibold text-ink/70">
+                  {savedEvents > 0
+                    ? `${savedEvents} saved on this device`
+                    : 'Events you start or join show up here'}
+                </span>
+              </span>
+              <ArrowRight className="gl-events-arrow h-5 w-5 flex-shrink-0" strokeWidth={3} aria-hidden="true" />
+            </button>
+          </section>
+        )}
+
+        {eventsFirst ? (
+          <section aria-labelledby="gl-device-title" className="animate-rise-in" style={{ animationDelay: '260ms' }}>
+            <h2 id="gl-device-title" className="m-0">
+              <button
+                type="button"
+                className="gl-device flex min-h-16 w-full items-center gap-3 rounded-2xl border-2 border-dashed border-ink/45 px-4 py-3 text-left"
+                aria-expanded={deviceOpen}
+                aria-controls="gl-device-games"
+                onClick={() => setDeviceChoice(!deviceOpen)}
+              >
+                <span aria-hidden="true" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-cream">
+                  <Smartphone className="h-5 w-5 text-ink" strokeWidth={2.5} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-display text-xl leading-tight tracking-wide text-ink">Play on this device</span>
+                  <span className="block text-sm font-semibold text-ink/70">
+                    Solo or offline, no event needed
+                    {savedHunts > 0 && ` · ${savedHunts} ${savedHunts === 1 ? 'hunt' : 'hunts'} saved`}
+                  </span>
+                </span>
+                <span aria-hidden="true" className="hidden flex-shrink-0 -space-x-2 sm:flex">
+                  {packs.slice(0, 4).map(pack => (
+                    <span
+                      key={pack.id}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink text-base leading-none"
+                      style={{ backgroundColor: pack.library.color }}
+                    >
+                      {pack.mascotEmoji || <span className="font-display text-sm text-ink">{pack.title.trim().charAt(0)}</span>}
+                    </span>
+                  ))}
+                </span>
+                <ChevronDown
+                  className={`h-6 w-6 flex-shrink-0 text-ink transition-transform duration-200 ${deviceOpen ? 'rotate-180' : ''}`}
+                  strokeWidth={3}
+                  aria-hidden="true"
+                />
+              </button>
+            </h2>
+            <div id="gl-device-games" hidden={!deviceOpen} className="pt-5">
+              {deviceOpen && grid}
+            </div>
+          </section>
+        ) : grid}
+      </div>
+    </section>
+  );
+}
+
+// ── Event entry cards ───────────────────────────────────────────────────────
+
+interface EventCardProps {
+  tone: 'join' | 'create';
+  title: string;
+  body: string;
+  chips: string[];
+  chipsLabel: string;
+  cta: string;
+  delay: number;
+  onClick: () => void;
+}
+
+function EventCard({ tone, title, body, chips, chipsLabel, cta, delay, onClick }: EventCardProps) {
+  const join = tone === 'join';
+  const Icon = join ? QrCode : Crown;
+  return (
+    <article
+      className={`gl-event gl-event--${tone} sticker-card animate-rise-in flex h-full flex-col p-4 sm:p-5`}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex items-start gap-3.5">
+        <span
+          aria-hidden="true"
+          className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border-2 border-ink shadow-[3px_3px_0_0_#2E2459] ${join ? '-rotate-3 bg-go' : 'rotate-3 bg-sun'}`}
+        >
+          <Icon className="h-7 w-7 text-ink" strokeWidth={2.5} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[1.65rem] leading-[1.05] text-ink sm:text-[1.8rem]">{title}</h3>
+          <p className="mt-1 text-[0.98rem] font-medium leading-snug text-ink/80">{body}</p>
+        </div>
+      </div>
+
+      <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
+        <span className="mr-0.5 text-xs font-extrabold uppercase tracking-wider text-ink/60">{chipsLabel}</span>
+        <ul className="flex flex-wrap gap-1.5" aria-label={chipsLabel}>
+          {chips.map(chip => (
+            <li key={chip} className="gl-event-chip inline-flex items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-extrabold text-ink">
+              {join && <Check className="h-3 w-3" strokeWidth={3.5} aria-hidden="true" />}
+              {chip}
             </li>
           ))}
         </ul>
-
-        {onOpenSharedReview && (
-          <div className="flat-card animate-rise-in mt-8 flex flex-col gap-4 bg-cream p-4 sm:flex-row sm:items-center sm:p-5" style={{ animationDelay: `${120 + packs.length * 70}ms` }}>
-            <span aria-hidden="true" className="flex h-14 w-14 flex-shrink-0 -rotate-3 items-center justify-center rounded-2xl border-2 border-ink bg-sky shadow-[3px_3px_0_0_#2E2459]">
-              <Users className="h-7 w-7 text-ink" strokeWidth={2.5} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-2xl leading-tight text-ink">Shared review</h2>
-              <p className="mt-0.5 text-[0.98rem] font-medium leading-snug text-ink/80">
-                Leaders: start a private event with a QR code. Teams: join with a link and send the photos you choose.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenSharedReview}
-              className="btn-3d btn-sky inline-flex min-h-12 flex-shrink-0 items-center justify-center gap-2 rounded-2xl px-5 font-display text-lg tracking-wide text-ink"
-            >
-              Open shared review <ArrowRight className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
-            </button>
-          </div>
-        )}
       </div>
-    </section>
+
+      <div className="mt-auto pt-4">
+        <button
+          type="button"
+          onClick={onClick}
+          className={`btn-3d ${join ? 'btn-go' : 'btn-sun'} inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-5 font-display text-xl tracking-wide text-ink`}
+        >
+          {cta} <ArrowRight className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
+        </button>
+      </div>
+    </article>
   );
 }
 

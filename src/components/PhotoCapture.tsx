@@ -15,13 +15,15 @@ interface PhotoCaptureProps {
   variant?: 'default' | 'display';
   pathId?: string;
   teamName?: string;
+  /** Event/team scope, captured with the photo; absent for a local game. */
+  huntId?: string;
   /** Pack id, stamped on the saved photo so it stays scoped to its game. */
   packId?: string;
   /** Draw attention to the button (focus mode, challenge not yet complete) */
   pulse?: boolean;
 };
 
-export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, teamName, packId, pulse = false }: PhotoCaptureProps) {
+export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSaved, variant = 'default', pathId, teamName, packId, huntId, pulse = false }: PhotoCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const pendingPhoto = useRef<StoredPhoto | null>(null);
@@ -47,7 +49,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         categoryTitle: category.title,
         categoryIcon: category.icon,
         categoryColor: category.color,
-        pathId, packId, teamName: cleanTeamName(teamName) || undefined,
+        pathId, packId, huntId, teamName: cleanTeamName(teamName) || undefined,
         imageData: await processPhoto(file, challenge, category, pathId, teamName),
         timestamp: Date.now(),
       };

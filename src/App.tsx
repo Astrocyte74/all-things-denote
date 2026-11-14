@@ -16,7 +16,8 @@ import { OfflineNotice } from '@/components/OfflineNotice';
 import { getPhotoCount } from '@/lib/photoStorage';
 import { resetGame } from '@/lib/resetGame';
 import { cleanTeamName, TEAM_NAME_LIMIT } from '@/lib/teamName';
-import { openReviewHome, readReviewRoute, type ReviewRoute } from '@/lib/sharedReview';
+import { openReview, openReviewHome, readReviewRoute, type ReviewRoute, type EventAccess, type ReviewSnapshot } from '@/lib/sharedReview';
+import { eventHuntId, makeEventHunt, type EventHunt } from '@/lib/eventHunt';
 import './App.css';
 
 const SharedReview = lazy(() => import('@/components/SharedReview').then(module => ({ default: module.SharedReview })));
@@ -43,6 +44,8 @@ function App() {
   // doesn't lose each game's chosen path.
   const [pathByPack, setPathByPack] = usePersistedState<Record<string, string>>('pathByPack', {});
   const [teamNameByPack, setTeamNameByPack] = usePersistedState<Record<string, string>>('teamNameByPack', {});
+  const [eventHunt, setEventHunt] = usePersistedState<EventHunt | null>('activeEventHunt:v1', null);
+  const [savedEventHunts, setSavedEventHunts] = usePersistedState<Record<string, EventHunt>>('eventHunts:v1', eventHunt ? { [eventHuntId(eventHunt.event.id, eventHunt.team.id)]: eventHunt } : {});
   const [photoCountsByPack, setPhotoCountsByPack] = useState<Record<string, number>>({});
   const [libraryRevision, setLibraryRevision] = useState(0);
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
@@ -77,17 +80,19 @@ function App() {
 
   const pack = getPackById(activePackId);
 
-  const selectedPathId = pathByPack[pack.id] ?? '';
+  const activeEvent = eventHunt?.event.packId === pack.id ? eventHunt : null;
+  const huntId = activeEvent ? eventHuntId(activeEvent.event.id, activeEvent.team.id) : undefined;
+  const selectedPathId = activeEvent?.pathId ?? pathByPack[pack.id] ?? '';
   const selectedPath = pack.paths.find((p) => p.id === selectedPathId);
   const appState = ['library', 'game', 'path-selection', 'rules', 'hunt'].includes(savedAppState)
     && (savedAppState !== 'hunt' || selectedPath) ? savedAppState : 'library';
-  const teamNameInput = teamNameByPack[pack.id] ?? '';
+  const teamNameInput = activeEvent?.team.name ?? teamNameByPack[pack.id] ?? '';
   const teamName = cleanTeamName(teamNameInput);
 
   useEffect(() => {
     if (appState !== 'library') return;
     let cancelled = false;
-    void Promise.all(PACKS.map(async game => [game.id, await getPhotoCount(game.id)] as const))
+    void Promise.all(PACKS.map(async game => [game.id, await getPhotoCount(game.id, null)] as const))
       .then(entries => { if (!cancelled) setPhotoCountsByPack(Object.fromEntries(entries)); })
       .catch(() => { /* Saved paths/progress still expose reset if photo storage is unavailable. */ });
     return () => { cancelled = true; };
@@ -121,6 +126,7 @@ function App() {
 
   // ── Pack + flow handlers ────────────────────────────────────────────────
   const handlePickPack = (id: string) => {
+    setEventHunt(null);
     setActivePackId(id);
     setBonusUnlocked(false);
     setGalleryOpen(false);
@@ -134,6 +140,26 @@ function App() {
     handlePickPack(id);
     setStartedByPack(prev => ({ ...prev, [id]: true }));
     setAppState('hunt');
+  };
+
+  const prepareEventHunt = (access: EventAccess, snapshot: ReviewSnapshot, play = false) => {
+    const next = makeEventHunt(access, snapshot);
+    if (!next) return;
+    const scope = eventHuntId(next.event.id, next.team.id);
+    setEventHunt(next);
+    setSavedEventHunts(previous => ({ ...previous, [scope]: next }));
+    setActivePackId(next.event.packId);
+    setBonusUnlocked(false);
+    setGalleryOpen(false);
+    setPathSelectionOpen(false);
+    setPhotoCount(0);
+    setProgress({ completed: 0, total: 0 });
+    setAppState(startedByPack[scope] ? 'hunt' : 'rules');
+    if (play) leaveReview();
+  };
+  const returnToEvent = () => {
+    if (activeEvent) openReview(activeEvent.access);
+    else openReviewHome(pack.id);
   };
 
   const handleStart = () => {
@@ -159,6 +185,7 @@ function App() {
   };
 
   const handleChangePath = () => {
+    if (activeEvent) { returnToEvent(); return; }
     if (appState === 'rules' || appState === 'game') {
       setAppState('path-selection');
     } else {
@@ -167,7 +194,7 @@ function App() {
   };
 
   const handleStartHunt = () => {
-    setStartedByPack(prev => ({ ...prev, [pack.id]: true }));
+    setStartedByPack(prev => ({ ...prev, [huntId ?? pack.id]: true }));
     setAppState('hunt');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -178,6 +205,7 @@ function App() {
   };
 
   const handleBackToPathSelection = () => {
+    if (activeEvent) { returnToEvent(); return; }
     setAppState('path-selection');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
@@ -185,9 +213,10 @@ function App() {
   const handleResetGame = async (deletePhotos: boolean) => {
     if (!resetTarget) return;
     const id = resetTarget;
-    await resetGame(id, deletePhotos);
-    setStartedByPack(prev => ({ ...prev, [id]: false }));
-    if (deletePhotos) {
+    const scope = appState !== 'library' && id === pack.id ? huntId : undefined;
+    await resetGame(id, deletePhotos, scope);
+    setStartedByPack(prev => ({ ...prev, [scope ?? id]: false }));
+    if (deletePhotos && !scope) {
       setPathByPack(prev => { const next = { ...prev }; delete next[id]; return next; });
       setTeamNameByPack(prev => { const next = { ...prev }; delete next[id]; return next; });
       setPhotoCountsByPack(prev => ({ ...prev, [id]: 0 }));
@@ -198,7 +227,7 @@ function App() {
       setActivePackId(id);
       setGalleryOpen(false);
       setPathSelectionOpen(false);
-      setAppState('path-selection');
+      setAppState(scope ? 'rules' : 'path-selection');
       window.scrollTo({ top: 0, behavior: 'instant' });
     }
   };
@@ -210,15 +239,29 @@ function App() {
   return (
     <div className="min-h-screen bg-paper overflow-x-hidden">
       {reviewRoute ? (
-        <Suspense fallback={<p role="status" className="p-8 text-center font-display text-2xl">Opening shared review…</p>}>
+        <Suspense fallback={<p role="status" className="p-8 text-center font-display text-2xl">Opening group events…</p>}>
         <SharedReview
           route={reviewRoute}
           onBack={() => { leaveReview(); setAppState('library'); }}
-          onPlay={packId => { leaveReview(); handlePickPack(packId); }}
+          onPlay={(access, snapshot) => prepareEventHunt(access, snapshot, true)}
+          onJoined={(access, snapshot) => prepareEventHunt(access, snapshot)}
         />
         </Suspense>
       ) : <>
-      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} onReset={setResetTarget} onOpenSharedReview={() => openReviewHome()} />}
+      {appState === 'library' && Object.keys(savedEventHunts).length > 0 && (
+        <details className="mx-auto max-w-5xl px-4 pt-5 text-ink">
+          <summary className="min-h-11 cursor-pointer rounded-2xl border-2 border-ink bg-sky-soft p-3 font-extrabold">Saved team hunts on this device ({Object.keys(savedEventHunts).length})</summary>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {Object.entries(savedEventHunts).map(([id, saved]) => <li key={id} className="sticker-card bg-cream p-4">
+              <p className="font-display text-xl">{saved.event.title}</p>
+              <p className="text-sm font-semibold">{getPackById(saved.event.packId).title} · {saved.team.name} · Path {saved.pathId}</p>
+              <p className="mt-1 text-sm text-ink/70">Saved here for offline play, even after the cloud event ends.</p>
+              <button className="btn-3d btn-white mt-3 min-h-11 rounded-2xl px-4 font-extrabold" onClick={() => { setEventHunt(saved); setActivePackId(saved.event.packId); setBonusUnlocked(false); setGalleryOpen(false); setProgress({completed:0,total:0}); setAppState(startedByPack[id] ? 'hunt' : 'rules'); }}>Continue {saved.team.name}</button>
+            </li>)}
+          </ul>
+        </details>
+      )}
+      {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} onReset={setResetTarget} onOpenSharedReview={intent => openReviewHome(undefined, intent)} />}
       {appState === 'game' && <Header pack={pack} onBack={handleBackToLanding} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />}
 
       {/* Path Selection */}
@@ -234,10 +277,11 @@ function App() {
         />
       )}
 
+      {activeEvent && appState === 'rules' && <div className="bg-sky-soft px-4 py-4 text-center"><p className="font-extrabold">{activeEvent.event.title} · {teamName} · Path {selectedPathId}</p><button onClick={returnToEvent} className="mt-1 min-h-11 font-bold underline">Back to event</button></div>}
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={true} collapsed={false} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} onStart={handleStartHunt} rules={pack.rules} />
+          <Rules isVisible={true} collapsed={false} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} onStart={handleStartHunt} rules={pack.rules} />
         </div>
       )}
 
@@ -248,6 +292,8 @@ function App() {
           <StickyHuntHeader
             pathId={selectedPathId}
             teamName={teamName}
+            eventTitle={activeEvent?.event.title}
+            onBackToEvent={activeEvent ? returnToEvent : undefined}
             onChangePath={handleChangePath}
             onOpenGallery={() => setGalleryOpen(true)}
             completed={progress.completed}
@@ -258,10 +304,10 @@ function App() {
           />
 
           <Categories
-            key={pack.id}
+            key={huntId ?? pack.id}
             teamName={teamName}
             onReset={() => setResetTarget(pack.id)}
-            onShareWithEvent={() => openReviewHome(pack.id)}
+            onShareWithEvent={returnToEvent}
             isVisible={true}
             selectedPathId={selectedPathId}
             pathOrder={selectedPath.order}
@@ -272,12 +318,13 @@ function App() {
             onPhotoCountChange={setPhotoCount}
             onProgressChange={handleProgressChange}
             packId={pack.id}
+            huntId={huntId}
             categories={pack.categories}
           />
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} total={progress.total} bonusItems={pack.bonusItems} />
           <Footer pack={pack} />
           {/* Collapsed rules at bottom during hunt */}
-          <Rules isVisible={false} collapsed={true} onChangePath={handleChangePath} currentPathId={selectedPathId || 'A'} onBack={handleBackToPathSelection} rules={pack.rules} />
+          <Rules isVisible={false} collapsed={true} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} rules={pack.rules} />
 
           {/* Path Selection Modal */}
           {pathSelectionOpen && (
@@ -307,6 +354,7 @@ function App() {
 
       <StartOverDialog
         isOpen={resetTarget !== null}
+        eventTeam={appState !== 'library' ? activeEvent?.team.name : undefined}
         gameTitle={resetTarget ? getPackById(resetTarget).title : undefined}
         onClose={() => setResetTarget(null)}
         onResetProgress={() => handleResetGame(false)}

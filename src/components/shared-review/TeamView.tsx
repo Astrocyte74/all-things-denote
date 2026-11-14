@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, CheckCircle2, CloudUpload, Loader2, Lock, Play, RefreshCw, RotateCcw } from 'lucide-react';
+import { eventHuntId } from '@/lib/eventHunt';
 import { getPackById } from '@/data/packs';
 import { getAllPhotos, type StoredPhoto } from '@/lib/photoStorage';
 import { deleteReviewPhoto, uploadReviewPhoto, type EventAccess, type ReviewPhoto, type ReviewSnapshot } from '@/lib/sharedReview';
@@ -13,7 +14,7 @@ interface TeamViewProps {
   access: EventAccess;
   snapshot: ReviewSnapshot;
   refresh: () => Promise<void>;
-  onPlay: (packId: string) => void;
+  onPlay: () => void;
 }
 
 /** Selection survives reloads and dropped connections for this event. */
@@ -55,12 +56,12 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
     getAllPhotos(event.packId)
       .then(photos => {
         if (cancelled) return;
-        setLocal(photos.sort((a, b) => a.challengeNumber - b.challengeNumber || a.timestamp - b.timestamp));
+        setLocal(photos.filter(photo => !photo.huntId || photo.huntId === eventHuntId(event.id, team!.id)).sort((a, b) => a.challengeNumber - b.challengeNumber || a.timestamp - b.timestamp));
         setLocalError(false);
       })
       .catch(() => { if (!cancelled) setLocalError(true); });
     return () => { cancelled = true; };
-  }, [event.packId, localAttempt]);
+  }, [event.packId, event.id, team, localAttempt]);
   const loadLocal = () => setLocalAttempt(n => n + 1);
 
   // localPhotoId → server copy (from the snapshot, plus anything sent this visit).
@@ -185,11 +186,16 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
           <div className="flex min-w-0 items-center gap-2">
             <span className="text-sm font-bold text-ink/70">Sending as</span>
             <span className="truncate font-display text-xl">{team?.name ?? 'Your team'}</span>
-            <PathPill pathId={team?.pathId} />
+            <PathPill pathId={team?.pathId ?? pack.paths[0].id} />
           </div>
           <span className="ml-auto text-sm font-extrabold text-ink/70">{uploadedCount} sent</span>
         </div>
       </div>
+
+      <section className="sticker-card mb-5 flex flex-col gap-3 bg-go/10 p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Your event hunt">
+        <div><h2 className="font-display text-2xl">Your hunt is ready</h2><p className="mt-1 text-sm font-semibold text-ink/75">{pack.title} · {team?.name} · Path {team?.pathId ?? pack.paths[0].id}. Everything is set. Come back here to send your photos.</p></div>
+        <button type="button" disabled={busy} onClick={onPlay} className="btn-3d btn-go inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-2xl px-5 font-display text-xl text-ink"><Play className="h-5 w-5" aria-hidden="true" /> Open team hunt</button>
+      </section>
 
       {event.closed && (
         <div className="mb-5">
@@ -212,17 +218,15 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
       ) : local.length === 0 ? (
         <div className="mt-5 rounded-3xl border-2 border-dashed border-ink/40 bg-cream/70 p-6 text-center">
           <p className="font-display text-2xl">No {pack.title} photos on this phone yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm font-semibold text-ink/70">Play the game, then come back to this event. Find it again under Shared review on the games screen.</p>
-          <button type="button" onClick={() => onPlay(pack.id)} className="btn-3d btn-go mt-4 inline-flex min-h-12 items-center gap-2 rounded-2xl px-5 font-display text-xl tracking-wide text-ink">
-            <Play className="h-5 w-5 fill-current" strokeWidth={2.5} aria-hidden="true" /> Play {pack.title}
-          </button>
+          <p className="mx-auto mt-1 max-w-sm text-sm font-semibold text-ink/70">Open your team hunt above. Use Back to event from the hunt to send your discoveries.</p>
+
         </div>
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button type="button" disabled={running || !pending.length} onClick={() => setSelection(new Set(pending.map(p => p.id)))} className="btn-3d btn-white min-h-10 rounded-full px-4 text-sm font-extrabold text-ink">Select all</button>
             <button type="button" disabled={running || !selected.size} onClick={() => setSelection(new Set())} className="btn-3d btn-white min-h-10 rounded-full px-4 text-sm font-extrabold text-ink">Clear</button>
-            <button type="button" onClick={() => onPlay(pack.id)} className="ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold text-ink/70 underline-offset-4 hover:underline">
+            <button type="button" onClick={onPlay} className="ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold text-ink/70 underline-offset-4 hover:underline">
               <Play className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Keep playing
             </button>
           </div>

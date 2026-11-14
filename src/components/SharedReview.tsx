@@ -14,7 +14,8 @@ interface SharedReviewProps {
   /** Leave shared review and return to the game library. */
   onBack: () => void;
   /** Leave shared review and open a game (team has no photos yet). */
-  onPlay: (packId: string) => void;
+  onPlay: (access: EventAccess, snapshot: ReviewSnapshot) => void;
+  onJoined: (access: EventAccess, snapshot: ReviewSnapshot) => void;
 }
 
 /**
@@ -22,15 +23,15 @@ interface SharedReviewProps {
  * clue-by-clue leader comparison. Rendered by App whenever the URL hash
  * holds a review route; normal hunt state stays untouched underneath.
  */
-export function SharedReview({ route, onBack, onPlay }: SharedReviewProps) {
-  const routeKey = route.screen === 'home' ? `home:${route.packId ?? ''}` : `${route.access.eventId}:${route.access.role}:${route.access.token}`;
+export function SharedReview({ route, onBack, onPlay, onJoined }: SharedReviewProps) {
+  const routeKey = route.screen === 'home' ? `home:${route.packId ?? ''}:${route.intent ?? ''}` : `${route.access.eventId}:${route.access.role}:${route.access.token}`;
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [routeKey]);
 
-  if (route.screen === 'home') return <ReviewHome key={routeKey} packId={route.packId} onBack={onBack} />;
-  return <ReviewEvent key={routeKey} access={route.access} onBack={onBack} onPlay={onPlay} />;
+  if (route.screen === 'home') return <ReviewHome key={routeKey} packId={route.packId} intent={route.intent} onBack={onBack} />;
+  return <ReviewEvent key={routeKey} access={route.access} onBack={onBack} onPlay={onPlay} onJoined={onJoined} />;
 }
 
-function ReviewEvent({ access, onBack, onPlay }: { access: EventAccess; onBack: () => void; onPlay: (packId: string) => void }) {
+function ReviewEvent({ access, onBack, onPlay, onJoined }: { access: EventAccess } & Pick<SharedReviewProps, 'onBack' | 'onPlay' | 'onJoined'>) {
   const [snapshot, setSnapshot] = useState<ReviewSnapshot | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +80,7 @@ function ReviewEvent({ access, onBack, onPlay }: { access: EventAccess; onBack: 
                   Remove from this device
                 </button>
               )}
-              <button type="button" onClick={backToReviews} className="btn-3d btn-white min-h-12 rounded-2xl px-5 font-extrabold text-ink">Shared review home</button>
+              <button type="button" onClick={backToReviews} className="btn-3d btn-white min-h-12 rounded-2xl px-5 font-extrabold text-ink">Group events home</button>
             </div>
           </div>
         )}
@@ -102,13 +103,13 @@ function ReviewEvent({ access, onBack, onPlay }: { access: EventAccess; onBack: 
     return (
       <ReviewShell {...shellBack} wide>
         {refreshError && <div className="mx-auto mb-4 max-w-4xl"><Notice tone="offline">{refreshError}</Notice></div>}
-        <TeamView access={access} snapshot={snapshot} refresh={refresh} onPlay={onPlay} />
+        <TeamView access={access} snapshot={snapshot} refresh={refresh} onPlay={() => onPlay(access, snapshot)} />
       </ReviewShell>
     );
   }
   return (
     <ReviewShell onBack={onBack}>
-      <JoinView access={access} snapshot={snapshot} />
+      <JoinView access={access} snapshot={snapshot} onJoined={onJoined} />
     </ReviewShell>
   );
 }

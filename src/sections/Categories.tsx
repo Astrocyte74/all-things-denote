@@ -27,6 +27,7 @@ interface CategoriesProps {
   onProgressChange?: (completed: number, total: number) => void;
   /** Active pack id — used to namespace progress/photos per game. */
   packId: string;
+  huntId?: string;
   categories: CategoryType[];
   teamName?: string;
   onReset: () => void;
@@ -34,20 +35,20 @@ interface CategoriesProps {
   onShareWithEvent?: () => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, categories, teamName, onReset, onShareWithEvent }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, huntId, categories, teamName, onReset, onShareWithEvent }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
   }>({ pathId: selectedPathId, categoryId: undefined });
-  const [completedChallenges, setCompletedChallenges] = usePersistedState<Set<string>>(`completedChallenges:${packId}`, new Set());
+  const [completedChallenges, setCompletedChallenges] = usePersistedState<Set<string>>(`completedChallenges:${huntId ?? packId}`, new Set());
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
-  const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle(`showAnalogiesEarly:${packId}`, false);
+  const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle(`showAnalogiesEarly:${huntId ?? packId}`, false);
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
   const [burstKey, setBurstKey] = useState(0);
-  const [lastChallengeByPath, setLastChallengeByPath] = usePersistedState<Record<string, string>>(`lastChallenge:${packId}`, {});
+  const [lastChallengeByPath, setLastChallengeByPath] = usePersistedState<Record<string, string>>(`lastChallenge:${huntId ?? packId}`, {});
   const [reviewingCompleted, setReviewingCompleted] = useState(false);
 
   const celebrate = useCallback(() => setBurstKey(k => k + 1), []);
@@ -105,8 +106,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   // Load photo count on mount
   useEffect(() => {
-    getPhotoCount(packId).then(onPhotoCountChange);
-  }, [onPhotoCountChange, packId]);
+    getPhotoCount(packId, huntId ?? null).then(onPhotoCountChange);
+  }, [onPhotoCountChange, packId, huntId]);
 
   // Load photo counts per challenge
   useEffect(() => {
@@ -116,7 +117,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       const photosMap: Record<string, StoredPhoto[]> = {};
 
       for (const challenge of allChallenges) {
-        const photos = await getPhotosByChallenge(challenge.id);
+        const photos = await getPhotosByChallenge(challenge.id, huntId ?? null);
         photoCountMap[challenge.id] = photos.length;
         photosMap[challenge.id] = photos;
       }
@@ -126,11 +127,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     };
 
     loadChallengePhotos();
-  }, [orderedCategoryData]);
+  }, [orderedCategoryData, huntId]);
 
   // Handle photo saved callback
   const handlePhotoSaved = useCallback(async () => {
-    const count = await getPhotoCount(packId);
+    const count = await getPhotoCount(packId, huntId ?? null);
     onPhotoCountChange(count);
 
     // Update challenge photo counts and photos
@@ -139,14 +140,14 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
 
     for (const challenge of allChallenges) {
-      const photos = await getPhotosByChallenge(challenge.id);
+      const photos = await getPhotosByChallenge(challenge.id, huntId ?? null);
       photoCountMap[challenge.id] = photos.length;
       photosMap[challenge.id] = photos;
     }
 
     setChallengePhotoCounts(photoCountMap);
     setChallengePhotos(photosMap);
-  }, [orderedCategoryData, onPhotoCountChange, packId]);
+  }, [orderedCategoryData, onPhotoCountChange, packId, huntId]);
 
   // Handle gallery photo count change
   const handleGalleryPhotoCountChange = useCallback((count: number) => {
@@ -313,7 +314,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const allComplete = totalProgress.total > 0 && totalProgress.completed === totalProgress.total;
 
   if (allComplete && !reviewingCompleted) {
-    return <FinishScreen teamName={teamName} onReset={onReset} onShareWithEvent={onShareWithEvent} packId={packId} pathId={selectedPathId} total={totalProgress.total}
+    return <FinishScreen teamName={teamName} onReset={onReset} onShareWithEvent={onShareWithEvent} packId={packId} huntId={huntId} pathId={selectedPathId} total={totalProgress.total}
       onReview={() => { setReviewingCompleted(true); setDisplayModeChallenge(null); }}
       onPhotosChanged={handlePhotoSaved}
       galleryOpen={galleryOpen} setGalleryOpen={setGalleryOpen}
@@ -394,6 +395,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             <span className="hidden sm:inline">Overview</span>
           </button>
         </div>
+
+        {huntId && onShareWithEvent && <button onClick={onShareWithEvent} className="mx-4 mt-3 min-h-10 flex-shrink-0 rounded-xl border-2 border-ink bg-cream px-3 text-sm font-extrabold text-ink">Back to event · send photos</button>}
 
         {/* Challenge card */}
         {/* min-h-0 + my-auto (not items-center): a centered flex item taller than the
@@ -571,7 +574,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               category={category}
               onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved}
-              packId={packId}
+              packId={packId} huntId={huntId}
               variant="display"
               pulse={!isCompleted}
             />
@@ -597,7 +600,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         }}
         onPhotoCountChange={handleGalleryPhotoCountChange}
         filterChallengeId={galleryFilterChallengeId}
-        packId={packId}
+        packId={packId} huntId={huntId}
       />
       </>
     );
@@ -606,7 +609,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   // ============ OVERVIEW (checklist) ============
   return (
     <>
-    <section className="paper-dots relative pb-16 pt-24 md:pb-20 md:pt-28">
+    <section className={`paper-dots relative pb-16 md:pb-20 ${huntId ? "pt-36 md:pt-40" : "pt-24 md:pt-28"}`}>
       <div className="mx-auto max-w-3xl px-4 md:px-8">
         {allComplete && <button onClick={() => setReviewingCompleted(false)} className="btn-3d btn-go mb-6 w-full rounded-full px-5 py-3 font-bold text-ink">See hunt celebration & photos</button>}
         {/* Header */}
@@ -866,7 +869,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                     category={category}
                                     onCaptureComplete={markChallengeComplete}
                                     onPhotoSaved={handlePhotoSaved}
-                                    packId={packId}
+                                    packId={packId} huntId={huntId}
                                   />
                                 </div>
                               </div>
@@ -906,7 +909,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       onPhotoCountChange={handleGalleryPhotoCountChange}
       onPhotoDeleted={handlePhotoSaved}
       filterChallengeId={galleryFilterChallengeId}
-      packId={packId}
+      packId={packId} huntId={huntId}
     />
   </>
   );

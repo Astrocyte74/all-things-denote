@@ -8,6 +8,7 @@ import { ConfettiBurst } from './ConfettiBurst';
 import { RotateCcw, Users } from 'lucide-react';
 
 interface FinishScreenProps {
+  huntId?: string;
   packId: string;
   pathId: string;
   total: number;
@@ -23,7 +24,7 @@ interface FinishScreenProps {
   onShareWithEvent?: () => void;
 }
 
-export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen, onReset, teamName, onShareWithEvent }: FinishScreenProps) {
+export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen, onReset, teamName, onShareWithEvent }: FinishScreenProps) {
   const team = teamName?.trim();
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,14 +34,14 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPhotos((await getAllPhotos(packId)).sort((a, b) => a.challengeNumber - b.challengeNumber));
+      setPhotos((await getAllPhotos(packId, huntId ?? null)).sort((a, b) => a.challengeNumber - b.challengeNumber));
       setError(false);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [packId]);
+  }, [packId, huntId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -48,7 +49,7 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
   }, []);
 
   return <>
-    <section className="paper-dots relative px-4 pb-12 pt-28 text-ink">
+    <section className={`paper-dots relative px-4 pb-12 text-ink ${huntId ? "pt-40" : "pt-28"}`}>
       <ConfettiBurst burstKey={1} />
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
@@ -87,7 +88,7 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
             <h2 className="font-display text-2xl">Compare with other teams</h2>
             <p className="text-sm font-semibold text-ink/75">Send the photos you choose to your leader’s private event, or start one, and see every team’s discovery clue by clue.</p>
           </div>
-          <button onClick={onShareWithEvent} className="btn-3d btn-sky inline-flex min-h-12 flex-shrink-0 items-center gap-2 rounded-full px-5 font-extrabold text-ink">Share with an event</button>
+          <button onClick={onShareWithEvent} className="btn-3d btn-sky inline-flex min-h-12 flex-shrink-0 items-center gap-2 rounded-full px-5 font-extrabold text-ink">{huntId ? "Back to event & send photos" : "Share with an event"}</button>
         </div>}
         {onReset && <div className="mt-10 border-t-2 border-dashed border-ink/20 pt-6 text-center">
           <p className="text-sm font-semibold text-ink/70">Playing again with a new group? Save your photos first.</p>
@@ -97,7 +98,7 @@ export function FinishScreen({ packId, pathId, total, onReview, onPhotosChanged,
         </div>}
       </div>
     </section>
-    <PhotoGallery isOpen={galleryOpen} onClose={() => setGalleryOpen(false)} packId={packId}
+    <PhotoGallery isOpen={galleryOpen} onClose={() => setGalleryOpen(false)} packId={packId} huntId={huntId}
       onPhotoDeleted={() => { void load(); void onPhotosChanged(); }} />
   </>;
 }

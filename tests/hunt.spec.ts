@@ -56,6 +56,7 @@ test('refresh and Continue restore the viewed challenge and saved progress', asy
 
 test('first-time setup and pre-existing hunts both support Continue', async ({ page }) => {
   await page.goto('./');
+  await page.getByRole('button', { name: /Play on this device/ }).click();
   await page.getByRole('button', { name: 'Scavenger Hunt', exact: true }).click();
   await page.getByRole('button', { name: 'Start the hunt', exact: true }).click();
   await page.getByRole('button', { name: /Path A/ }).first().click();

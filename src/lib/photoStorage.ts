@@ -16,6 +16,7 @@ export interface StoredPhoto {
   pathId?: string; // Team path (A, B, C, etc.) - optional for backward compatibility
   teamName?: string; // Snapshot at capture time; renaming a team never relabels older photos
   packId?: string; // Game pack id ('scavenger' | 'creation') - optional for pre-v3 rows
+  huntId?: string; // Event/team scope; absent for a device-only hunt
   imageData: string; // base64 encoded image
   timestamp: number;
 }
@@ -90,8 +91,9 @@ async function writePhotos(write: (store: IDBObjectStore) => void): Promise<void
   }
 }
 
+// Scope: undefined includes all hunts; null selects device-only photos; a string selects one event team.
 // Get all photos from IndexedDB (optionally limited to one pack)
-export async function getAllPhotos(packId?: string): Promise<StoredPhoto[]> {
+export async function getAllPhotos(packId?: string, huntId?: string | null): Promise<StoredPhoto[]> {
   const db = await openDB();
 
   return new Promise((resolve, reject) => {
@@ -102,12 +104,12 @@ export async function getAllPhotos(packId?: string): Promise<StoredPhoto[]> {
     const request = packId ? store.index('packId').getAll(packId) : store.getAll();
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(request.result.filter((photo: StoredPhoto) => huntId === undefined || (photo.huntId ?? null) === huntId));
   });
 }
 
 // Get photos for a specific challenge
-export async function getPhotosByChallenge(challengeId: string): Promise<StoredPhoto[]> {
+export async function getPhotosByChallenge(challengeId: string, huntId?: string | null): Promise<StoredPhoto[]> {
   const db = await openDB();
 
   return new Promise((resolve, reject) => {
@@ -119,7 +121,7 @@ export async function getPhotosByChallenge(challengeId: string): Promise<StoredP
     const request = index.getAll(challengeId);
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => resolve(request.result.filter((photo: StoredPhoto) => huntId === undefined || (photo.huntId ?? null) === huntId));
   });
 }
 
@@ -129,17 +131,17 @@ export async function deletePhoto(photoId: string): Promise<void> {
 }
 
 // Clear all photos (optionally only those for one pack)
-export async function clearAllPhotos(packId?: string): Promise<void> {
+export async function clearAllPhotos(packId?: string, huntId?: string | null): Promise<void> {
   return writePhotos(store => {
-    if (!packId) {
+    if (!packId && huntId === undefined) {
       store.clear();
       return;
     }
-    const request = store.index('packId').openCursor(IDBKeyRange.only(packId));
+    const request = packId ? store.index('packId').openCursor(IDBKeyRange.only(packId)) : store.openCursor();
     request.onsuccess = function () {
       const cursor = this.result;
       if (cursor) {
-        cursor.delete();
+        if (huntId === undefined || (cursor.value.huntId ?? null) === huntId) cursor.delete();
         cursor.continue();
       }
     };
@@ -147,7 +149,8 @@ export async function clearAllPhotos(packId?: string): Promise<void> {
 }
 
 // Get photo count (optionally only for one pack)
-export async function getPhotoCount(packId?: string): Promise<number> {
+export async function getPhotoCount(packId?: string, huntId?: string | null): Promise<number> {
+  if (huntId !== undefined) return (await getAllPhotos(packId, huntId)).length;
   const db = await openDB();
 
   return new Promise((resolve, reject) => {

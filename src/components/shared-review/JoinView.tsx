@@ -7,7 +7,7 @@ import { PATH_COLORS, describeError, formatExpiry, savedTeamDefaults } from './c
 import { Notice, PackBadge } from './ui';
 import { readableTextOn } from '@/lib/theme';
 
-export function JoinView({ access, snapshot }: { access: EventAccess; snapshot: ReviewSnapshot }) {
+export function JoinView({ access, snapshot, onJoined }: { access: EventAccess; snapshot: ReviewSnapshot; onJoined: (access: EventAccess, snapshot: ReviewSnapshot) => void }) {
   const { event } = snapshot;
   const pack = getPackById(event.packId);
   const ids = { name: useId(), path: useId() };
@@ -15,7 +15,7 @@ export function JoinView({ access, snapshot }: { access: EventAccess; snapshot: 
   const defaults = savedTeamDefaults(pack.id);
   const [showForm, setShowForm] = useState(!savedTeam);
   const [name, setName] = useState(defaults.name);
-  const [pathId, setPathId] = useState(pack.paths.some(p => p.id === defaults.pathId) ? defaults.pathId : '');
+  const [pathId, setPathId] = useState(pack.paths.some(p => p.id === defaults.pathId) ? defaults.pathId : pack.paths[0].id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +27,7 @@ export function JoinView({ access, snapshot }: { access: EventAccess; snapshot: 
     setError(null);
     try {
       const result = await joinReview(access, clean, pathId || undefined);
+      onJoined(result.access, result.snapshot);
       openReview(result.access);
     } catch (err) {
       setError(describeError(err));
@@ -91,9 +92,9 @@ export function JoinView({ access, snapshot }: { access: EventAccess; snapshot: 
               />
 
               <fieldset className="mt-4">
-                <legend id={ids.path} className="font-display text-xl">Your path <span className="font-body text-sm font-bold text-ink/60">Optional</span></legend>
+                <legend id={ids.path} className="font-display text-xl">Your path</legend>
                 <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-labelledby={ids.path}>
-                  {[{ id: '', label: 'Not sure' }, ...pack.paths.map(p => ({ id: p.id, label: `Path ${p.id}` }))].map(option => {
+                  {pack.paths.map(p => ({ id: p.id, label: `Path ${p.id}` })).map(option => {
                     const checked = pathId === option.id;
                     const fill = option.id ? PATH_COLORS[option.id] : '#FFFDF7';
                     return (
@@ -110,9 +111,10 @@ export function JoinView({ access, snapshot }: { access: EventAccess; snapshot: 
                 </div>
               </fieldset>
 
+              <p className="mt-3 text-sm font-semibold text-ink/70">Choose the path your leader assigned, or keep Path A. Your game, team name and path carry into the hunt automatically.</p>
               <p className="mt-4 flex gap-2 rounded-2xl bg-sky-soft p-3 text-sm font-bold leading-snug">
                 <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={3} aria-hidden="true" />
-                <span>The leader will see your team name and the photos you choose to send. Nothing uploads until you pick photos on the next screen.</span>
+                <span>The leader will see your team name and the photos you choose to send. Your photos stay on this phone until you choose to send them.</span>
               </p>
 
               {error && <div className="mt-4"><Notice tone="error">{error}</Notice></div>}

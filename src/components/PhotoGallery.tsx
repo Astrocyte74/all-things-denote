@@ -13,10 +13,11 @@ interface PhotoGalleryProps {
   onPhotoCountChange?: (count: number) => void;
   onPhotoDeleted?: () => void; // Callback when a photo is deleted
   filterChallengeId?: string | null; // If provided, only show photos for this challenge
+  huntId?: string;
   packId?: string; // Scope the gallery to the active game pack
 }
 
-export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDeleted, filterChallengeId, packId }: PhotoGalleryProps) {
+export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDeleted, filterChallengeId, packId, huntId }: PhotoGalleryProps) {
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [allPhotosForFilter, setAllPhotosForFilter] = useState<StoredPhoto[]>([]); // All photos for filter dropdown
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -56,7 +57,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     setLoading(true);
     try {
       // Get all photos first (for filter options), scoped to the active pack.
-      const allPhotos = (packId ? (await getAllPhotos(packId)) : (await getAllPhotos()));
+      const allPhotos = (packId ? (await getAllPhotos(packId, huntId ?? null)) : (await getAllPhotos(undefined, huntId ?? null)));
       setAllPhotosForFilter(allPhotos.sort((a, b) => b.timestamp - a.timestamp));
 
       // Filter by challenge if a filter is set
@@ -79,7 +80,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     } finally {
       setLoading(false);
     }
-  }, [currentFilter, sortBy, onPhotoCountChange, packId]);
+  }, [currentFilter, sortBy, onPhotoCountChange, packId, huntId]);
 
   // Load photos when gallery opens, filter changes, or sort changes
   useEffect(() => {
@@ -123,7 +124,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       toast.success('Photo deleted', { style: { pointerEvents: 'none' } });
 
       // Update photo count
-      const newCount = await getPhotoCount(packId);
+      const newCount = await getPhotoCount(packId, huntId ?? null);
       onPhotoCountChange?.(newCount);
 
       // Notify parent component

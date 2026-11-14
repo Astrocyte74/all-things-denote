@@ -24,7 +24,7 @@ export function ReviewShell({ onBack, backLabel = 'Back to games', wide, childre
             {backLabel}
           </button>
           <span className="rounded-full border-2 border-ink bg-cream px-3 py-1 text-xs font-extrabold uppercase tracking-wider">
-            Shared review
+            Group events
           </span>
         </div>
         {children}

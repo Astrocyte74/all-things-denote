@@ -3,6 +3,8 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface StickyHuntHeaderProps {
   pathId: string;
+  eventTitle?: string;
+  onBackToEvent?: () => void;
   onChangePath: () => void;
   onOpenGallery: () => void;
   /** Challenges finished so far, and how many there are in total. */
@@ -15,7 +17,7 @@ interface StickyHuntHeaderProps {
   teamName?: string;
 }
 
-export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, completed, total, photoCount = 0, onExit, onStartOver, teamName }: StickyHuntHeaderProps) {
+export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, completed, total, photoCount = 0, onExit, onStartOver, teamName, eventTitle, onBackToEvent }: StickyHuntHeaderProps) {
   const team = teamName?.trim();
   const editLabel = team ? `Edit team and path. Team ${team}, path ${pathId}` : `Edit team and path. Current path ${pathId}`;
   return (
@@ -38,8 +40,8 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, complete
           {/* Team + path chip. Tapping it edits both (same path-selection screen). */}
           <button
             onClick={onChangePath}
-            aria-label={editLabel}
-            title="Edit team & path"
+            aria-label={onBackToEvent ? `Event team ${team}, path ${pathId}` : editLabel}
+            title={onBackToEvent ? eventTitle : "Edit team & path"}
             className="inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl border-2 border-ink bg-grape-soft px-2 text-ink hover:bg-grape/20 sm:px-2.5"
           >
             {team && (
@@ -53,7 +55,7 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, complete
               <span className="text-xs font-extrabold">Path</span>
               <span className="font-display text-lg leading-none">{pathId}</span>
             </span>
-            <PencilLine className="h-3.5 w-3.5 flex-shrink-0 text-ink/70" strokeWidth={2.75} aria-hidden="true" />
+            {!onBackToEvent && <PencilLine className="h-3.5 w-3.5 flex-shrink-0 text-ink/70" strokeWidth={2.75} aria-hidden="true" />}
           </button>
         </div>
 
@@ -79,9 +81,9 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, complete
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.Content align="end" sideOffset={12} className="sticker-card z-[60] min-w-48 p-2 text-sm font-extrabold text-ink">
-                  <DropdownMenu.Item onSelect={onChangePath} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 outline-none focus:bg-grape-soft">
+                  {!onBackToEvent && <DropdownMenu.Item onSelect={onChangePath} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 outline-none focus:bg-grape-soft">
                     <PencilLine className="h-4 w-4" /> Edit team & path
-                  </DropdownMenu.Item>
+                  </DropdownMenu.Item>}
                   {onExit && (
                     <DropdownMenu.Item onSelect={onExit} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-3 outline-none focus:bg-grape-soft">
                       <Home className="h-4 w-4" /> Back to home
@@ -98,6 +100,7 @@ export function StickyHuntHeader({ pathId, onChangePath, onOpenGallery, complete
           )}
         </div>
       </nav>
+      {onBackToEvent && <button onClick={onBackToEvent} className="flex min-h-10 w-full items-center justify-center gap-2 border-t border-ink/20 bg-sky-soft px-3 text-sm font-extrabold"><Users className="h-4 w-4" aria-hidden="true" /> Back to event <span className="max-w-[45%] truncate font-semibold text-ink/65">· {eventTitle}</span></button>}
     </div>
   );
 }

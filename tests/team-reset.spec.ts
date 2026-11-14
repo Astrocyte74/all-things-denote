@@ -18,6 +18,7 @@ async function photos(page: Page): Promise<StoredPhoto[]> {
 }
 async function start(page: Page, name = 'The Lost Sheep') {
   await page.goto('./');
+  await page.getByRole('button', { name: /Play on this device/ }).click();
   await page.getByRole('button', { name: 'Christmas', exact: true }).click();
   await page.getByRole('button', { name: 'Start the hunt', exact: true }).click();
   await page.getByRole('textbox', { name: /Team name/ }).fill(name);
@@ -107,7 +108,7 @@ test('library reset keeps photos and team; confirmed clear removes only the chos
   expect(await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'))).toBeNull();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('teamNameByPack')!).christmas)).toBe('The Lost Sheep');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pathByPack')!).christmas)).toBe('B');
-  await expect(page.getByRole('heading', { name: 'Choose your adventure' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hunt together' })).toBeVisible();
   await page.getByRole('button', { name: 'Reset Christmas', exact: true }).click();
   await page.getByRole('button', { name: /^Start fresh/ }).click();
   expect(await photos(page)).toHaveLength(2);

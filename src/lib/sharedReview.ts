@@ -35,7 +35,7 @@ export interface ReviewSnapshot {
   joinToken?: string;
 }
 export interface SavedReview { access: EventAccess; title: string; packId: string; expiresAt: number }
-export type ReviewRoute = { screen: 'home'; packId?: string } | { screen: 'event'; access: EventAccess };
+export type ReviewRoute = { screen: 'home'; packId?: string; intent?: 'create' | 'join' } | { screen: 'event'; access: EventAccess };
 const STORAGE_KEY = 'sharedReviews:v1';
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const EVENT_ID = /^[a-f0-9-]{36}$/;
@@ -49,7 +49,7 @@ export class ReviewError extends Error {
 }
 
 async function request<T>(path: string, access?: EventAccess, options: RequestInit = {}): Promise<T> {
-  if (!API_BASE) throw new ReviewError('Shared review is not connected yet. Your hunt and photos still work on this device.', 503);
+  if (!API_BASE) throw new ReviewError('Group events are not connected yet. Your hunt and photos still work on this device.', 503);
   const headers = new Headers(options.headers);
   if (access) headers.set('Authorization', `Bearer ${access.token}`);
   if (typeof options.body === 'string') headers.set('Content-Type', 'application/json');
@@ -89,7 +89,7 @@ export function forgetReview(eventId: string) {
 
 export function readReviewRoute(): ReviewRoute | null {
   const hash = new URLSearchParams(location.hash.slice(1));
-  if (hash.get('review') === 'home') return { screen: 'home', packId: hash.get('game') || undefined };
+  if (hash.get('review') === 'home') return { screen: 'home', packId: hash.get('game') || undefined, intent: hash.get('action') === 'create' ? 'create' : hash.get('action') === 'join' ? 'join' : undefined };
   const access = parseReviewLink(location.href);
   return access ? { screen: 'event', access } : null;
 }
@@ -115,8 +115,8 @@ export function reviewLink(access: EventAccess): string {
   return url.href;
 }
 
-export function openReviewHome(packId?: string) {
-  location.hash = new URLSearchParams({ review: 'home', ...(packId ? { game: packId } : {}) }).toString();
+export function openReviewHome(packId?: string, intent?: 'create' | 'join') {
+  location.hash = new URLSearchParams({ review: 'home', ...(intent ? { action: intent } : {}), ...(packId ? { game: packId } : {}) }).toString();
 }
 
 export function openReview(access: EventAccess) {
@@ -147,7 +147,7 @@ export async function joinReview(access: EventAccess, name: string, pathId?: str
 }
 
 export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto, onProgress?: (percent: number) => void): Promise<ReviewPhoto> {
-  if (!API_BASE) throw new ReviewError('Shared review is not connected yet.', 503);
+  if (!API_BASE) throw new ReviewError('Group events are not connected yet.', 503);
   const body = new FormData();
   const bytes = atob(photo.imageData.split(',')[1] || '');
   if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new ReviewError('This photo is too large to upload (5 MB maximum).', 413);
@@ -172,7 +172,7 @@ export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto,
 
 /** Caller owns the returned Blob and should revoke object URLs when no longer needed. */
 export async function fetchReviewPhoto(access: EventAccess, photoId: string): Promise<Blob> {
-  if (!API_BASE) throw new ReviewError('Shared review is not connected yet.', 503);
+  if (!API_BASE) throw new ReviewError('Group events are not connected yet.', 503);
   const response = await fetch(`${API_BASE}/events/${access.eventId}/photos/${photoId}`, { headers: { Authorization: `Bearer ${access.token}` }, signal: AbortSignal.timeout(30000), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
   if (!response.ok) throw new ReviewError('Could not load this photo. Refresh and retry.', response.status);
   return response.blob();

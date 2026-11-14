@@ -13,6 +13,7 @@ async function storedPhotos(page: Page): Promise<StoredPhoto[]> {
 }
 async function capture(page: Page, color: string, name: string) {
   await page.goto('./');
+  await page.getByRole('button', { name: /Play on this device/ }).click();
   await page.getByRole('button', { name:'Christmas', exact:true }).click();
   await page.getByRole('button', { name:'Start the hunt', exact:true }).click();
   await page.getByRole('textbox', { name:/Team name/ }).fill(name);
@@ -32,7 +33,7 @@ async function makeLeader(browser: Browser, baseURL: string, title: string) {
   const creator = `browser-test-${crypto.randomUUID()}`;
   await page.route(`${API}/events`, route => route.continue({headers:{...route.request().headers(),'CF-Connecting-IP':creator}}));
   await page.goto('./');
-  await page.getByRole('button', {name:'Open shared review'}).click();
+  await page.getByRole('button', {name:'Start an event',exact:true}).click();
   await page.getByRole('textbox',{name:'Event name'}).fill(title);
   await page.getByRole('radio',{name:/Christmas/}).locator('..').click();
   await page.getByRole('button',{name:'Create private event'}).click();
@@ -154,7 +155,7 @@ test('two team phones upload to one leader; private QR, clue comparison, present
   await leader.page.getByRole('button',{name:'Reopen uploads',exact:true}).click();
   await leader.page.getByRole('button',{name:'Delete event…',exact:true}).click();
   await leader.page.getByRole('button',{name:'Delete for everyone',exact:true}).click();
-  await expect(leader.page.getByRole('heading',{name:'Compare discoveries'})).toBeVisible();
+  await expect(leader.page.getByRole('heading',{name:'Group events'})).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading',{name:/This link doesn’t work|This event has ended/})).toBeVisible();
   expect((await storedPhotos(page))[0].imageData).toBe(local.imageData);
@@ -196,15 +197,15 @@ test('lost upload response retries safely; offline reload, saved sessions and li
   await page.getByRole('button',{name:'Try again',exact:true}).click();
   await expect(page.getByText('Everything on this phone has been sent.')).toBeVisible();
   await page.getByRole('button',{name:'All events',exact:true}).click();
-  await page.getByRole('textbox',{name:'Event link',exact:true}).fill('https://unrelated.example/#event=11111111-1111-4111-8111-111111111111&leader='+'A'.repeat(43));
+  await page.getByRole('textbox',{name:'Or paste the link they sent',exact:true}).fill('https://unrelated.example/#event=11111111-1111-4111-8111-111111111111&leader='+'A'.repeat(43));
   await page.getByRole('button',{name:'Open link',exact:true}).click();
-  await expect(page.getByText(/doesn’t look like a shared review link/)).toBeVisible();
+  await expect(page.getByText(/doesn’t look like a group event link/)).toBeVisible();
   await page.getByRole('button',{name:`Open Retry session ${info.project.name}`,exact:true}).click();
   await expect(page.getByText('Everything on this phone has been sent.')).toBeVisible();
   await page.getByRole('button',{name:'All events',exact:true}).click();
   await page.getByRole('button',{name:'Back to games',exact:true}).click();
   await expect(page.locator('.gl-card')).toHaveCount(4);
-  await page.goBack(); await expect(page.getByRole('heading',{name:'Compare discoveries'})).toBeVisible();
+  await page.goBack(); await expect(page.getByRole('heading',{name:'Group events'})).toBeVisible();
   await leader.context.close();
 });
 
@@ -276,6 +277,89 @@ test('teams delete single or all cloud copies, including from another device aft
   expect((await storedPhotos(page)).map(photo=>photo.imageData)).toEqual(originals.map(photo=>photo.imageData));
   await leader.page.getByRole('button',{name:'Delete event…',exact:true}).click();
   await leader.page.getByRole('button',{name:'Delete for everyone',exact:true}).click();
-  await expect(leader.page.getByRole('heading',{name:'Compare discoveries'})).toBeVisible();
+  await expect(leader.page.getByRole('heading',{name:'Group events'})).toBeVisible();
   await remoteContext.close(); await otherContext.close(); await leader.context.close();
+});
+
+test('joining sets up an isolated team hunt and returns directly to its event', async ({page,browser,baseURL}, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  // A previous local hunt of this same theme must survive joining an event.
+  await capture(page, '#ffe18b', 'Old local team');
+  const oldPhoto = (await storedPhotos(page))[0];
+  const oldProgress = await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'));
+  const leader = await makeLeader(browser, baseURL!, `Joined hunt ${info.project.name}`);
+  await join(page, leader.invite, 'Scripture Scouts', 'B');
+  const teamLink = page.url();
+  const team = (await snapshot(page)).team;
+  const eventId = new URL(teamLink).hash.match(/event=([^&]+)/)![1];
+  await expect(page.getByRole('region', {name:'Your event hunt'})).toContainText('Christmas · Scripture Scouts · Path B');
+  await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
+  await expect(page.getByRole('textbox', {name:/Team name/})).toHaveCount(0);
+  await page.getByRole('button', {name:'Start the hunt on Path B',exact:true}).click();
+  await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
+  await page.locator('input[type=file]').setInputFiles({name:'event.svg', mimeType:'image/svg+xml', buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="skyblue"/></svg>')});
+  await expect.poll(async () => (await storedPhotos(page)).length).toBe(2);
+  const eventPhoto = (await storedPhotos(page)).find(photo => photo.id !== oldPhoto.id)!;
+  expect(eventPhoto.packId).toBe('christmas');
+  expect(eventPhoto.teamName).toBe('Scripture Scouts');
+  expect(eventPhoto.pathId).toBe('B');
+  expect(eventPhoto.huntId).toBe(`event:${eventId}:${team.id}`);
+  expect(await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'))).toBe(oldProgress);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('teamNameByPack')!).christmas)).toBe('Old local team');
+  await page.reload();
+  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await page.getByRole('button', {name:'Back to all tasks overview'}).click();
+  await page.getByRole('button', {name:'Open photo gallery (1 photos)',exact:true}).click();
+  await expect(page.getByRole('button', {name:/View photo for #.*full screen/})).toHaveCount(1);
+  await page.getByRole('button', {name:'Close photo gallery',exact:true}).click();
+  await page.getByRole('button', {name:/Back to event/}).click();
+  expect(page.url()).toBe(teamLink);
+  await expect(page.getByRole('region', {name:'Your event hunt'})).toBeVisible();
+  await page.screenshot({path:info.outputPath('event-team-ready.png'),fullPage:true});
+  // Re-scanning the invitation reuses the existing team, without duplicate entry.
+  await page.goto(leader.invite);
+  await page.getByRole('button', {name:'Continue as your team',exact:true}).click();
+  await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
+  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  expect((await snapshot(leader.page)).teams).toHaveLength(1);
+  // A second team on the phone has its own fresh progress and photo collection.
+  await page.goto(leader.invite);
+  await page.getByRole('button', {name:'Join as a different team on this phone',exact:true}).click();
+  await page.getByRole('textbox', {name:/Team name/}).fill('New team');
+  await page.getByRole('button', {name:'Join event',exact:true}).click();
+  await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
+  await page.getByRole('button', {name:'Start the hunt on Path A',exact:true}).click();
+  await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('button', {name:'Open photo gallery',exact:true}).first()).toBeAttached();
+  expect(await storedPhotos(page)).toHaveLength(2);
+  await page.goto(teamLink);
+  await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
+  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await page.screenshot({path:info.outputPath('event-hunt-phone.png')});
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await page.getByRole('button', {name:'Back to all tasks overview'}).click();
+  await page.getByRole('button', {name:'More hunt options'}).click();
+  await page.getByRole('menuitem', {name:'Back to home'}).click();
+  // Opening a local game must not make the saved event hunt disappear.
+  await page.getByRole('button', {name:'Christmas',exact:true}).click();
+  await page.getByRole('button', {name:'All games',exact:true}).click();
+  await page.getByText('Saved team hunts on this device (2)', {exact:true}).click();
+  await page.getByRole('button', {name:'Continue Scripture Scouts',exact:true}).click();
+  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await page.getByRole('button', {name:'Back to all tasks overview'}).click();
+  await page.getByRole('button', {name:'More hunt options'}).click();
+  await page.getByRole('menuitem', {name:'Start over',exact:true}).click();
+  await expect(page.getByRole('alertdialog')).toContainText('Scripture Scouts');
+  await page.getByRole('button', {name:/^Start fresh/}).click();
+  await page.getByRole('button', {name:'Delete & start fresh',exact:true}).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.getByRole('button', {name:'Start the hunt on Path B',exact:true})).toBeVisible();
+  expect((await storedPhotos(page)).map(photo => photo.id)).toEqual([oldPhoto.id]);
+  expect(await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'))).toBe(oldProgress);
+  await page.context().setOffline(false);
+  expect(errors).toEqual([]);
+  await leader.context.close();
 });

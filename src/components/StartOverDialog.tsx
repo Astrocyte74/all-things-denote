@@ -11,6 +11,7 @@ interface StartOverDialogProps {
   onResetAll: () => Promise<void>;
   /** The game being reset, named in the copy ("Start over Christmas?"). */
   gameTitle?: string;
+  eventTeam?: string;
 }
 
 type Busy = null | 'progress' | 'all';
@@ -21,7 +22,7 @@ type Busy = null | 'progress' | 'all';
  * a successful promise closes the dialog. While an action runs, Escape and
  * Cancel are disabled so a half-finished delete can't be dismissed.
  */
-export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll, gameTitle }: StartOverDialogProps) {
+export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll, gameTitle, eventTeam }: StartOverDialogProps) {
   const [busy, setBusy] = useState<Busy>(null);
 
   return (
@@ -44,6 +45,7 @@ export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll, 
             {/* Body unmounts on close, so its step/error state resets each open. */}
             <DialogBody
               gameTitle={gameTitle}
+              eventTeam={eventTeam}
               busy={busy}
               setBusy={setBusy}
               onClose={onClose}
@@ -62,7 +64,7 @@ interface DialogBodyProps extends Omit<StartOverDialogProps, 'isOpen'> {
   setBusy: (busy: Busy) => void;
 }
 
-function DialogBody({ gameTitle, busy, setBusy, onClose, onResetProgress, onResetAll }: DialogBodyProps) {
+function DialogBody({ gameTitle, eventTeam, busy, setBusy, onClose, onResetProgress, onResetAll }: DialogBodyProps) {
   const [step, setStep] = useState<'choose' | 'confirm'>('choose');
   const [error, setError] = useState<string | null>(null);
   const warningRef = useRef<HTMLHeadingElement>(null);
@@ -105,8 +107,7 @@ function DialogBody({ gameTitle, busy, setBusy, onClose, onResetProgress, onRese
         {gameTitle ? `Start over ${gameTitle}?` : 'Start over?'}
       </AlertDialog.Title>
       <AlertDialog.Description className="mt-1.5 font-semibold text-ink/75">
-        This only changes <strong className="font-extrabold text-ink">{game}</strong>. Your other games stay exactly as
-        they are.
+        This only changes <strong className="font-extrabold text-ink">{game}{eventTeam ? ` for ${eventTeam}` : " on this device"}</strong>. Your other hunts and cloud uploads stay as they are.
       </AlertDialog.Description>
 
       {step === 'choose' ? (
@@ -146,7 +147,7 @@ function DialogBody({ gameTitle, busy, setBusy, onClose, onResetProgress, onRese
             <span>
               <span className="block font-display text-lg tracking-wide">Start fresh…</span>
               <span className="block text-sm font-bold leading-snug text-ink/75">
-                Deletes this game&rsquo;s photos, progress, team name and path.
+                {eventTeam ? "Deletes this team hunt’s local photos and progress. Keeps your event, team name and path." : "Deletes this local game’s photos, progress, team name and path."}
               </span>
             </span>
           </button>
@@ -163,7 +164,7 @@ function DialogBody({ gameTitle, busy, setBusy, onClose, onResetProgress, onRese
               This can&rsquo;t be undone
             </h3>
             <p className="mt-1.5 text-sm font-bold leading-snug">
-              Every photo from {game} on this device will be deleted, along with its progress, team name and path.
+              {eventTeam ? `The local photos and progress for ${eventTeam} in this event will be deleted. Your event, team name and path stay set up.` : `The photos from this local ${game} hunt will be deleted, along with its progress, team name and path.`}
             </p>
             <p className="mt-2 text-sm font-bold leading-snug">
               Want to keep the photos? Cancel, then save them from this game&rsquo;s photo gallery first.
