@@ -1,6 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "scavenger-review",
+  "account_id": "d856762d50b0ac18bc30e9f71325bd30",
   "main": "index.ts",
   "compatibility_date": "2026-11-13",
   "workers_dev": true,
@@ -9,7 +10,7 @@
   "d1_databases": [{
     "binding": "DB",
     "database_name": "scavenger-review",
-    "database_id": "00000000-0000-0000-0000-000000000000",
+    "database_id": "162b9ac6-782b-4947-a45a-78dd142af9db",
     "migrations_dir": "migrations"
   }],
   "r2_buckets": [{ "binding": "PHOTOS", "bucket_name": "scavenger-review-photos" }],
