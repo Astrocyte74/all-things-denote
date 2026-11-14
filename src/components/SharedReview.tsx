@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { fetchReview, forgetReview, openReviewHome, type EventAccess, type ReviewRoute, type ReviewSnapshot } from '@/lib/sharedReview';
 import { describeError, errorStatus } from './shared-review/common';
@@ -36,18 +36,30 @@ function ReviewEvent({ access, onBack, onPlay, onJoined }: { access: EventAccess
   const [error, setError] = useState<unknown>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(() => Date.now());
+  const requestSequence = useRef(0);
+  const applySnapshot = useCallback((next: ReviewSnapshot) => {
+    requestSequence.current++;
+    setSnapshot(previous => previous && previous.event.settingsRevision > next.event.settingsRevision
+      ? { ...next, event: { ...next.event, title: previous.event.title, teamNaming: previous.event.teamNaming, settingsRevision: previous.event.settingsRevision } }
+      : next);
+    setUpdatedAt(Date.now());
+    setRefreshing(false);
+    setError(null);
+  }, []);
 
   const refresh = useCallback(async () => {
+    const sequence = ++requestSequence.current;
     setRefreshing(true);
     try {
       const next = await fetchReview(access);
+      if (sequence !== requestSequence.current) return;
       setSnapshot(next);
       setError(null);
       setUpdatedAt(Date.now());
     } catch (err) {
-      setError(err);
+      if (sequence === requestSequence.current) setError(err);
     } finally {
-      setRefreshing(false);
+      if (sequence === requestSequence.current) setRefreshing(false);
     }
   }, [access]);
   useEffect(() => { void refresh(); }, [refresh]);
@@ -95,7 +107,7 @@ function ReviewEvent({ access, onBack, onPlay, onJoined }: { access: EventAccess
   if (snapshot.role === 'leader') {
     return (
       <ReviewShell {...shellBack} wide>
-        <LeaderView access={access} snapshot={snapshot} setSnapshot={setSnapshot} refresh={refresh} refreshing={refreshing} refreshError={refreshError} updatedAt={updatedAt} />
+        <LeaderView access={access} snapshot={snapshot} setSnapshot={applySnapshot} refresh={refresh} refreshing={refreshing} refreshError={refreshError} updatedAt={updatedAt} />
       </ReviewShell>
     );
   }

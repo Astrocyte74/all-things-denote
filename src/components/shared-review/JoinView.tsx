@@ -102,11 +102,14 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
       onJoined(result.access, result.snapshot);
     } catch (err) {
       const status = errorStatus(err);
-      if (status === 409) {
+      if (status === 409 || status === 400) {
         const fresh = await refreshOptions();
         if (fresh?.event.closed || fresh?.joinOptions?.spotsRemaining === 0) {
           setError(null); // Refreshed closed/full notices replace the form.
-        } else if (source === 'suggested' && fresh) {
+        } else if (fresh && fresh.event.settingsRevision !== snapshot.event.settingsRevision) {
+          setChoice(null);
+          setError('Your leader updated the team-name options. Check the new options and join again.');
+        } else if (status === 409 && source === 'suggested' && fresh) {
           setChoice(null);
           setError(`“${name}” was just taken by another team. Pick another name.`);
         } else {
@@ -236,7 +239,7 @@ export function JoinView({ access, snapshot: initial, onJoined }: { access: Even
 
               <p className="mt-4 flex gap-2 rounded-2xl bg-sky-soft p-3 text-sm font-bold leading-snug">
                 <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0" strokeWidth={3} aria-hidden="true" />
-                <span>Your path is assigned automatically to keep teams balanced. The leader sees your team name and only the photos you choose to send.</span>
+                <span>Your path is assigned automatically. Your leader sees your team’s clue progress when you’re online, and only the photos you choose to send.</span>
               </p>
 
               <div id={ids.status} aria-live="polite">

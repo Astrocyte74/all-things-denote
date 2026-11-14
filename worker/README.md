@@ -146,6 +146,24 @@ group events; a broader public launch would need stronger abuse controls.
 
 ## Routine operation
 
+Migration `0003_leader_dashboard.sql` adds a settings revision to events and an
+optional progress report to each team. Leader-only PATCH accepts `title` and/or
+`teamNaming` with the last `settingsRevision`; stale edits return 409. A separate
+`closed` toggle remains compatible with older app versions. Edits cannot change
+the game, invite token, expiry, or existing teams. Joins reserve a name only if
+the event's naming revision still matches the policy they validated.
+
+Team-only POST `/events/:id/progress` accepts canonical `completedChallengeIds`
+and `clientUpdatedAt`. It stores no photos or location. Leader snapshots include
+all reports; a team sees only its own, and invite holders see none. A server
+receive timestamp drives the dashboard's last-progress label. Strictly older
+or repeated client timestamps cannot overwrite a newer report, while a later
+empty array records a reset. Reports can continue when photo uploads are closed;
+expiry/deletion still revokes access and cleanup deletes reports with team rows.
+The app coalesces updates in a local queue, retries on reconnect/visibility and
+every 30 seconds while needed, and sends no idle heartbeat. On a sleeping or
+closed phone, queued progress waits until the app is opened again.
+
 Event naming uses migration `0002_team_naming.sql`: an optional policy on events
 and a normalized unique name key for newly joined teams. Existing events receive
 the default policy, and existing teams/photos remain unchanged. Old rows without

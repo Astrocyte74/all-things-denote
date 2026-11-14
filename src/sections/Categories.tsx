@@ -25,6 +25,7 @@ interface CategoriesProps {
   onPhotoCountChange: (count: number) => void;
   /** Reports finished/total challenge counts so the sticky header can show progress. */
   onProgressChange?: (completed: number, total: number) => void;
+  onCompletedChange?: (ids: string[]) => void;
   /** Active pack id — used to namespace progress/photos per game. */
   packId: string;
   huntId?: string;
@@ -35,12 +36,13 @@ interface CategoriesProps {
   onShareWithEvent?: () => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, packId, huntId, categories, teamName, onReset, onShareWithEvent }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, onCompletedChange, packId, huntId, categories, teamName, onReset, onShareWithEvent }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
   }>({ pathId: selectedPathId, categoryId: undefined });
   const [completedChallenges, setCompletedChallenges] = usePersistedState<Set<string>>(`completedChallenges:${huntId ?? packId}`, new Set());
+  useEffect(() => { onCompletedChange?.([...completedChallenges]); }, [completedChallenges, onCompletedChange]);
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
   const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle(`showAnalogiesEarly:${huntId ?? packId}`, false);

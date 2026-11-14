@@ -7,8 +7,9 @@ interface EventRow {
   created_at: number; expires_at: number; closed: number; deleted: number;
   photo_count: number; photo_bytes: number;
   team_naming: string | null;
+  settings_revision: number;
 }
-interface TeamRow { id: string; event_id: string; token_hash: string; name: string; path_id: string | null; joined_at: number }
+interface TeamRow { id: string; event_id: string; token_hash: string; name: string; path_id: string | null; joined_at: number; completed_challenges: string | null; progress_updated_at: number | null; progress_client_at: number | null }
 interface PhotoRow {
   id: string; event_id: string; team_id: string; local_photo_id: string;
   challenge_id: string; challenge_number: number; challenge_title: string;
@@ -87,9 +88,12 @@ async function bodyJSON(request: Request): Promise<Record<string, unknown>> {
   } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'Invalid details.'); }
 }
 function eventView(event: EventRow) {
-  return { id: event.id, title: event.title, packId: event.pack_id, createdAt: event.created_at, expiresAt: event.expires_at, closed: Boolean(event.closed), maxTeams: MAX_TEAMS, maxPhotos: MAX_PHOTOS, teamNaming: eventNaming(event) };
+  return { id: event.id, title: event.title, packId: event.pack_id, createdAt: event.created_at, expiresAt: event.expires_at, closed: Boolean(event.closed), maxTeams: MAX_TEAMS, maxPhotos: MAX_PHOTOS, teamNaming: eventNaming(event), settingsRevision: event.settings_revision };
 }
-function teamView(team: TeamRow) { return { id: team.id, name: team.name, pathId: team.path_id || undefined, joinedAt: team.joined_at }; }
+function progressView(team: TeamRow) {
+  return team.completed_challenges === null ? undefined : { completedChallengeIds: JSON.parse(team.completed_challenges), updatedAt: team.progress_updated_at!, clientUpdatedAt: team.progress_client_at! };
+}
+function teamView(team: TeamRow) { return { id: team.id, name: team.name, pathId: team.path_id || undefined, joinedAt: team.joined_at, progress: progressView(team) }; }
 function photoView(photo: PhotoRow) {
   return { id: photo.id, teamId: photo.team_id, localPhotoId: photo.local_photo_id, challengeId: photo.challenge_id, challengeNumber: photo.challenge_number, challengeTitle: photo.challenge_title, teamName: photo.team_name || undefined, pathId: photo.path_id || undefined, capturedAt: photo.captured_at, uploadedAt: photo.uploaded_at, bytes: photo.bytes };
 }
@@ -196,15 +200,56 @@ async function joinEvent(request: Request, env: Env, auth: Auth) {
           SELECT routes.path FROM routes
           ORDER BY (SELECT COUNT(*) FROM teams WHERE event_id = ? AND path_id = routes.path), routes.path LIMIT 1
         )), ?
-        WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ?)
+        WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ? AND settings_revision = ?)
         AND (SELECT COUNT(*) FROM teams WHERE event_id = ?) < ? ON CONFLICT DO NOTHING`)
-        .bind(crypto.randomUUID(), auth.event.id, digest, name, teamNameKey(name), pathId, auth.event.id, Date.now(), auth.event.id, Date.now(), auth.event.id, MAX_TEAMS).run();
+        .bind(crypto.randomUUID(), auth.event.id, digest, name, teamNameKey(name), pathId, auth.event.id, Date.now(), auth.event.id, Date.now(), auth.event.settings_revision, auth.event.id, MAX_TEAMS).run();
       team = await env.DB.prepare('SELECT * FROM teams WHERE event_id = ? AND token_hash = ?').bind(auth.event.id, digest).first<TeamRow>();
       if (!team && source !== 'random') throw new HttpError(409, 'That name was taken, or the event is now closed or full. Refresh and try another name.');
     }
     if (!team) throw new HttpError(409, 'Teams are joining quickly, or this event is closed or full. Please retry.');
   }
   return json({ access: { eventId: auth.event.id, role: 'team', token: input.token }, snapshot: await snapshot(env, { event: auth.event, role: 'team', team }) });
+}
+
+async function updateEvent(request: Request, env: Env, auth: Auth) {
+  const input = await bodyJSON(request);
+  const keys = Object.keys(input);
+  if (keys.some(key => !['title', 'teamNaming', 'settingsRevision', 'closed'].includes(key))) throw new HttpError(400, 'Only the event name, team-name options and upload status can be changed.');
+  const editing = 'title' in input || 'teamNaming' in input;
+  if (!editing && !('closed' in input)) throw new HttpError(400, 'Choose event settings to update.');
+  if ('closed' in input && typeof input.closed !== 'boolean') throw new HttpError(400, 'Choose whether uploads are open.');
+  if (editing && (!Number.isSafeInteger(input.settingsRevision) || (input.settingsRevision as number) < 0)) throw new HttpError(400, 'Reload the event settings before saving.');
+  const title = 'title' in input ? text(input.title, 80, true) : null;
+  const naming = 'teamNaming' in input ? JSON.stringify(namingSettings(input.teamNaming)) : null;
+  const revision = editing ? input.settingsRevision as number : null;
+  // One conditional update prevents a second leader from overwriting a newer edit.
+  // Omitted fields retain their current values, including an upload toggle in flight.
+  const event = await env.DB.prepare(`UPDATE events SET title = COALESCE(?, title), team_naming = COALESCE(?, team_naming),
+    closed = COALESCE(?, closed), settings_revision = settings_revision + ?
+    WHERE id = ? AND deleted = 0 AND expires_at > ? AND (? IS NULL OR settings_revision = ?) RETURNING *`)
+    .bind(title, naming, 'closed' in input ? (input.closed ? 1 : 0) : null, editing ? 1 : 0, auth.event.id, Date.now(), revision, revision).first<EventRow>();
+  if (!event) throw new HttpError(409, 'Another leader changed this event. Reload the latest settings before saving again.');
+  return json(await snapshot(env, { ...auth, event }));
+}
+
+async function updateProgress(request: Request, env: Env, auth: Auth) {
+  if (auth.role !== 'team') throw new HttpError(403, 'Only a joined team can report its progress.');
+  const input = await bodyJSON(request);
+  const pack = PACKS.find(pack => pack.id === auth.event.pack_id)!;
+  const canonical = pack.categories.flatMap(category => category.challenges.map(clue => clue.id));
+  const ids = input.completedChallengeIds;
+  if (Object.keys(input).some(key => !['completedChallengeIds', 'clientUpdatedAt'].includes(key)) || !Array.isArray(ids) || ids.length > canonical.length || ids.some(id => typeof id !== 'string' || !canonical.includes(id)) || new Set(ids).size !== ids.length) throw new HttpError(400, 'Send completed clues from this event’s game.');
+  const at = input.clientUpdatedAt;
+  if (typeof at !== 'number' || !Number.isSafeInteger(at) || at <= 0 || at > Date.now() + DAY) throw new HttpError(400, 'Invalid progress update time.');
+  // Keep an offline/slow retry from reverting newer progress. A later empty list
+  // is a deliberate reset, so progress is allowed to decrease.
+  await env.DB.prepare(`UPDATE teams SET completed_challenges = ?, progress_updated_at = ?, progress_client_at = ?
+    WHERE id = ? AND (progress_client_at IS NULL OR progress_client_at < ?)
+    AND EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND expires_at > ?)`)
+    .bind(JSON.stringify(canonical.filter(id => ids.includes(id))), Date.now(), at, auth.team!.id, at, auth.event.id, Date.now()).run();
+  const team = await env.DB.prepare('SELECT * FROM teams WHERE id = ?').bind(auth.team!.id).first<TeamRow>();
+  if (!team) throw new HttpError(410, 'This event has ended.');
+  return json({ progress: progressView(team) });
 }
 
 function objectKey(photo: Pick<PhotoRow, 'id' | 'event_id'>) { return `events/${photo.event_id}/${photo.id}.jpg`; }
@@ -325,13 +370,7 @@ async function route(request: Request, env: Env) {
   if (parts.length === 2) {
     if (request.method === 'GET') return json(await snapshot(env, auth));
     leader(auth);
-    if (request.method === 'PATCH') {
-      const input = await bodyJSON(request);
-      if (typeof input.closed !== 'boolean') throw new HttpError(400, 'Choose whether uploads are open.');
-      await env.DB.prepare('UPDATE events SET closed = ? WHERE id = ?').bind(input.closed ? 1 : 0, auth.event.id).run();
-      auth.event.closed = input.closed ? 1 : 0;
-      return json(await snapshot(env, auth));
-    }
+    if (request.method === 'PATCH') return updateEvent(request, env, auth);
     if (request.method === 'DELETE') {
       await env.DB.prepare('UPDATE events SET deleted = 1, closed = 1 WHERE id = ?').bind(auth.event.id).run();
       await purgeEvent(env, auth.event.id);
@@ -339,6 +378,7 @@ async function route(request: Request, env: Env) {
     }
   }
   if (parts[2] === 'teams' && parts.length === 3 && request.method === 'POST') return joinEvent(request, env, auth);
+  if (parts[2] === 'progress' && parts.length === 3 && request.method === 'POST') return updateProgress(request, env, auth);
   if (parts[2] === 'photos') {
     if (parts.length === 3 && request.method === 'POST') return uploadPhoto(request, env, auth);
     if (parts.length === 4 && ['GET', 'DELETE'].includes(request.method)) {

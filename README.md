@@ -54,7 +54,7 @@ team only. An event hunt keeps its event, team name and path after a reset.
 4. **Back to event** opens that team's upload screen directly. Teams choose
    photos and tap **Send**; taking a photo never uploads it automatically.
 5. The leader opens the separate private **leader link** on a phone or laptop
-   to compare teams' photos one clue at a time. **Present** opens the larger
+   to see **Team progress** and compare teams' photos one clue at a time. **Present** opens the larger
    discussion view; **Leader tools** also has close/reopen, ZIP and deletion.
 
 Join and Start each show only their own setup, with a small link to switch.
@@ -81,6 +81,21 @@ type their own. **Customize** offers a selected pool (including the leader's own
 additions, up to 50), random assignment, and a separate custom-name switch. Each
 name is reserved once per event; retries recover the same team, name, and path.
 These settings belong to the event and do not change device-only game setup.
+
+Leaders can use **Edit event** at any time to change the event name and naming
+options. New naming rules apply to future joins; existing team names, paths,
+photos, QR/invite links, and the seven-day end date stay the same. The game cannot
+be changed after creation. If two leaders edit at once, the second save asks which
+version to keep rather than silently replacing the first edit.
+
+**Team progress** shows completed clues, finished teams, photos sent, and the last
+progress update. Its optional clue grid compares completion and sent photos per
+team. Completion is reported separately from photo uploads: starting the hunt,
+marking clues done, taking a clue photo, undoing completion, and resetting progress
+update the leader's view without sending any photo bytes. Offline progress is
+queued on that device and sent when the app is open and online again. The leader
+view refreshes every 20 seconds while visible, or with the refresh button. An old
+app version or a team that hasn't started shows unknown progress, not zero.
 
 The frontend stays on GitHub Pages to preserve existing device storage. Its API
 uses a Cloudflare Worker, D1, and private R2 storage. Set

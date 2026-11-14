@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { zip } from 'fflate';
-import { Copy, Crown, FolderDown, KeyRound, Loader2, Lock, LockOpen, QrCode, RefreshCw, Settings2, Share2, Trash2, X } from 'lucide-react';
+import { Copy, Crown, FolderDown, KeyRound, Loader2, Lock, LockOpen, Pencil, QrCode, RefreshCw, Settings2, Share2, Trash2, X } from 'lucide-react';
 import { getPackById } from '@/data/packs';
 import { deleteReview, openReviewHome, reviewLink, setReviewClosed, type EventAccess, type ReviewSnapshot } from '@/lib/sharedReview';
 import { copyText, describeError, downloadBlob, formatExpiry, loadReviewPhoto, notify, packClues, relativeTime, slug } from './common';
 import { CompareClues } from './CompareClues';
+import { LeaderDashboard } from './LeaderDashboard';
+import { EventSettingsDialog } from './EventSettingsDialog';
+import { describeTeamNaming } from './teamNamingText';
+import { DEFAULT_TEAM_NAMING } from '@/lib/teamNaming';
 import { Notice, PackBadge, QrImage } from './ui';
 
 interface LeaderViewProps {
@@ -29,6 +33,11 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
   const [toggling, setToggling] = useState(false);
   const [zipState, setZipState] = useState<{ done: number; total: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [editing, setEditing] = useState(false);
+  // The dialog mounts without a Radix trigger, so return focus to whichever button opened it.
+  const editTrigger = useRef<HTMLElement | null>(null);
+  const openEditor = (e: MouseEvent<HTMLElement>) => { editTrigger.current = e.currentTarget; setEditing(true); };
+  const closeEditor = () => { setEditing(false); window.setTimeout(() => editTrigger.current?.focus(), 0); };
 
   // Modest polling, only while the page is visible.
   useEffect(() => {
@@ -39,6 +48,12 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(timer); clearInterval(clock); document.removeEventListener('visibilitychange', onVisible); };
   }, [refresh]);
+
+  const jumpTo = (id: string) => {
+    const heading = document.getElementById(id);
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: 'start' });
+  };
 
   const toggleClosed = async () => {
     setToggling(true);
@@ -93,9 +108,18 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
         {/* Event */}
         <div className="sticker-card overflow-hidden">
           <div className="border-b-2 border-ink p-4" style={{ backgroundColor: pack.library.soft }}>
-            <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-ink/70">
-              <Crown className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> Leader view
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-ink/70">
+                <Crown className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> Leader view
+              </p>
+              <button
+                type="button"
+                onClick={openEditor}
+                className="btn-3d btn-white inline-flex min-h-10 flex-shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold text-ink"
+              >
+                <Pencil className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> Edit event
+              </button>
+            </div>
             <h1 className="mt-1 break-words font-display text-3xl leading-tight">{event.title}</h1>
             <div className="mt-2 flex items-center gap-2">
               <PackBadge pack={pack} size="sm" />
@@ -119,9 +143,10 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
               {refreshing ? 'Refreshing…' : `Updated ${relativeTime(updatedAt, now)}`}
             </button>
           </div>
-          <button type="button" onClick={() => { const heading = document.getElementById('sr-compare'); heading?.focus({ preventScroll: true }); heading?.scrollIntoView({ block: 'start' }); }} className="block min-h-12 w-full border-t-2 border-ink/10 bg-go-soft px-4 font-extrabold text-ink lg:hidden">
-            Compare photos ↓
-          </button>
+          <div className="grid grid-cols-2 divide-x-2 divide-ink/10 border-t-2 border-ink/10 bg-go-soft lg:hidden">
+            <button type="button" onClick={() => jumpTo('sr-progress')} className="min-h-12 px-3 font-extrabold text-ink">Team progress ↓</button>
+            <button type="button" onClick={() => jumpTo('sr-compare')} className="min-h-12 px-3 font-extrabold text-ink">Compare photos ↓</button>
+          </div>
         </div>
         {refreshError && <Notice tone="offline">{refreshError}</Notice>}
 
@@ -164,6 +189,13 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
           </summary>
           <div className="flex flex-col gap-4 border-t-2 border-ink/10 p-4">
             <div>
+              <h3 className="flex items-center gap-1.5 font-extrabold"><Pencil className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Event settings</h3>
+              <p className="mt-1 text-sm font-semibold text-ink/70">{describeTeamNaming(event.teamNaming ?? DEFAULT_TEAM_NAMING)}. New rules apply to teams that join afterwards.</p>
+              <button type="button" onClick={openEditor} className="btn-3d btn-white mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-extrabold text-ink">
+                <Pencil className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Edit name & team names
+              </button>
+            </div>
+            <div>
               <h3 className="flex items-center gap-1.5 font-extrabold"><KeyRound className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Leader link</h3>
               <p className="mt-1 text-sm font-semibold text-ink/70">Open this view on a laptop or another phone. <strong className="text-ink">Keep it private:</strong> anyone with it can see every photo and delete the event.</p>
               <button type="button" onClick={() => void copyText(leaderLink, 'Leader link')} className="btn-3d btn-white mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-extrabold text-ink">
@@ -192,8 +224,21 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
         </details>
       </aside>
 
-      <CompareClues access={access} snapshot={snapshot} pack={pack} onPhotoDeleted={() => void refresh()} />
+      <div className="flex min-w-0 flex-col gap-8">
+        <LeaderDashboard snapshot={snapshot} pack={pack} now={now} />
+        <CompareClues access={access} snapshot={snapshot} pack={pack} onPhotoDeleted={() => void refresh()} />
+      </div>
 
+      {editing && (
+        <EventSettingsDialog
+          access={access}
+          event={event}
+          pack={pack}
+          onClose={closeEditor}
+          onSaved={setSnapshot}
+          refresh={refresh}
+        />
+      )}
       {bigQr && joinLink && <BigQr link={joinLink} title={event.title} gameTitle={pack.title} onClose={() => setBigQr(false)} />}
     </div>
   );

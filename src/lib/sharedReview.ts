@@ -11,8 +11,10 @@ export interface ReviewEvent {
   maxTeams: number;
   maxPhotos: number;
   teamNaming?: TeamNamingSettings;
+  settingsRevision: number;
 }
-export interface ReviewTeam { id: string; name: string; pathId?: string; joinedAt: number }
+export interface ReviewProgress { completedChallengeIds: string[]; updatedAt: number; clientUpdatedAt: number }
+export interface ReviewTeam { id: string; name: string; pathId?: string; joinedAt: number; progress?: ReviewProgress }
 export interface ReviewPhoto {
   id: string;
   teamId: string;
@@ -184,6 +186,16 @@ export async function fetchReviewPhoto(access: EventAccess, photoId: string): Pr
 
 export async function setReviewClosed(access: EventAccess, closed: boolean) {
   return request<ReviewSnapshot>(`/events/${access.eventId}`, access, { method: 'PATCH', body: JSON.stringify({ closed }) });
+}
+
+export async function updateReviewSettings(access: EventAccess, changes: { title: string; teamNaming: TeamNamingSettings; settingsRevision: number }) {
+  const snapshot = await request<ReviewSnapshot>(`/events/${access.eventId}`, access, { method: 'PATCH', body: JSON.stringify(changes) });
+  rememberReview(access, snapshot.event);
+  return snapshot;
+}
+
+export async function sendReviewProgress(access: EventAccess, progress: { completedChallengeIds: string[]; clientUpdatedAt: number }) {
+  return request<{ progress: ReviewProgress }>(`/events/${access.eventId}/progress`, access, { method: 'POST', body: JSON.stringify(progress) });
 }
 
 export async function deleteReviewPhoto(access: EventAccess, photoId: string) {

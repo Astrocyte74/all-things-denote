@@ -18,6 +18,7 @@ import { resetGame } from '@/lib/resetGame';
 import { cleanTeamName, TEAM_NAME_LIMIT } from '@/lib/teamName';
 import { openReview, openReviewHome, readReviewRoute, type ReviewRoute, type EventAccess, type ReviewSnapshot } from '@/lib/sharedReview';
 import { eventHuntId, makeEventHunt, type EventHunt } from '@/lib/eventHunt';
+import { recordEventProgress, startProgressSync } from '@/lib/eventProgress';
 import './App.css';
 
 const SharedReview = lazy(() => import('@/components/SharedReview').then(module => ({ default: module.SharedReview })));
@@ -36,6 +37,7 @@ function findExistingHunts(): Record<string, boolean> {
 }
 
 function App() {
+  useEffect(startProgressSync, []);
   const [existingHunts] = useState(findExistingHunts);
   const [savedAppState, setAppState] = usePersistedState<AppState>('huntScreen', 'library');
   const [startedByPack, setStartedByPack] = usePersistedState<Record<string, boolean>>('startedByPack', existingHunts);
@@ -88,6 +90,9 @@ function App() {
     && (savedAppState !== 'hunt' || selectedPath) ? savedAppState : 'library';
   const teamNameInput = activeEvent?.team.name ?? teamNameByPack[pack.id] ?? '';
   const teamName = cleanTeamName(teamNameInput);
+  const handleCompletedChange = useCallback((ids: string[]) => {
+    if (activeEvent) recordEventProgress(activeEvent, ids);
+  }, [activeEvent]);
 
   useEffect(() => {
     if (appState !== 'library') return;
@@ -215,6 +220,7 @@ function App() {
     const id = resetTarget;
     const scope = appState !== 'library' && id === pack.id ? huntId : undefined;
     await resetGame(id, deletePhotos, scope);
+    if (scope && activeEvent) recordEventProgress(activeEvent, []);
     setStartedByPack(prev => ({ ...prev, [scope ?? id]: false }));
     if (deletePhotos && !scope) {
       setPathByPack(prev => { const next = { ...prev }; delete next[id]; return next; });
@@ -277,7 +283,7 @@ function App() {
         />
       )}
 
-      {activeEvent && appState === 'rules' && <div className="bg-sky-soft px-4 py-4 text-center"><p className="font-extrabold">{activeEvent.event.title} · {teamName} · Path {selectedPathId}</p><button onClick={returnToEvent} className="mt-1 min-h-11 font-bold underline">Back to event</button></div>}
+      {activeEvent && appState === 'rules' && <div className="bg-sky-soft px-4 py-4 text-center"><p className="font-extrabold">{activeEvent.event.title} · {teamName} · Path {selectedPathId}</p><p className="mx-auto mt-1 max-w-lg text-sm font-semibold">Clue progress syncs to your leader when online. Photos send only when you choose.</p><button onClick={returnToEvent} className="mt-1 min-h-11 font-bold underline">Back to event</button></div>}
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
@@ -317,6 +323,7 @@ function App() {
             setGalleryOpen={setGalleryOpen}
             onPhotoCountChange={setPhotoCount}
             onProgressChange={handleProgressChange}
+            onCompletedChange={handleCompletedChange}
             packId={pack.id}
             huntId={huntId}
             categories={pack.categories}
