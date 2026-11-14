@@ -13,6 +13,8 @@ domain, object access keys, or user accounts are required.
 - D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
 - R2: `scavenger-review-photos`, Standard storage, public access disabled.
 - Retention: hourly cron `17 * * * *`, with seven-day event expiry.
+- Worker version: `dd2d9936-2e2c-4030-91b3-907c17bf465c` (2026-11-14),
+  deployed from source commit `b7bcc50c`.
 - The public API URL is committed in `.env.production`; local review tests
   override it with their isolated Miniflare endpoint.
 
@@ -20,6 +22,16 @@ The owner approved creation and deployment on the existing plan. Workers Free
 was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was made.
 Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
+
+Deployment verification (2026-11-14): 11 API tests passed, including a full expiry
+batch under the D1 Free request budget. The feature also passed four local browser
+integration tests across Chromium/WebKit and 38 existing hunt regressions. On the
+live GitHub Pages app and Cloudflare API, separate Chromium Android and WebKit
+iPhone sessions captured and uploaded synthetic photos to one desktop leader.
+Verified invite QR payload, clue comparison, presentation, byte-identical labeled
+JPEGs in the ZIP, team isolation, a separate iPhone leader, close/reopen, and event
+deletion with access revocation. Test events were deleted. These were browser
+device simulations, not a physical-phone cellular test.
 
 ## Local checks
 
