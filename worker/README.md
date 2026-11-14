@@ -13,8 +13,8 @@ domain, object access keys, or user accounts are required.
 - D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
 - R2: `scavenger-review-photos`, Standard storage, public access disabled.
 - Retention: hourly cron `17 * * * *`, with seven-day event expiry.
-- Worker version: `dd2d9936-2e2c-4030-91b3-907c17bf465c` (2026-11-14),
-  deployed from source commit `b7bcc50c`.
+- Worker version: `9bca784c-537d-4f7e-bce8-c72227e01e82` (2026-11-14),
+  deployed from source commit `032186a6`, after migration `0002_team_naming.sql`.
 - The public API URL is committed in `.env.production`; local review tests
   override it with their isolated Miniflare endpoint.
 
@@ -23,7 +23,14 @@ was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was mad
 Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
 
-Deployment verification (2026-11-14): 11 API tests passed, including a full expiry
+Wizard release checks (2026-11-14): lint and production builds passed, along with
+19 API tests, 27 shared-review browser checks and 38 existing hunt regressions.
+Coverage includes concurrent name claims, balanced paths for 20 simultaneous
+joins, name-pool replenishment, lost-response recovery, wizard draft preservation,
+full/closed events, and the existing upload/review/deletion flows. Chromium and
+WebKit phone layouts were checked; the native fake-camera test is Chromium-only.
+
+Initial deployment verification (2026-11-14): 11 API tests passed, including a full expiry
 batch under the D1 Free request budget. The feature also passed six local browser
 integration tests across Chromium/WebKit and 38 existing hunt regressions. On the
 live GitHub Pages app and Cloudflare API, separate Chromium Android and WebKit
