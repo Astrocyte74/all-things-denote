@@ -315,7 +315,7 @@ function App() {
       </>}
 
       {/* Toast notifications */}
-      <OfflineNotice />
+      <OfflineNotice sharedReview={Boolean(reviewRoute)} />
       <Toaster />
     </div>
   );

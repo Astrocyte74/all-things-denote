@@ -92,6 +92,7 @@ test('two team phones upload to one leader; private QR, clue comparison, present
   const grid=leader.page.getByRole('list',{name:'Team photos for clue 1'});
   await expect(grid.getByRole('button',{name:/full screen/})).toHaveCount(2);
   await expect(grid).toContainText('Lost Sheep'); await expect(grid).toContainText('Trailblazers');
+  await expect(grid.locator('img')).toHaveCount(2);
   await expect.poll(async()=>grid.locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).naturalWidth>0))).toBe(true);
   await leader.page.screenshot({path:info.outputPath('leader-desktop.png'),fullPage:true});
   await leader.page.getByRole('button',{name:'Show discussion question',exact:true}).click();
@@ -121,6 +122,9 @@ test('two team phones upload to one leader; private QR, clue comparison, present
   const leaderPhone=await leaderPhoneContext.newPage();
   await leaderPhone.goto(leader.leader);
   await expect(leaderPhone.getByRole('heading',{name:'Compare by clue'})).toBeVisible();
+  const phonePhotos = leaderPhone.getByRole('list',{name:'Team photos for clue 1'}).locator('img');
+  await expect(phonePhotos).toHaveCount(2);
+  await expect.poll(()=>phonePhotos.evaluateAll(images=>images.every(image=>(image as HTMLImageElement).naturalWidth>0))).toBe(true);
   await expect.poll(()=>leaderPhone.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await leaderPhone.screenshot({path:info.outputPath('leader-phone.png'),fullPage:true});
   // A leader's removal must reconcile on a team's next refresh, without
