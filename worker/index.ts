@@ -228,22 +228,29 @@ async function purgeEvent(env: Env, id: string) {
     if (list.objects.length) await env.PHOTOS.delete(list.objects.map(object => object.key));
     cursor = list.truncated ? list.cursor : undefined;
   } while (cursor);
-  await env.DB.prepare('DELETE FROM photos WHERE event_id = ?').bind(id).run();
-  await env.DB.prepare('DELETE FROM teams WHERE event_id = ?').bind(id).run();
-  await env.DB.prepare("UPDATE events SET last_purged_at = ?, title = 'Deleted event' WHERE id = ?").bind(Date.now(), id).run();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM photos WHERE event_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM teams WHERE event_id = ?').bind(id),
+    env.DB.prepare("UPDATE events SET last_purged_at = ?, title = 'Deleted event' WHERE id = ?").bind(Date.now(), id),
+  ]);
 }
 async function cleanup(env: Env) {
   const now = Date.now();
   const expired = await env.DB.prepare('SELECT id FROM events WHERE expires_at <= ? OR deleted = 1 ORDER BY last_purged_at, expires_at LIMIT 20').bind(now).all<{ id: string }>();
+  // D1 Free permits 50 requests per invocation; a batch counts as one.
+  // Revoke access first, then purge objects before deleting any tombstones.
+  if (expired.results.length) await env.DB.batch(expired.results.map(event =>
+    env.DB.prepare('UPDATE events SET deleted = 1 WHERE id = ?').bind(event.id)));
   for (const event of expired.results) {
-    await env.DB.prepare('UPDATE events SET deleted = 1 WHERE id = ?').bind(event.id).run();
     await purgeEvent(env, event.id);
-    await env.DB.prepare('DELETE FROM events WHERE id = ? AND expires_at < ?').bind(event.id, now - DAY).run();
   }
+  await env.DB.prepare('DELETE FROM events WHERE expires_at < ? AND last_purged_at >= ?').bind(now - DAY, now).run();
   const stale = await env.DB.prepare('SELECT * FROM photos WHERE ready = 0 AND uploaded_at < ? LIMIT 100').bind(now - 120000).all<PhotoRow>();
-  for (const photo of stale.results) {
-    const released = await env.DB.prepare('DELETE FROM photos WHERE id = ? AND ready = 0 RETURNING id').bind(photo.id).first();
-    if (released) await env.PHOTOS.delete(objectKey(photo));
+  if (stale.results.length) {
+    const released = await env.DB.batch<{ id: string }>(stale.results.map(photo =>
+      env.DB.prepare('DELETE FROM photos WHERE id = ? AND ready = 0 RETURNING id').bind(photo.id)));
+    const keys = stale.results.filter((_, index) => released[index].results.length > 0).map(objectKey);
+    if (keys.length) await env.PHOTOS.delete(keys);
   }
   await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?').bind(now).run();
 }

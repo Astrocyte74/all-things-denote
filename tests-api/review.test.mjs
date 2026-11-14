@@ -153,3 +153,46 @@ test('creation rate limits and CORS reject unrelated sites without disclosing cr
   const allowed = await call('/events', null, 'OPTIONS', undefined, {Origin:'https://astrocyte74.github.io'});
   assert.equal(allowed.status, 204); assert.equal(allowed.headers.get('Access-Control-Allow-Origin'), 'https://astrocyte74.github.io');
 });
+
+test('a full expiry batch and interrupted uploads clean up within the D1 Free request budget', async () => {
+  const isolated = await createReviewServer();
+  try {
+    const database = isolated.db, bucket = await isolated.mf.getR2Bucket('PHOTOS');
+    const now = Date.now(), old = now - 9 * 86400000;
+    const addEvent = (id, expires) => database.prepare('INSERT INTO events (id,title,pack_id,leader_hash,join_token,created_at,expires_at) VALUES (?,?,?,?,?,?,?)')
+      .bind(id, 'Cleanup fixture', 'christmas', 'hash', 'invite', old, expires);
+    const expiredIds = Array.from({length:20}, () => crypto.randomUUID());
+    const active = crypto.randomUUID(), team = crypto.randomUUID();
+    await database.batch([...expiredIds.map(id => addEvent(id, old)), addEvent(active, now + 86400000)]);
+    await database.prepare('INSERT INTO teams (id,event_id,token_hash,name,joined_at) VALUES (?,?,?,?,?)').bind(team,active,'team-hash','Active team',now).run();
+    const staleIds = Array.from({length:100}, () => crypto.randomUUID());
+    const keptId = crypto.randomUUID();
+    await database.batch([...staleIds,keptId].map(id => database.prepare('INSERT INTO photos (id,event_id,team_id,local_photo_id,challenge_id,challenge_number,challenge_title,captured_at,uploaded_at,bytes,digest,ready) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(id,active,team,id,'christmas:star',1,'Star',old,old,jpeg.length,'digest',id===keptId?1:0)));
+    for (const id of expiredIds) await bucket.put(`events/${id}/expired.jpg`,jpeg);
+    for (const id of [...staleIds,keptId]) await bucket.put(`events/${active}/${id}.jpg`,jpeg);
+
+    // Enforce the documented production request budget around real D1 storage.
+    // Local Miniflare alone does not enforce account-plan quotas.
+    let requests = 0;
+    const count = () => assert(++requests <= 50, 'D1 Free request budget exceeded');
+    const statements = new WeakMap();
+    const wrap = statement => {
+      const proxy = new Proxy(statement, {get(target,key) {
+        if (key === 'bind') return (...values) => wrap(target.bind(...values));
+        if (['run','first','all','raw'].includes(key)) return (...args) => { count(); return target[key](...args); };
+        return Reflect.get(target,key);
+      }});
+      statements.set(proxy,statement); return proxy;
+    };
+    const limitedDB = {prepare: sql => wrap(database.prepare(sql)), batch: values => { count(); return database.batch(values.map(value=>statements.get(value))); }};
+    const {default: worker} = await import('../.wrangler/review-build/index.js');
+    await worker.scheduled({}, {DB:limitedDB,PHOTOS:bucket});
+    assert(requests <= 50);
+    assert.equal((await database.prepare('SELECT COUNT(*) AS total FROM events').first()).total,1);
+    assert.equal((await database.prepare('SELECT COUNT(*) AS total FROM photos').first()).total,1);
+    assert.deepEqual((await bucket.list()).objects.map(object=>object.key),[`events/${active}/${keptId}.jpg`]);
+    const counters = await database.prepare('SELECT photo_count,photo_bytes FROM events WHERE id = ?').bind(active).first();
+    assert.deepEqual(counters,{photo_count:1,photo_bytes:jpeg.length});
+  } finally { await isolated.mf.dispose(); }
+});

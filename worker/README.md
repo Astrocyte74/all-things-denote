@@ -5,6 +5,22 @@ stores labeled JPEGs. The existing GitHub Pages app remains the frontend, so its
 IndexedDB photos and saved hunts stay available. No public R2 endpoint, custom
 domain, object access keys, or user accounts are required.
 
+## Production
+
+- Frontend: https://astrocyte74.github.io/all-things-denote/
+- API: https://scavenger-review.markcdarby.workers.dev
+- Account: Markcdarby@gmail.com's Account (`d856762d50b0ac18bc30e9f71325bd30`).
+- D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
+- R2: `scavenger-review-photos`, Standard storage, public access disabled.
+- Retention: hourly cron `17 * * * *`, with seven-day event expiry.
+- The public API URL is committed in `.env.production`; local review tests
+  override it with their isolated Miniflare endpoint.
+
+The owner approved creation and deployment on the existing plan. Workers Free
+was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was made.
+Small event use is expected to fit the free allowances, but R2 usage above its
+account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
+
 ## Local checks
 
 From `app/`:
@@ -76,6 +92,8 @@ and plan; do not enable public bucket access or change DNS.
   cron deletes expired objects and team/photo metadata; already-deleted event
   tombstones are swept again to catch uploads that were in flight. Tombstones
   are removed after expiry plus one day. Scheduled cleanup must remain enabled.
+  Database work is batched to fit D1 Free's 50-request invocation budget, including
+  a full batch of 20 expired events and 100 interrupted upload reservations.
 - Deleting an event disables access before removing its objects. Closing uploads
   prevents new joins/uploads, while existing photos remain reviewable. An upload
   already in flight when uploads close may finish; deletion/expiry prevents commit.
