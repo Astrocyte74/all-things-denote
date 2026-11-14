@@ -226,7 +226,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         onClick={triggerCapture}
         className={`flex-shrink-0 ${
           variant === 'display'
-            ? `btn-3d btn-go rounded-full p-6 text-white ${pulse ? 'animate-pulse-ring' : ''}`
+            ? `btn-3d btn-go rounded-full p-6 text-ink ${pulse ? 'animate-pulse-ring' : ''}`
             : 'btn-3d btn-sky rounded-xl p-2 text-ink'
         }`}
         title="Take Photo"

@@ -46,7 +46,7 @@ export function PackPicker({ packs, activePackId, onPick }: PackPickerProps) {
                   </div>
                 </div>
                 {isActive && (
-                  <span className="absolute -right-1 -top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-ink bg-go text-white sm:static sm:h-7 sm:w-7 sm:flex-shrink-0">
+                  <span className="absolute -right-1 -top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-ink bg-go text-ink sm:static sm:h-7 sm:w-7 sm:flex-shrink-0">
                     <Check className="h-3 w-3 sm:h-4 sm:w-4" strokeWidth={4} />
                   </span>
                 )}

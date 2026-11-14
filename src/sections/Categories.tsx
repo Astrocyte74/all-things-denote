@@ -654,7 +654,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
               </div>
               <button
                 onClick={openNextIncomplete}
-                className="btn-3d btn-go inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-lg tracking-wide text-white"
+                className="btn-3d btn-go inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-lg tracking-wide text-ink"
               >
                 Resume hunt
                 <ChevronRight className="h-5 w-5" strokeWidth={3} />
@@ -704,7 +704,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                       <div className="flex flex-shrink-0 items-center gap-2">
                         <span
                           className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-sm font-extrabold ${
-                            categoryDone ? 'bg-go text-white' : 'bg-white text-ink'
+                            categoryDone ? 'bg-go text-ink' : 'bg-white text-ink'
                           }`}
                         >
                           {categoryDone ? '✓ ' : ''}{progress.completed}/{progress.total}
@@ -755,7 +755,7 @@ export const Categories = forwardRef<CategoriesHandle, CategoriesProps>(function
                                   aria-label={isCompleted ? `Mark ${challenge.title} incomplete` : `Mark ${challenge.title} complete`}
                                   className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
                                     isCompleted
-                                      ? 'border-ink bg-go text-white shadow-sticker-sm'
+                                      ? 'border-ink bg-go text-ink shadow-sticker-sm'
                                       : 'border-ink/30 bg-white hover:border-go hover:bg-go-soft'
                                   }`}
                                 >

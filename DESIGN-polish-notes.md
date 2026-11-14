@@ -26,5 +26,5 @@ Changes on top of the Sticker Quest system. The identity is unchanged; this pass
 - Third stat chip on both packs is "Bring a phone".
 - Rule copy: "Each photo is labeled with its challenge"; "Work together: one ..., one shoots".
 
-## Not changed (worth a look)
-- White text on the green (`btn-go`) buttons is about 2.2:1. Ink text would pass; it changes the look of every green button, so it was left for you to decide.
+## Green controls
+- Green (`btn-go`) buttons and green selection/completion badges use dark ink text and icons for stronger contrast. Disabled buttons keep their separate muted ink treatment.

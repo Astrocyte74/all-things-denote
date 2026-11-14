@@ -108,7 +108,7 @@ export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', on
       {onStart && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-paper/95 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
           <div className="mx-auto max-w-md">
-            <button onClick={onStart} className="btn-3d btn-go flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 font-display text-xl tracking-wide text-white">
+            <button onClick={onStart} className="btn-3d btn-go flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 font-display text-xl tracking-wide text-ink">
               Start the hunt on Path {currentPathId} <ArrowRight className="h-5 w-5 shrink-0" strokeWidth={3} />
             </button>
           </div>

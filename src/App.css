@@ -56,7 +56,7 @@
   cursor: not-allowed;
 }
 
-.btn-go     { --btn-bg: #58cc02; --btn-edge: #43a302; }
+.btn-go     { --btn-bg: #58cc02; --btn-edge: #43a302; color: #2e2459; }
 .btn-sun    { --btn-bg: #ffb020; --btn-edge: #d98f00; }
 .btn-coral  { --btn-bg: #ff6b6b; --btn-edge: #e04848; }
 .btn-sky    { --btn-bg: #38b6ff; --btn-edge: #1e93db; }

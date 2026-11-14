@@ -83,7 +83,7 @@ export function Header({ pack, onStart }: HeaderProps) {
 
         <button
           onClick={onStart}
-          className="btn-3d btn-go animate-rise-in mt-6 inline-flex items-center gap-3 rounded-full px-8 py-4 font-display text-2xl tracking-wide text-white"
+          className="btn-3d btn-go animate-rise-in mt-6 inline-flex items-center gap-3 rounded-full px-8 py-4 font-display text-2xl tracking-wide text-ink"
           style={{ animationDelay: '0.3s' }}
         >
           Start the hunt

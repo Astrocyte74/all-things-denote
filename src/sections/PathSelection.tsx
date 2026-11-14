@@ -86,7 +86,7 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths, ca
                 }}
               >
                 {isSelected && (
-                  <span className="animate-stamp-in absolute -right-2 -top-3 inline-flex rotate-[-4deg] items-center gap-1 rounded-full border-2 border-ink bg-go px-3 py-1 text-sm font-extrabold text-white shadow-sticker-sm">
+                  <span className="animate-stamp-in absolute -right-2 -top-3 inline-flex rotate-[-4deg] items-center gap-1 rounded-full border-2 border-ink bg-go px-3 py-1 text-sm font-extrabold text-ink shadow-sticker-sm">
                     <Check className="h-3.5 w-3.5" strokeWidth={4} /> Picked!
                   </span>
                 )}
@@ -130,7 +130,7 @@ export function PathSelection({ onPathSelected, onBack, initialPathId, paths, ca
           <button
             onClick={() => selectedPath && onPathSelected(selectedPath)}
             disabled={!selectedPath}
-            className="btn-3d btn-go w-full rounded-full px-8 py-4 font-display text-xl tracking-wide text-white"
+            className="btn-3d btn-go w-full rounded-full px-8 py-4 font-display text-xl tracking-wide text-ink"
           >
             {selectedPath ? `Let's go on Path ${selectedPath}!` : 'Pick a path to continue'}
           </button>
