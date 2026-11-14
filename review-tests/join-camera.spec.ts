@@ -59,11 +59,11 @@ test('join and create have focused instructions with an explicit switch', async 
   await joinPage(page);
   await expect(page.getByRole('button', { name: 'Scan QR code', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Event name', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Create private event' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Create event & show QR' })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('join-phone.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Start an event instead' }).click();
   await expect(page.getByRole('heading', { name: 'Start an event', level: 1 })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Event name', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pick a game', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Scan QR code', exact: true })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Or paste the link they sent' })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('create-phone.png'), fullPage: true, animations: 'disabled' });
@@ -99,7 +99,7 @@ test('camera decodes a real invite QR, rejects unrelated/private codes, and stop
   await page.screenshot({ path: info.outputPath('scanner-phone.png'), animations: 'disabled' });
   await frame(page, invite);
   await expect(page.getByRole('heading', { name: 'Camera invite test', exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: /Team name/ })).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'Team names', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await stopped(page)).toBe(1);
   expect(posts).toEqual([]);

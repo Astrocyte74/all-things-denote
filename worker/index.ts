@@ -1,10 +1,12 @@
 import { PACKS } from '../src/data/packs';
+import { availableTeamNames, DEFAULT_TEAM_NAMING, MAX_NAME_POOL, teamNameKey, type TeamNamingSettings } from '../src/lib/teamNaming';
 
 interface Env { DB: D1Database; PHOTOS: R2Bucket; ALLOWED_ORIGINS: string }
 interface EventRow {
   id: string; title: string; pack_id: string; leader_hash: string; join_token: string;
   created_at: number; expires_at: number; closed: number; deleted: number;
   photo_count: number; photo_bytes: number;
+  team_naming: string | null;
 }
 interface TeamRow { id: string; event_id: string; token_hash: string; name: string; path_id: string | null; joined_at: number }
 interface PhotoRow {
@@ -43,6 +45,21 @@ function path(value: unknown) {
   if (typeof value !== 'string' || !/^[A-F]$/.test(value)) throw new HttpError(400, 'Choose a path from A to F.');
   return value;
 }
+function namingSettings(value: unknown): TeamNamingSettings {
+  if (value === undefined || value === null) return { ...DEFAULT_TEAM_NAMING, names: [] };
+  if (typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400, 'Choose valid team-name settings.');
+  const input = value as Record<string, unknown>;
+  if ((input.pool !== 'all' && input.pool !== 'selected') || (input.assignment !== 'choose' && input.assignment !== 'random') || typeof input.allowCustom !== 'boolean' || !Array.isArray(input.names) || input.names.length > MAX_NAME_POOL) {
+    throw new HttpError(400, 'Choose valid team-name settings with at most 50 names.');
+  }
+  const names = input.names.map(name => text(name, 40, true));
+  if (new Set(names.map(teamNameKey)).size !== names.length) throw new HttpError(400, 'Use each team name only once in your list.');
+  if (input.pool === 'selected' && !names.length) throw new HttpError(400, 'Choose at least one team name, or allow all names.');
+  return { pool: input.pool as TeamNamingSettings['pool'], assignment: input.assignment as TeamNamingSettings['assignment'], names, allowCustom: input.allowCustom };
+}
+function eventNaming(event: EventRow): TeamNamingSettings {
+  return event.team_naming ? namingSettings(JSON.parse(event.team_naming)) : namingSettings(undefined);
+}
 async function boundedBody(request: Request, maximum: number): Promise<ArrayBuffer> {
   if (Number(request.headers.get('Content-Length')) > maximum) throw new HttpError(413, 'This upload is too large (5 MB per photo).');
   const reader = request.body?.getReader();
@@ -64,13 +81,13 @@ async function boundedBody(request: Request, maximum: number): Promise<ArrayBuff
 async function bodyJSON(request: Request): Promise<Record<string, unknown>> {
   if (!request.headers.get('Content-Type')?.startsWith('application/json')) throw new HttpError(415, 'Send JSON details.');
   try {
-    const value = JSON.parse(new TextDecoder().decode(await boundedBody(request, 8192)));
+    const value = JSON.parse(new TextDecoder().decode(await boundedBody(request, 16384)));
     if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error();
     return value;
   } catch (error) { if (error instanceof HttpError) throw error; throw new HttpError(400, 'Invalid details.'); }
 }
 function eventView(event: EventRow) {
-  return { id: event.id, title: event.title, packId: event.pack_id, createdAt: event.created_at, expiresAt: event.expires_at, closed: Boolean(event.closed), maxTeams: MAX_TEAMS, maxPhotos: MAX_PHOTOS };
+  return { id: event.id, title: event.title, packId: event.pack_id, createdAt: event.created_at, expiresAt: event.expires_at, closed: Boolean(event.closed), maxTeams: MAX_TEAMS, maxPhotos: MAX_PHOTOS, teamNaming: eventNaming(event) };
 }
 function teamView(team: TeamRow) { return { id: team.id, name: team.name, pathId: team.path_id || undefined, joinedAt: team.joined_at }; }
 function photoView(photo: PhotoRow) {
@@ -97,7 +114,12 @@ async function authorize(request: Request, env: Env, id: string): Promise<Auth> 
 function leader(auth: Auth) { if (auth.role !== 'leader') throw new HttpError(403, 'Only the leader can do that.'); }
 async function snapshot(env: Env, auth: Auth) {
   const result = { event: eventView(auth.event), role: auth.role, teams: [] as ReturnType<typeof teamView>[], photos: [] as ReturnType<typeof photoView>[], team: auth.team ? teamView(auth.team) : undefined, joinToken: auth.role === 'leader' ? auth.event.join_token : undefined };
-  if (auth.role === 'join') return result;
+  if (auth.role === 'join') {
+    const used = (await env.DB.prepare('SELECT name FROM teams WHERE event_id = ?').bind(auth.event.id).all<{ name: string }>()).results;
+    const spotsRemaining = Math.max(0, MAX_TEAMS - used.length);
+    // Reveal available choices, not joined team records, custom names, paths or photos.
+    return { ...result, joinOptions: { names: auth.event.closed || !spotsRemaining ? [] : availableTeamNames(result.event.teamNaming, used.map(team => team.name)), spotsRemaining } };
+  }
   const all = auth.role === 'leader';
   const [teams, photos] = await env.DB.batch([
     env.DB.prepare(`SELECT * FROM teams WHERE event_id = ?${all ? '' : ' AND id = ?'} ORDER BY joined_at, id`).bind(...(all ? [auth.event.id] : [auth.event.id, auth.team!.id])),
@@ -113,6 +135,7 @@ async function createEvent(request: Request, env: Env) {
   const title = text(input.title, 80, true);
   const pack = PACKS.find(pack => pack.id === input.packId);
   if (!pack) throw new HttpError(400, 'Choose a game for this event.');
+  const settings = namingSettings(input.teamNaming);
   const now = Date.now();
   const rateKey = await hash(`${request.headers.get('CF-Connecting-IP') || 'local'}:${Math.floor(now / 3_600_000)}`);
   const rate = await env.DB.prepare('INSERT INTO rate_limits(key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 WHERE count < 5 RETURNING count').bind(rateKey, now + 2 * 3_600_000).first();
@@ -120,8 +143,8 @@ async function createEvent(request: Request, env: Env) {
   const id = crypto.randomUUID();
   const leaderToken = token();
   const joinToken = token();
-  const created = await env.DB.prepare('INSERT INTO events(id, title, pack_id, leader_hash, join_token, created_at, expires_at) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM events WHERE deleted = 0 AND expires_at > ?) < ?')
-    .bind(id, title, pack.id, await hash(leaderToken), joinToken, now, now + 7 * DAY, now, MAX_ACTIVE_EVENTS).run();
+  const created = await env.DB.prepare('INSERT INTO events(id, title, pack_id, leader_hash, join_token, created_at, expires_at, team_naming) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM events WHERE deleted = 0 AND expires_at > ?) < ?')
+    .bind(id, title, pack.id, await hash(leaderToken), joinToken, now, now + 7 * DAY, JSON.stringify(settings), now, MAX_ACTIVE_EVENTS).run();
   if (!created.meta.changes) throw new HttpError(503, 'Shared review is at capacity. Please try again later.');
   const event = (await env.DB.prepare('SELECT * FROM events WHERE id = ?').bind(id).first<EventRow>())!;
   return json({ access: { eventId: id, role: 'leader', token: leaderToken }, snapshot: await snapshot(env, { event, role: 'leader' }) }, 201);
@@ -130,18 +153,56 @@ async function createEvent(request: Request, env: Env) {
 async function joinEvent(request: Request, env: Env, auth: Auth) {
   if (auth.role !== 'join') throw new HttpError(403, 'Use the team invite link to join.');
   const input = await bodyJSON(request);
-  const name = text(input.name, 40, true);
-  const pathId = path(input.pathId);
   if (typeof input.token !== 'string' || !TOKEN.test(input.token)) throw new HttpError(400, 'Invalid team credential.');
   const digest = await hash(input.token);
   let team = await env.DB.prepare('SELECT * FROM teams WHERE event_id = ? AND token_hash = ?').bind(auth.event.id, digest).first<TeamRow>();
+  // Recover the original name/path on a lost response, even after the event closes.
   if (!team) {
     if (auth.event.closed) throw new HttpError(409, 'Uploads are closed for this event. Ask your leader to reopen them.');
-    const id = crypto.randomUUID();
-    await env.DB.prepare('INSERT INTO teams(id, event_id, token_hash, name, path_id, joined_at) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ?) AND (SELECT COUNT(*) FROM teams WHERE event_id = ?) < ? ON CONFLICT(event_id, token_hash) DO NOTHING')
-      .bind(id, auth.event.id, digest, name, pathId, Date.now(), auth.event.id, Date.now(), auth.event.id, MAX_TEAMS).run();
-    team = await env.DB.prepare('SELECT * FROM teams WHERE event_id = ? AND token_hash = ?').bind(auth.event.id, digest).first<TeamRow>();
-    if (!team) throw new HttpError(409, 'This event is closed or has reached its 20-team limit.');
+    const settings = eventNaming(auth.event);
+    const requestedName = text(input.name, 40);
+    const pathId = path(input.pathId); // Older app versions can still supply a valid path.
+    if (input.nameSource !== undefined && input.nameSource !== 'suggested' && input.nameSource !== 'custom' && input.nameSource !== 'random') throw new HttpError(400, 'Choose how to name your team.');
+    for (let attempt = 0; attempt < 8 && !team; attempt++) {
+      const used = (await env.DB.prepare('SELECT * FROM teams WHERE event_id = ?').bind(auth.event.id).all<TeamRow>()).results;
+      team = used.find(item => item.token_hash === digest) ?? null;
+      if (team) break;
+      if (used.length >= MAX_TEAMS) throw new HttpError(409, 'This event has reached its 20-team limit.');
+      const available = availableTeamNames(settings, used.map(item => item.name));
+      const suggestion = available.find(name => teamNameKey(name) === teamNameKey(requestedName));
+      // Legacy clients have no source field. Their supplied names still follow the event policy.
+      const source = input.nameSource ?? (settings.assignment === 'random' ? 'random' : suggestion ? 'suggested' : 'custom');
+      let name: string;
+      if (source === 'random') {
+        if (settings.assignment !== 'random') throw new HttpError(400, 'Choose a team name from the available names.');
+        name = available[crypto.getRandomValues(new Uint32Array(1))[0] % available.length];
+      } else {
+        if (!requestedName) throw new HttpError(400, 'Choose a team name.');
+        if (used.some(item => teamNameKey(item.name) === teamNameKey(requestedName))) throw new HttpError(409, 'That team name was just taken. Choose another name.');
+        if (source === 'suggested') {
+          if (settings.assignment !== 'choose') throw new HttpError(400, 'This event assigns team names randomly.');
+          if (!suggestion) throw new HttpError(409, 'That name is no longer available. Refresh the choices and pick another.');
+          name = suggestion;
+        } else {
+          if (!settings.allowCustom) throw new HttpError(400, 'This event uses the leader’s name list. Choose an available name.');
+          name = requestedName;
+        }
+      }
+      // Path counts are read inside the INSERT, so concurrent joins cannot all
+      // choose the same least-used path. A unique index reserves the name too.
+      await env.DB.prepare(`WITH routes(path) AS (VALUES ('A'), ('B'), ('C'), ('D'), ('E'), ('F'))
+        INSERT INTO teams(id, event_id, token_hash, name, name_key, path_id, joined_at)
+        SELECT ?, ?, ?, ?, ?, COALESCE(?, (
+          SELECT routes.path FROM routes
+          ORDER BY (SELECT COUNT(*) FROM teams WHERE event_id = ? AND path_id = routes.path), routes.path LIMIT 1
+        )), ?
+        WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ?)
+        AND (SELECT COUNT(*) FROM teams WHERE event_id = ?) < ? ON CONFLICT DO NOTHING`)
+        .bind(crypto.randomUUID(), auth.event.id, digest, name, teamNameKey(name), pathId, auth.event.id, Date.now(), auth.event.id, Date.now(), auth.event.id, MAX_TEAMS).run();
+      team = await env.DB.prepare('SELECT * FROM teams WHERE event_id = ? AND token_hash = ?').bind(auth.event.id, digest).first<TeamRow>();
+      if (!team && source !== 'random') throw new HttpError(409, 'That name was taken, or the event is now closed or full. Refresh and try another name.');
+    }
+    if (!team) throw new HttpError(409, 'Teams are joining quickly, or this event is closed or full. Please retry.');
   }
   return json({ access: { eventId: auth.event.id, role: 'team', token: input.token }, snapshot: await snapshot(env, { event: auth.event, role: 'team', team }) });
 }
@@ -231,7 +292,7 @@ async function purgeEvent(env: Env, id: string) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM photos WHERE event_id = ?').bind(id),
     env.DB.prepare('DELETE FROM teams WHERE event_id = ?').bind(id),
-    env.DB.prepare("UPDATE events SET last_purged_at = ?, title = 'Deleted event' WHERE id = ?").bind(Date.now(), id),
+    env.DB.prepare("UPDATE events SET last_purged_at = ?, title = 'Deleted event', team_naming = NULL WHERE id = ?").bind(Date.now(), id),
   ]);
 }
 async function cleanup(env: Env) {

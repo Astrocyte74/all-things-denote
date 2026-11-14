@@ -244,7 +244,7 @@ function App() {
           route={reviewRoute}
           onBack={() => { leaveReview(); setAppState('library'); }}
           onPlay={(access, snapshot) => prepareEventHunt(access, snapshot, true)}
-          onJoined={(access, snapshot) => prepareEventHunt(access, snapshot)}
+          onJoined={(access, snapshot) => prepareEventHunt(access, snapshot, true)}
         />
         </Suspense>
       ) : <>

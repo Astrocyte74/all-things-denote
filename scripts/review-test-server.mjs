@@ -1,5 +1,5 @@
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 export async function createReviewServer(port = 0) {
@@ -18,9 +18,12 @@ export async function createReviewServer(port = 0) {
   try {
     await mf.ready;
     const db = await mf.getD1Database('DB');
-    const sql = await readFile(new URL('../worker/migrations/0001_shared_review.sql', import.meta.url), 'utf8');
-    // D1.exec treats newlines as statement separators; keep trigger bodies intact.
-    for (const statement of sql.split(/\n(?=CREATE|PRAGMA)/)) await db.prepare(statement.trim()).run();
+    const migrations = new URL('../worker/migrations/', import.meta.url);
+    for (const name of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+      const sql = await readFile(new URL(name, migrations), 'utf8');
+      // D1.exec treats newlines as statement separators; keep trigger bodies intact.
+      for (const statement of sql.split(/\n(?=CREATE|PRAGMA|ALTER)/)) await db.prepare(statement.trim()).run();
+    }
     return { mf, db };
   } catch (error) { await mf.dispose(); throw error; }
 }

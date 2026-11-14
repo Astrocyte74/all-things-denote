@@ -21,6 +21,8 @@ A faith-based scavenger hunt app that helps youth discover spiritual significanc
 - Optional updates that preserve saved hunts and photos
 - Event-first start screen with private invites and QR codes
 - Joining sets up the game, team name and path once; each event team has separate progress
+- Three-step event setup with game previews, event-name ideas, and configurable team names
+- Team-name choices or random assignment, with paths balanced automatically
 - Device-only games remain available for solo or offline play
 - Team uploads, clue-by-clue comparison, presentation mode, and a leader ZIP export
 
@@ -37,12 +39,18 @@ team only. An event hunt keeps its event, team name and path after a reset.
 
 ## Group events
 
-1. The leader taps **Start an event**, names it, and selects a game.
+1. The leader taps **Start an event**: choose a game and preview a clue, pick or
+   edit an event name, then keep **Allow all** team names or customize the options.
+   **More ideas** refreshes name suggestions without changing the chosen name.
+   **Create event & show QR** creates the event after those three steps.
 2. Teams tap **Join an event → Scan QR code**, allow camera access, and point
    at the leader’s code. They can also paste an invite link or use their phone’s
-   Camera app. Each team enters its name and picks its path once (Path A is the default).
-3. **Open team hunt** carries the event's game, team name and path straight to
-   the instructions, then the hunt. Reopening it resumes saved progress.
+   Camera app. Teams tap a suggested name, type their own if allowed, or receive
+   a random name according to the leader's settings. Taken names are unavailable;
+   unused standard names appear when a leader's selected list runs out.
+3. **Join & start hunt** opens the instructions with the event's game and the
+   assigned team name/path. Paths are balanced automatically across A–F. Reopening
+   **Open team hunt** resumes saved progress. There is no path-picker step for joining.
 4. **Back to event** opens that team's upload screen directly. Teams choose
    photos and tap **Send**; taking a photo never uploads it automatically.
 5. The leader opens the separate private **leader link** on a phone or laptop
@@ -67,6 +75,12 @@ Opening that link on a laptop brings up the same event without an account.
 Joining events, sending photos and leader review require internet. Events expire after seven days; download the ZIP
 to keep the shared collection. Expiry or deletion does not erase local hunt photos.
 The same clue is compared across teams even when they take different paths.
+
+Team-name setup defaults to **Allow all**: teams choose from 60 standard names or
+type their own. **Customize** offers a selected pool (including the leader's own
+additions, up to 50), random assignment, and a separate custom-name switch. Each
+name is reserved once per event; retries recover the same team, name, and path.
+These settings belong to the event and do not change device-only game setup.
 
 The frontend stays on GitHub Pages to preserve existing device storage. Its API
 uses a Cloudflare Worker, D1, and private R2 storage. Set

@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowRight, CalendarDays, Crown, Link2, Loader2, QrCode, ScanLine, Send, Sparkles, Trash2, Users } from 'lucide-react';
-import { PACKS, getPackById } from '@/data/packs';
-import { createReview, forgetReview, getSavedReviews, openReview, openReviewHome, parseReviewLink, reviewConfigured, type SavedReview } from '@/lib/sharedReview';
-import { describeError, formatExpiry } from './common';
+import { ArrowRight, CalendarDays, Crown, Link2, QrCode, ScanLine, Send, Trash2, Users } from 'lucide-react';
+import { getPackById } from '@/data/packs';
+import { forgetReview, getSavedReviews, openReview, openReviewHome, parseReviewLink, reviewConfigured, type SavedReview } from '@/lib/sharedReview';
+import { formatExpiry } from './common';
 import { Notice, PackBadge, ReviewShell } from './ui';
 import { InviteScanner } from './InviteScanner';
-
-const TITLE_LIMIT = 60;
+import { CreateEventWizard } from './CreateEventWizard';
 
 export type ReviewIntent = 'create' | 'join';
 
@@ -20,25 +19,19 @@ interface ReviewHomeProps {
 }
 
 export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
-  const ids = { title: useId(), link: useId(), game: useId() };
+  const ids = { link: useId() };
   const [saved, setSaved] = useState<SavedReview[]>(getSavedReviews);
-  const [title, setTitle] = useState('');
-  const [gameId, setGameId] = useState(() => PACKS.some(p => p.id === packId) ? packId! : PACKS[0].id);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const scanButton = useRef<HTMLButtonElement>(null);
   const joinHeading = useRef<HTMLHeadingElement>(null);
-  const createHeading = useRef<HTMLHeadingElement>(null);
 
-  // Move focus (and the screen reader) to the flow picked on the landing.
+  // Move focus (and the screen reader) to the join flow picked on the landing.
   // The heading takes focus rather than an input, so phones don't pop the
-  // keyboard over the instructions.
+  // keyboard over the instructions. The create wizard focuses its own steps.
   useEffect(() => {
-    const target = intent === 'join' ? joinHeading.current : intent === 'create' ? createHeading.current : null;
-    target?.focus();
+    if (intent === 'join') joinHeading.current?.focus();
   }, [intent]);
 
   // A game passed in from a finish screen floats its saved events to the top;
@@ -47,21 +40,6 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
   const sortedSaved = [...saved].sort((a, b) =>
     (Number(b.packId === packId) - Number(a.packId === packId))
     || (preferredRole ? Number(b.access.role === preferredRole) - Number(a.access.role === preferredRole) : 0));
-
-  const create = async (e: FormEvent) => {
-    e.preventDefault();
-    const clean = title.replace(/\s+/g, ' ').trim();
-    if (!clean) { setCreateError('Give your event a name so teams know they’re in the right place.'); return; }
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const { access } = await createReview(clean, gameId);
-      openReview(access);
-    } catch (error) {
-      setCreateError(describeError(error));
-      setCreating(false);
-    }
-  };
 
   const openLink = (e: FormEvent) => {
     e.preventDefault();
@@ -135,7 +113,7 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
           <strong>Scan your leader’s QR code</strong> using the button above, or paste their invite link below.
         </JoinStep>
         <JoinStep n={2} icon={<Users className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}>
-          <strong>Enter your team name and pick a path.</strong> That sets the game, team and path for your hunt.
+          <strong>Pick your team name.</strong> Your game is set and your path is assigned automatically.
         </JoinStep>
         <JoinStep n={3} icon={<Send className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}>
           <strong>Play, then send the photos you choose.</strong> Nothing uploads until you pick photos afterward.
@@ -170,69 +148,14 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
     </section>
   );
 
-  const createSection = (
-    <form key="create" onSubmit={create} className="sticker-card mb-6 p-4 sm:p-6" style={{ backgroundColor: LEAD_TINT.create }} aria-labelledby="sr-create" noValidate>
-      <h2 id="sr-create" ref={createHeading} tabIndex={-1} className="flex items-center gap-2 font-display text-2xl focus:outline-none">
-        <Sparkles className="h-5 w-5" strokeWidth={2.75} aria-hidden="true" /> Event details
-      </h2>
-      <p className="mt-1 text-sm font-semibold text-ink/70">
-        For leaders. Pick the game and share one QR code; teams join on their own phones. Review every clue together on your phone or a laptop. Events last 7 days.
-      </p>
-
-      <label htmlFor={ids.title} className="mt-4 block font-extrabold">Event name</label>
-      <input
-        id={ids.title}
-        value={title}
-        maxLength={TITLE_LIMIT}
-        onChange={e => setTitle(e.target.value)}
-        placeholder="e.g. Youth night · Nov 14"
-        autoComplete="off"
-        className="mt-1.5 block min-h-12 w-full rounded-2xl border-2 border-ink bg-white px-4 text-lg font-bold placeholder:font-semibold placeholder:text-ink/45 focus:outline-none focus-visible:ring-4 focus-visible:ring-grape/40"
-      />
-
-      <fieldset className="mt-4">
-        <legend id={ids.game} className="font-extrabold">Game</legend>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-labelledby={ids.game}>
-          {PACKS.map(pack => {
-            const checked = pack.id === gameId;
-            return (
-              <label
-                key={pack.id}
-                className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border-2 border-ink p-2.5 transition-transform has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${checked ? '-translate-y-0.5 shadow-[3px_3px_0_0_#2E2459]' : 'bg-cream'}`}
-                style={checked ? { backgroundColor: pack.library.soft } : undefined}
-              >
-                <input type="radio" name="sr-game" value={pack.id} checked={checked} onChange={() => setGameId(pack.id)} className="sr-only" />
-                <PackBadge pack={pack} size="sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-display text-lg leading-tight">{pack.title}</span>
-                  <span className="block truncate text-xs font-bold text-ink/65">{pack.locationLabel ?? pack.setting}</span>
-                </span>
-                <span aria-hidden="true" className={`h-5 w-5 flex-shrink-0 rounded-full border-2 border-ink ${checked ? 'bg-go' : 'bg-white'}`} />
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      {createError && <div className="mt-4"><Notice tone="error">{createError}</Notice></div>}
-
-      <button
-        type="submit"
-        disabled={creating || !reviewConfigured}
-        className={`btn-3d ${intent === 'join' ? 'btn-white' : 'btn-go'} mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-5 font-display text-xl tracking-wide text-ink sm:w-auto`}
-      >
-        {creating && <Loader2 className="h-5 w-5 animate-spin" strokeWidth={3} aria-hidden="true" />}
-        {creating ? 'Creating…' : 'Create private event'}
-      </button>
-    </form>
-  );
+  const createSection = <CreateEventWizard key="create" packId={packId} />;
 
   return (
     <ReviewShell onBack={onBack}>
       <header className="mb-7 text-center">
         <h1 className="text-sticker-sun animate-pop-in text-[2.3rem] leading-[1.05] sm:text-5xl">{intent === "join" ? "Join an event" : intent === "create" ? "Start an event" : "Group events"}</h1>
         <p className="mx-auto mt-3 max-w-lg font-semibold text-ink/75">
-          {intent === 'join' ? 'Open your leader’s invite to get your team ready.' : intent === 'create' ? 'Choose a game, invite your teams, and compare their discoveries.' : 'Reopen an event saved on this device, or get a new group started.'}
+          {intent === 'join' ? 'Open your leader’s invite to get your team ready.' : intent === 'create' ? 'Three quick steps: game, event name, team names. Then share one QR code.' : 'Reopen an event saved on this device, or get a new group started.'}
         </p>
       </header>
 

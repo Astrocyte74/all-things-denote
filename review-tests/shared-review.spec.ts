@@ -34,9 +34,11 @@ async function makeLeader(browser: Browser, baseURL: string, title: string) {
   await page.route(`${API}/events`, route => route.continue({headers:{...route.request().headers(),'CF-Connecting-IP':creator}}));
   await page.goto('./');
   await page.getByRole('button', {name:'Start an event',exact:true}).click();
-  await page.getByRole('textbox',{name:'Event name'}).fill(title);
   await page.getByRole('radio',{name:/Christmas/}).locator('..').click();
-  await page.getByRole('button',{name:'Create private event'}).click();
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('textbox',{name:'Event name',exact:true}).fill(title);
+  await page.getByRole('button',{name:'Next',exact:true}).click();
+  await page.getByRole('button',{name:'Create event & show QR',exact:true}).click();
   await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
   await page.getByText('View invite link',{exact:true}).click();
   const invite = await page.getByRole('textbox',{name:'Team invite link'}).inputValue();
@@ -47,9 +49,11 @@ async function makeLeader(browser: Browser, baseURL: string, title: string) {
 }
 async function join(page: Page, invite: string, name: string, path = 'A') {
   await page.goto(invite);
-  await page.getByRole('textbox',{name:/Team name/}).fill(name);
-  await page.getByRole('radio',{name:`Path ${path}`,exact:true}).locator('..').click();
-  await page.getByRole('button',{name:'Join event',exact:true}).click();
+  await page.getByRole('button',{name:'Use my own name',exact:true}).click();
+  await page.getByRole('textbox',{name:/Your own name/}).fill(name);
+  await page.getByRole('button',{name:'Join & start hunt',exact:true}).click();
+  await expect(page.getByRole('button',{name:`Start the hunt on Path ${path}`,exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Back to event',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Choose photos to send'})).toBeVisible();
 }
 async function refreshLeader(page: Page) {
@@ -226,7 +230,7 @@ test('teams delete single or all cloud copies, including from another device aft
   const otherContext = await browser.newContext({baseURL});
   const other = await otherContext.newPage();
   await capture(other,'#d6c9f1','Keep my photo');
-  await join(other,leader.invite,'Keep my photo');
+  await join(other,leader.invite,'Keep my photo','B');
   await other.getByRole('button',{name:'Send 1 photo',exact:true}).click();
   await expect(other.getByText('All 1 sent. The leader can see them now.')).toBeVisible();
 
@@ -289,21 +293,21 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   const oldPhoto = (await storedPhotos(page))[0];
   const oldProgress = await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'));
   const leader = await makeLeader(browser, baseURL!, `Joined hunt ${info.project.name}`);
-  await join(page, leader.invite, 'Scripture Scouts', 'B');
+  await join(page, leader.invite, 'Scripture Scouts', 'A');
   const teamLink = page.url();
   const team = (await snapshot(page)).team;
   const eventId = new URL(teamLink).hash.match(/event=([^&]+)/)![1];
-  await expect(page.getByRole('region', {name:'Your event hunt'})).toContainText('Christmas · Scripture Scouts · Path B');
+  await expect(page.getByRole('region', {name:'Your event hunt'})).toContainText('Christmas · Scripture Scouts · Path A');
   await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
   await expect(page.getByRole('textbox', {name:/Team name/})).toHaveCount(0);
-  await page.getByRole('button', {name:'Start the hunt on Path B',exact:true}).click();
+  await page.getByRole('button', {name:'Start the hunt on Path A',exact:true}).click();
   await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
   await page.locator('input[type=file]').setInputFiles({name:'event.svg', mimeType:'image/svg+xml', buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="skyblue"/></svg>')});
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(2);
   const eventPhoto = (await storedPhotos(page)).find(photo => photo.id !== oldPhoto.id)!;
   expect(eventPhoto.packId).toBe('christmas');
   expect(eventPhoto.teamName).toBe('Scripture Scouts');
-  expect(eventPhoto.pathId).toBe('B');
+  expect(eventPhoto.pathId).toBe('A');
   expect(eventPhoto.huntId).toBe(`event:${eventId}:${team.id}`);
   expect(await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'))).toBe(oldProgress);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('teamNameByPack')!).christmas)).toBe('Old local team');
@@ -326,10 +330,10 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   // A second team on the phone has its own fresh progress and photo collection.
   await page.goto(leader.invite);
   await page.getByRole('button', {name:'Join as a different team on this phone',exact:true}).click();
-  await page.getByRole('textbox', {name:/Team name/}).fill('New team');
-  await page.getByRole('button', {name:'Join event',exact:true}).click();
-  await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
-  await page.getByRole('button', {name:'Start the hunt on Path A',exact:true}).click();
+  await page.getByRole('button', {name:'Use my own name',exact:true}).click();
+  await page.getByRole('textbox', {name:/Your own name/}).fill('New team');
+  await page.getByRole('button', {name:'Join & start hunt',exact:true}).click();
+  await page.getByRole('button', {name:'Start the hunt on Path B',exact:true}).click();
   await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
   await expect(page.getByRole('button', {name:'Open photo gallery',exact:true}).first()).toBeAttached();
   expect(await storedPhotos(page)).toHaveLength(2);
@@ -357,7 +361,7 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.getByRole('button', {name:/^Start fresh/}).click();
   await page.getByRole('button', {name:'Delete & start fresh',exact:true}).click();
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await expect(page.getByRole('button', {name:'Start the hunt on Path B',exact:true})).toBeVisible();
+  await expect(page.getByRole('button', {name:'Start the hunt on Path A',exact:true})).toBeVisible();
   expect((await storedPhotos(page)).map(photo => photo.id)).toEqual([oldPhoto.id]);
   expect(await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'))).toBe(oldProgress);
   await page.context().setOffline(false);

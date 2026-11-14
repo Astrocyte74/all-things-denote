@@ -139,6 +139,21 @@ group events; a broader public launch would need stronger abuse controls.
 
 ## Routine operation
 
+Event naming uses migration `0002_team_naming.sql`: an optional policy on events
+and a normalized unique name key for newly joined teams. Existing events receive
+the default policy, and existing teams/photos remain unchanged. Old rows without
+a name key still reserve their names when new teams join. Invite snapshots expose
+only available name choices and the number of remaining team slots, never team
+records or photos. Selected pools replenish from the standard library when empty.
+
+New joins choose a least-used path inside the same SQL statement that inserts the
+team. Unique name and credential indexes handle concurrent joins and retries;
+explicit valid paths from older app versions remain accepted. Apply migrations
+before deploying the updated Worker, then publish the matching frontend. A lost
+join response can be retried with the same credential to recover the original name
+and path, including after the leader closes new joins. Purging an event also clears
+its stored naming policy.
+
 Run the tests before changes; apply new D1 migrations before deploying code that
 depends on them. Keep old migrations unchanged. Keep the frontend and API's game
 registry in sync. Check the Cloudflare trigger and storage usage periodically;

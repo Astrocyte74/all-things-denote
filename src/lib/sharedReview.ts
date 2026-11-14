@@ -1,4 +1,5 @@
 import type { StoredPhoto } from './photoStorage';
+import type { TeamNamingSettings } from './teamNaming';
 
 export interface ReviewEvent {
   id: string;
@@ -9,6 +10,7 @@ export interface ReviewEvent {
   closed: boolean;
   maxTeams: number;
   maxPhotos: number;
+  teamNaming?: TeamNamingSettings;
 }
 export interface ReviewTeam { id: string; name: string; pathId?: string; joinedAt: number }
 export interface ReviewPhoto {
@@ -33,6 +35,8 @@ export interface ReviewSnapshot {
   photos: ReviewPhoto[];
   /** Only returned with leader access. Never put this in a leader link. */
   joinToken?: string;
+  /** Available choices only. Invite holders never receive team records or photos. */
+  joinOptions?: { names: string[]; spotsRemaining: number };
 }
 export interface SavedReview { access: EventAccess; title: string; packId: string; expiresAt: number }
 export type ReviewRoute = { screen: 'home'; packId?: string; intent?: 'create' | 'join' } | { screen: 'event'; access: EventAccess };
@@ -123,8 +127,8 @@ export function openReview(access: EventAccess) {
   location.hash = new URL(reviewLink(access)).hash;
 }
 
-export async function createReview(title: string, packId: string): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
-  const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>('/events', undefined, { method: 'POST', body: JSON.stringify({ title, packId }) });
+export async function createReview(title: string, packId: string, teamNaming?: TeamNamingSettings): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
+  const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>('/events', undefined, { method: 'POST', body: JSON.stringify({ title, packId, teamNaming }) });
   rememberReview(result.access, result.snapshot.event);
   return result;
 }
@@ -135,12 +139,12 @@ export async function fetchReview(access: EventAccess): Promise<ReviewSnapshot> 
   return snapshot;
 }
 
-export async function joinReview(access: EventAccess, name: string, pathId?: string): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
+export async function joinReview(access: EventAccess, name: string, pathId?: string, nameSource?: 'suggested' | 'custom' | 'random'): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
   // Keep the same credential across network retries, so one team is never registered twice.
   const key = `reviewJoinPending:${access.eventId}`;
   let token = sessionStorage.getItem(key);
   if (!token || !TOKEN.test(token)) { token = randomToken(); sessionStorage.setItem(key, token); }
-  const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>(`/events/${access.eventId}/teams`, access, { method: 'POST', body: JSON.stringify({ name, pathId, token }) });
+  const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>(`/events/${access.eventId}/teams`, access, { method: 'POST', body: JSON.stringify({ name, pathId, token, nameSource }) });
   rememberReview(result.access, result.snapshot.event);
   sessionStorage.removeItem(key);
   return result;

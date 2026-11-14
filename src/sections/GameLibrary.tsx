@@ -102,7 +102,7 @@ export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onO
               <EventCard
                 tone="join"
                 title="Join an event"
-                body="Scan your leader’s QR code right here, or paste their invite link to set up your team."
+                body="Scan your leader’s QR code right here, then tap a team name. Your game and path are set for you."
                 chips={['Game', 'Team name', 'Path']}
                 chipsLabel="Set up for you"
                 cta="Join an event"
@@ -112,7 +112,7 @@ export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onO
               <EventCard
                 tone="create"
                 title="Start an event"
-                body="For leaders. Pick a game and share one QR code. Teams send the photos they choose, and you review every clue on a phone or laptop."
+                body="For leaders. Three quick steps: pick a game, name it, set team names. Share one QR code, then review every clue on a phone or laptop."
                 chips={['QR invite', 'Private', '7 days']}
                 chipsLabel="Includes"
                 cta="Start an event"
