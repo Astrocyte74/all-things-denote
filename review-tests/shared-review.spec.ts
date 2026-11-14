@@ -248,7 +248,8 @@ test('teams delete single or all cloud copies, including from another device aft
   await expect(remote.getByText(/No Christmas photos on this phone yet/)).toBeVisible();
   const cloud = remote.getByRole('region',{name:'Your uploaded photos'});
   await cloud.getByText('View uploaded photos',{exact:true}).click();
-  await expect(cloud.getByRole('img')).toHaveCount(2);
+  await expect(cloud.locator('img')).toHaveCount(2);
+  await expect.poll(()=>cloud.locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).naturalWidth>0))).toBe(true);
   // One deletion succeeds; the next loses connectivity. Retry must finish
   // without re-uploading originals or touching the other team's photo.
   await remote.evaluate(()=>{
