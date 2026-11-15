@@ -258,7 +258,7 @@ function App() {
         </Suspense>
       ) : <>
       {appState === 'library' && Object.keys(savedEventHunts).length > 0 && (
-        <details className="mx-auto max-w-5xl px-4 pt-5 text-ink">
+        <details open={Boolean(activeEvent)} className="mx-auto max-w-5xl px-4 pt-5 text-ink">
           <summary className="min-h-11 cursor-pointer rounded-2xl border-2 border-ink bg-sky-soft p-3 font-extrabold">Saved team hunts on this device ({Object.keys(savedEventHunts).length})</summary>
           <ul className="mt-3 grid gap-3 sm:grid-cols-2">
             {Object.entries(savedEventHunts).map(([id, saved]) => <li key={id} className="sticker-card bg-cream p-4">

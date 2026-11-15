@@ -27,7 +27,7 @@ Hunt navigation release checks (2026-11-14): lint, production build and Worker
 validation passed, along with 40 hunt/navigation checks and 47 applicable event
 browser checks (one unsupported WebKit native-camera skip). The single Menu,
 explicit checklist return to a completed current clue, gallery/sharing dismissal,
-keyboard focus, Home confirmation, reset cancellation, saved-clue resume and
+keyboard focus, Home confirmation and visible Continue, reset cancellation, saved-clue resume and
 existing photo/upload flows were checked in Chromium and WebKit phone simulations.
 This is a frontend release; the deployed API and schema are unchanged.
 

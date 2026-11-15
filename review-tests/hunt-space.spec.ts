@@ -1,4 +1,4 @@
-import { openHuntMenu, openSharingMenu } from '../tests/hunt-controls';
+import { leaveHunt, openHuntMenu, openSharingMenu } from '../tests/hunt-controls';
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 const API = 'http://127.0.0.1:8788';
 type Access = { eventId: string; token: string };
@@ -40,6 +40,12 @@ test('small phone devotes most space to the clue with one navigation dock and ac
   await page.getByRole('button', { name: 'Next challenge', exact: true }).click(); expect(await page.getByTestId('clue-scroll').evaluate(el => el.scrollTop)).toBe(0);
   await page.setViewportSize({ width: 320, height: 568 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(page.getByRole('button', { name: 'Take photo for this challenge', exact: true })).toBeVisible();
+  const current = await page.locator('h3').textContent();
+  await leaveHunt(page);
+  // Returning Home must expose Continue without hunting through a collapsed section.
+  await expect(page.getByRole('button', { name: 'Continue Lantern team', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue Lantern team', exact: true }).click();
+  await expect(page.locator('h3')).toHaveText(current!);
 });
 
 test('leader sees reported queue/errors, retry clears it, and an offline opt-out catches up after reload', async ({ page, browser, request, baseURL }, info) => {
