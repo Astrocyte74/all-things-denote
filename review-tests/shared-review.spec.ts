@@ -1,3 +1,4 @@
+import { openHuntMenu, openChecklist, openGallery, openMoreOptions, openSharingMenu } from '../tests/hunt-controls';
 import { test, expect, type Page, type Browser } from '@playwright/test';
 import QRCode from 'qrcode';
 import { unzipSync } from 'fflate';
@@ -23,7 +24,7 @@ async function capture(page: Page, color: string, name: string) {
   await page.locator('input[type=file]').setInputFiles({ name:'scene.svg', mimeType:'image/svg+xml', buffer:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480"><rect width="720" height="480" fill="${color}"/><circle cx="550" cy="100" r="64" fill="#ffeaa0"/><path d="M0 480V350L180 180L390 480M240 480L490 230L720 480" fill="#5d8a72"/></svg>`) });
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(1);
   await expect(page.getByRole('button',{name:'Take photo for this challenge',exact:true})).toBeEnabled();
-  await expect(page.getByRole('button',{name:'Open photo gallery (1 photos)',exact:true})).toBeVisible();
+  await openHuntMenu(page);await expect(page.getByRole('menuitem',{name:'Photo gallery',exact:true})).toContainText('1');await page.keyboard.press('Escape');
 }
 async function makeLeader(browser: Browser, baseURL: string, title: string) {
   const context = await browser.newContext({ baseURL, viewport:{width:1280,height:900}, isMobile:false, hasTouch:false, deviceScaleFactor:1 });
@@ -314,11 +315,11 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('teamNameByPack')!).christmas)).toBe('Old local team');
   await page.reload();
   await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
-  await page.getByRole('button', {name:'Back to all tasks overview'}).click();
-  await page.getByRole('button', {name:'Open photo gallery (1 photos)',exact:true}).click();
+  await openChecklist(page);
+  await openGallery(page);
   await expect(page.getByRole('button', {name:/View photo for #.*full screen/})).toHaveCount(1);
   await page.getByRole('button', {name:'Close photo gallery',exact:true}).click();
-  await page.getByRole('button', {name:/Back to event/}).click();
+  await openSharingMenu(page);await page.getByRole('button', {name:/Back to event · send photos/}).click();
   expect(page.url()).toBe(teamLink);
   await expect(page.getByRole('region', {name:'Your event hunt'})).toBeVisible();
   await page.screenshot({path:info.outputPath('event-team-ready.png'),fullPage:true});
@@ -336,7 +337,7 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.getByRole('button', {name:'Join & start hunt',exact:true}).click();
   await page.getByRole('button', {name:'Start the hunt on Path B',exact:true}).click();
   await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
-  await expect(page.getByRole('button', {name:'Open photo gallery',exact:true}).first()).toBeAttached();
+  await expect(page.getByRole('button', {name:'Hunt menu',exact:true})).toBeVisible();
   expect(await storedPhotos(page)).toHaveLength(2);
   await page.goto(teamLink);
   await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
@@ -346,17 +347,17 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.context().setOffline(true);
   await page.reload();
   await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
-  await page.getByRole('button', {name:'Back to all tasks overview'}).click();
-  await page.getByRole('button', {name:'More hunt options'}).click();
-  await page.getByRole('menuitem', {name:'Back to home'}).click();
+  await openChecklist(page);
+  await openMoreOptions(page);
+  await page.getByRole('menuitem', {name:'Back to home'}).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
   // Opening a local game must not make the saved event hunt disappear.
   await page.getByRole('button', {name:'Christmas',exact:true}).click();
   await page.getByRole('button', {name:'All games',exact:true}).click();
   await page.getByText('Saved team hunts on this device (2)', {exact:true}).click();
   await page.getByRole('button', {name:'Continue Scripture Scouts',exact:true}).click();
   await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
-  await page.getByRole('button', {name:'Back to all tasks overview'}).click();
-  await page.getByRole('button', {name:'More hunt options'}).click();
+  await openChecklist(page);
+  await openMoreOptions(page);
   await page.getByRole('menuitem', {name:'Start over',exact:true}).click();
   await expect(page.getByRole('alertdialog')).toContainText('Scripture Scouts');
   await page.getByRole('button', {name:/^Start fresh/}).click();

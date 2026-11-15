@@ -1,10 +1,13 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, LayoutGrid, Maximize2, RotateCcw, EyeOff } from 'lucide-react';
+import { Camera, Check, ChevronDown, ChevronUp, Map, ChevronLeft, ChevronRight, Maximize2, EyeOff } from 'lucide-react';
 import type { Category as CategoryType, Challenge } from '@/types';
 import { useToggle } from '@/hooks/useToggle';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useTripleTap } from '@/hooks/useTripleTap';
+import { HuntMenu } from '@/components/HuntMenu';
+import { StickyHuntHeader } from '@/components/StickyHuntHeader';
+import type { EventHunt } from '@/lib/eventHunt';
 import { PhotoCapture } from '@/components/PhotoCapture';
 import { PhotoGallery } from '@/components/PhotoGallery';
 import { StickerArt } from '@/components/StickerArt';
@@ -15,7 +18,10 @@ import { getCategoryTheme, readableTextOn } from '@/lib/theme';
 import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
 interface CategoriesProps {
-  photoSyncControl?: import('react').ReactNode;
+  eventHunt?: EventHunt | null;
+  onHome: () => void;
+  onEditTeam?: () => void;
+  onFocusModeChange?: (focused: boolean) => void;
   isVisible: boolean;
   selectedPathId: string;
   pathOrder: number[];
@@ -23,7 +29,6 @@ interface CategoriesProps {
   bonusUnlocked: boolean;
   galleryOpen: boolean;
   setGalleryOpen: (open: boolean) => void;
-  onPhotoCountChange: (count: number) => void;
   /** Reports finished/total challenge counts so the sticky header can show progress. */
   onProgressChange?: (completed: number, total: number) => void;
   onCompletedChange?: (ids: string[]) => void;
@@ -32,12 +37,12 @@ interface CategoriesProps {
   huntId?: string;
   categories: CategoryType[];
   teamName?: string;
-  onReset: () => void;
+  onReset: (returnFocus: HTMLButtonElement | null) => void;
   /** Finish-screen entry to shared review for this game. */
   onShareWithEvent?: () => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onPhotoCountChange, onProgressChange, onCompletedChange, packId, huntId, categories, teamName, onReset, onShareWithEvent, photoSyncControl }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onProgressChange, onCompletedChange, packId, huntId, categories, teamName, onReset, onShareWithEvent, eventHunt, onHome, onEditTeam, onFocusModeChange }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
@@ -50,6 +55,9 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
   const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
+  const [photoCount, onPhotoCountChange] = useState(0);
+  const checklistHeading = useRef<HTMLHeadingElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [lastChallengeByPath, setLastChallengeByPath] = usePersistedState<Record<string, string>>(`lastChallenge:${huntId ?? packId}`, {});
   const [reviewingCompleted, setReviewingCompleted] = useState(false);
@@ -231,14 +239,16 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   const exitDisplayMode = () => {
     setDisplayModeChallenge(null);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    requestAnimationFrame(() => checklistHeading.current?.focus({ preventScroll: true }));
   };
 
-  // Open the carousel on the first incomplete challenge (used by the auto-open
-  // effect, the Overview "Resume Hunt" button, and the "Next up" card).
+  // Restore the current clue after a checklist detour, including completed clues.
+  // A new hunt falls back to its first unfinished clue.
   const openNextIncomplete = useCallback((restore = false) => {
     const allChallenges = orderedChallenges;
     const saved = restore ? allChallenges.find(c => c.id === lastChallengeByPath[selectedPathId]) : undefined;
-    const firstIncomplete = saved ?? allChallenges.find(c => !completedChallenges.has(c.id));
+    const firstIncomplete = saved ?? allChallenges.find(c => !completedChallenges.has(c.id)) ?? allChallenges[0];
     if (!firstIncomplete) return;
     const category = orderedCategoryData.find(cat => cat.challenges.some(c => c.id === firstIncomplete.id));
     if (!category) return;
@@ -302,16 +312,22 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     return bonusUnlocked || showAnalogiesEarly;
   };
 
-  const allOrderedChallenges = orderedChallenges;
-  const nextChallenge = allOrderedChallenges.find(challenge => !completedChallenges.has(challenge.id));
   const allComplete = totalProgress.total > 0 && totalProgress.completed === totalProgress.total;
 
+  useLayoutEffect(() => { onFocusModeChange?.(Boolean(displayModeChallenge) && (!allComplete || reviewingCompleted)); }, [displayModeChallenge, allComplete, reviewingCompleted, onFocusModeChange]);
+  const huntMenu = <HuntMenu triggerRef={menuTrigger}
+    photoCount={photoCount}
+    onGallery={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
+    onChecklist={displayModeChallenge || allComplete ? () => { if (allComplete) setReviewingCompleted(true); exitDisplayMode(); } : undefined} eventHunt={eventHunt} onEvent={onShareWithEvent}
+    onEditTeam={eventHunt ? undefined : onEditTeam} onStartOver={() => onReset(menuTrigger.current)} onHome={onHome} />;
+  const closeGallery = () => { setGalleryOpen(false); setGalleryFilterChallengeId(null); requestAnimationFrame(() => menuTrigger.current?.focus({ preventScroll: true })); };
+
   if (allComplete && !reviewingCompleted) {
-    return <FinishScreen teamName={teamName} onReset={onReset} onShareWithEvent={onShareWithEvent} packId={packId} huntId={huntId} pathId={selectedPathId} total={totalProgress.total}
+    return <><div className="safe-top fixed inset-x-0 top-0 z-50 flex justify-end bg-paper/95 px-4 py-3">{huntMenu}</div><FinishScreen teamName={teamName} onShareWithEvent={onShareWithEvent} packId={packId} huntId={huntId} pathId={selectedPathId} total={totalProgress.total}
       onReview={() => { setReviewingCompleted(true); setDisplayModeChallenge(null); }}
       onPhotosChanged={handlePhotoSaved}
       galleryOpen={galleryOpen} setGalleryOpen={setGalleryOpen}
-    />;
+    /></>;
   }
 
   // ============ FOCUS MODE (one challenge at a time) ============
@@ -321,7 +337,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const isCompleted = completedChallenges.has(challenge.id);
     const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
     const isLastChallenge = flatIndex >= allChallenges.length - 1;
-    const totalPhotos = Object.values(challengePhotoCounts).reduce((sum, n) => sum + n, 0);
     const theme = getCategoryTheme(category.id);
     const shots = challengePhotos[challenge.id] ?? [];
 
@@ -332,36 +347,13 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         className="paper-dots fixed inset-0 z-50 flex flex-col"
         style={{ backgroundColor: theme.soft }}
       >
-        {/* One toolbar; sharing details live in a sheet, leaving room for the clue. */}
-        <header className="mx-auto flex w-full max-w-2xl flex-shrink-0 items-center gap-2 px-3 pb-2 pt-[max(.75rem,env(safe-area-inset-top))] sm:px-4">
-          <button
-            onClick={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
-            className="btn-3d btn-white relative inline-flex h-11 min-w-11 flex-shrink-0 items-center justify-center gap-2 rounded-xl px-2 text-sm font-extrabold text-ink"
-            aria-label="Open photo gallery"
-          >
-            <Camera className="h-4 w-4" strokeWidth={2.5} />
-            <span className="hidden sm:inline">Gallery</span>
-            {totalPhotos > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-sun px-1 text-[10px] font-black text-ink">
-                {totalPhotos}
-              </span>
-            )}
-          </button>
-
-          <div className="min-w-0 flex-1 text-center">
-            <p className="truncate font-display text-base text-ink">{category.title}</p>
+        {/* The clue is the primary view. Optional tools have one labeled entry. */}
+        <header className="mx-auto flex w-full max-w-2xl flex-shrink-0 items-center gap-3 px-4 pb-2 pt-[max(.75rem,env(safe-area-inset-top))]">
+          <div className="min-w-0 flex-1" role="status" aria-label={`${totalProgress.completed} of ${totalProgress.total} challenges done`}>
+            <p className="truncate font-display text-lg text-ink">{category.title}</p>
             <p className="text-xs font-bold text-ink/65"><span role="progressbar" aria-label="Hunt progress" aria-valuemin={0} aria-valuemax={totalProgress.total} aria-valuenow={totalProgress.completed}>{totalProgress.completed} of {totalProgress.total} found</span> · Path {selectedPathId}</p>
           </div>
-          {photoSyncControl}
-
-          <button
-            onClick={exitDisplayMode}
-            className="btn-3d btn-white inline-flex h-11 min-w-11 flex-shrink-0 items-center justify-center gap-2 rounded-xl px-2 text-sm font-extrabold text-ink"
-            aria-label="Back to all tasks overview"
-          >
-            <LayoutGrid className="h-4 w-4" strokeWidth={2.5} />
-            <span className="hidden sm:inline">Overview</span>
-          </button>
+          {huntMenu}
         </header>
 
         {/* Challenge card */}
@@ -511,8 +503,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               challenge={challenge} category={category} onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved} packId={packId} huntId={huntId} variant="display" pulse={!isCompleted}
             />
-            <button onClick={() => isLastChallenge ? exitDisplayMode() : navigateDisplayMode('next')} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 w-12 items-center justify-center rounded-2xl text-ink`} aria-label={isLastChallenge ? 'See overview' : 'Next challenge'}>
-              {isLastChallenge ? <LayoutGrid className="h-5 w-5" strokeWidth={2.5} /> : <ChevronRight className="h-6 w-6" strokeWidth={3} />}
+            <button onClick={() => navigateDisplayMode('next')} disabled={isLastChallenge} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 w-12 items-center justify-center rounded-2xl text-ink`} aria-label="Next challenge">
+              <ChevronRight className="h-6 w-6" strokeWidth={3} />
             </button>
           </div>
           <p className="mt-1.5 text-center text-[11px] font-bold text-ink/65">Challenge {flatIndex + 1} of {allChallenges.length}</p>
@@ -522,10 +514,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       {/* Photo Gallery Modal */}
       <PhotoGallery
         isOpen={galleryOpen}
-        onClose={() => {
-          setGalleryOpen(false);
-          setGalleryFilterChallengeId(null);
-        }}
+        onClose={closeGallery}
+        returnLabel="Back to current clue"
         onPhotoCountChange={handleGalleryPhotoCountChange}
         filterChallengeId={galleryFilterChallengeId}
         packId={packId} huntId={huntId}
@@ -537,16 +527,17 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   // ============ OVERVIEW (checklist) ============
   return (
     <>
-    <section className={`paper-dots relative pb-16 md:pb-20 ${huntId ? "pt-36 md:pt-40" : "pt-24 md:pt-28"}`}>
+    <StickyHuntHeader pathId={selectedPathId} teamName={teamName} completed={totalProgress.completed} total={totalProgress.total} onResume={() => { openNextIncomplete(true); requestAnimationFrame(() => menuTrigger.current?.focus({ preventScroll: true })); }} menu={huntMenu} />
+    <section className="paper-dots relative pb-16 pt-28 md:pb-20 md:pt-32">
       <div className="mx-auto max-w-3xl px-4 md:px-8">
         {allComplete && <button onClick={() => setReviewingCompleted(false)} className="btn-3d btn-go mb-6 w-full rounded-full px-5 py-3 font-bold text-ink">See hunt celebration & photos</button>}
         {/* Header */}
         <div className="mb-8 text-center">
-          <h2 className="font-display text-4xl text-ink md:text-5xl">
+          <h2 ref={checklistHeading} tabIndex={-1} className="font-display text-4xl text-ink outline-none md:text-5xl">
             Hunt checklist
           </h2>
           <p className="mt-2 font-semibold text-ink/70">
-            Work down your path, snap photos, check things off.
+            Browse all clues. “Back to current clue” returns you to where you were.
           </p>
 
           <div className="mt-6">
@@ -559,34 +550,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             />
           </div>
         </div>
-
-        {/* Next up card: the one big green button on this screen */}
-        {nextChallenge && (
-          <div className="flat-card mb-6 !bg-sun-soft p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4 text-left">
-                <span
-                  className="flex h-14 w-14 flex-shrink-0 rotate-[-5deg] items-center justify-center rounded-2xl border-2 border-ink bg-sun font-display text-2xl text-ink"
-                  style={{ boxShadow: '2px 2px 0 0 #2E2459' }}
-                >
-                  {nextChallenge.number}
-                </span>
-                <div>
-                  <div className="text-sm font-extrabold text-ink/70">Next up</div>
-                  <div className="font-display text-xl leading-tight text-ink">{nextChallenge.title}</div>
-                  <div className="text-sm font-semibold text-ink/70">{nextChallenge.photoTarget}</div>
-                </div>
-              </div>
-              <button
-                onClick={() => openNextIncomplete()}
-                className="btn-3d btn-go inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-lg tracking-wide text-ink"
-              >
-                Resume hunt
-                <ChevronRight className="h-5 w-5" strokeWidth={3} />
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="space-y-5">
           {orderedCategoryData.map((category, index) => {
@@ -813,27 +776,14 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
           })}
         </div>
 
-        {/* Reset */}
-        <div className="mt-10 text-center">
-          <button
-            onClick={onReset}
-            className="mx-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-ink/70 transition-colors hover:bg-ink/5 hover:text-ink"
-          >
-            <RotateCcw className="h-4 w-4" strokeWidth={2.5} />
-            Start over
-          </button>
-
-        </div>
       </div>
     </section>
 
     {/* Photo Gallery Modal */}
     <PhotoGallery
       isOpen={galleryOpen}
-      onClose={() => {
-        setGalleryOpen(false);
-        setGalleryFilterChallengeId(null);
-      }}
+      onClose={closeGallery}
+      returnLabel="Back to checklist"
       onPhotoCountChange={handleGalleryPhotoCountChange}
       onPhotoDeleted={handlePhotoSaved}
       filterChallengeId={galleryFilterChallengeId}

@@ -23,6 +23,14 @@ was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was mad
 Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
 
+Hunt navigation release checks (2026-11-14): lint, production build and Worker
+validation passed, along with 40 hunt/navigation checks and 47 applicable event
+browser checks (one unsupported WebKit native-camera skip). The single Menu,
+explicit checklist return to a completed current clue, gallery/sharing dismissal,
+keyboard focus, Home confirmation, reset cancellation, saved-clue resume and
+existing photo/upload flows were checked in Chromium and WebKit phone simulations.
+This is a frontend release; the deployed API and schema are unchanged.
+
 Hunt layout and photo-status release checks (2026-11-14): lint, production build,
 Worker dry-run, all 33 API cases, 47 applicable shared-review browser checks,
 and 38 hunt regressions passed (one unsupported WebKit native-camera skip).
@@ -184,9 +192,9 @@ queue until it reconnects. Auto-send off may leave other unshared photos on the
 phone; these are not mislabeled as queued uploads. Missing older-client reports
 stay unknown. Closed events still accept status reports and pending removals.
 
-On the hunt screen, the cloud button opens an accessible photo-sharing sheet,
-including the manual-send/event link. Its badge signals waiting changes or an
-error. A single compact camera/navigation dock replaces duplicate Next controls;
+On the hunt screen, Menu → Photo sharing opens the sharing sheet, including
+the manual-send/event link. The leader dashboard retains the reported queue
+status; sharing controls stay out of the main clue view. A single compact camera/navigation dock replaces duplicate Next controls;
 clues scroll independently and each newly opened clue starts at the top.
 
 Migration `0004_auto_photo_sync.sql` adds `auto_upload_default` (off on existing

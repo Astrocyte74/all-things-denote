@@ -1,3 +1,4 @@
+import { openHuntMenu, openSharingMenu } from '../tests/hunt-controls';
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 const API = 'http://127.0.0.1:8788';
 type Access = { eventId: string; token: string };
@@ -16,7 +17,7 @@ async function join(page: Page, invite: string) {
   await page.getByRole('button', { name: 'Join & start hunt', exact: true }).click(); await page.getByRole('button', { name: 'Start the hunt on Path A', exact: true }).click();
 }
 const image = { name: 'lamp.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="gold"/></svg>') };
-const sharing = (page: Page) => page.getByRole('button', { name: 'Photo sharing', exact: true });
+const sharing = (page: Page) => page.getByRole('button', { name: 'Hunt menu', exact: true });
 const closeSharing = (page: Page) => page.getByRole('button', { name: 'Close photo sharing', exact: true }).click();
 
 test('small phone devotes most space to the clue with one navigation dock and accessible sharing sheet', async ({ page, request, baseURL }, info) => {
@@ -29,7 +30,9 @@ test('small phone devotes most space to the clue with one navigation dock and ac
   await expect(page.getByRole('switch', { name: 'Send photos as we go', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Back to event · send photos/ })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('clue-phone-375x620.png') });
-  await sharing(page).click(); const dialog = page.getByRole('dialog', { name: 'Photo sharing', exact: true }); await expect(dialog).toBeVisible();
+  await expect(page.locator('[data-testid=clue-scroll]').locator('..').locator('header button')).toHaveCount(1);
+  await openHuntMenu(page); await page.screenshot({ path: info.outputPath('hunt-menu-phone.png') }); await page.keyboard.press('Escape');
+  await openSharingMenu(page); const dialog = page.getByRole('dialog', { name: 'Photo sharing', exact: true }); await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('switch')).toBeChecked(); await expect(dialog.getByRole('button', { name: /Back to event · send photos/ })).toBeVisible();
   // Focus trapping/restoration and swipe isolation: the underlying clue never changes.
   await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(sharing(page)).toBeFocused();
@@ -54,11 +57,11 @@ test('leader sees reported queue/errors, retry clears it, and an offline opt-out
     await leader.setViewportSize({ width: 375, height: 700 }); expect(await leader.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await leader.screenshot({ path: info.outputPath('leader-queue-phone.png'), fullPage: true });
     await request.patch(`${API}/events/${e.access.eventId}`, { headers: auth(e.access), data: { closed: false } });
-    await sharing(page).click(); await page.getByRole('button', { name: 'Retry', exact: true }).click(); await closeSharing(page);
+    await openSharingMenu(page); await page.getByRole('button', { name: 'Retry', exact: true }).click(); await closeSharing(page);
     await expect.poll(async () => (await state(request, e.access)).photos.length).toBe(1);
     await expect.poll(async () => (await state(request, e.access)).teams[0].photoStatus?.queuedUploads).toBe(0);
     await page.evaluate(() => navigator.serviceWorker.ready); await page.context().setOffline(true);
-    await sharing(page).click(); await page.getByRole('switch', { name: 'Send photos as we go', exact: true }).click(); await closeSharing(page); await page.reload();
+    await openSharingMenu(page); await page.getByRole('switch', { name: 'Send photos as we go', exact: true }).click(); await closeSharing(page); await page.reload();
     expect((await state(request, e.access)).teams[0].photoStatus.autoSend).toBe(true); // Last known status, not a guessed offline value.
     await page.context().setOffline(false); await expect.poll(async () => (await state(request, e.access)).teams[0].photoStatus?.autoSend).toBe(false);
     await leader.reload(); await expect(leader.getByRole('list', { name: 'Teams', exact: true })).toContainText('Auto-send off');

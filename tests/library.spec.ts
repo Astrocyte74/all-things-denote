@@ -1,3 +1,4 @@
+import { openChecklist, openMoreOptions } from './hunt-controls';
 import { test, expect, type Page } from '@playwright/test';
 import { PACKS } from '../src/data/packs';
 import { scriptureDetectivesPack } from '../src/data/packs/scriptureDetectivesPack';
@@ -14,9 +15,9 @@ async function play(page: Page, title: string, path = 'A') {
 }
 
 async function library(page: Page) {
-  await page.getByRole('button', { name: 'Back to all tasks overview' }).click();
-  await page.getByRole('button', { name: 'More hunt options' }).click();
-  await page.getByRole('menuitem', { name: 'Back to home' }).click();
+  await openChecklist(page);
+  await openMoreOptions(page);
+  await page.getByRole('menuitem', { name: 'Back to home' }).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
 }
 
 test('library presents four games and opens every detail page on phone and desktop', async ({ page }, info) => {

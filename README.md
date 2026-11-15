@@ -27,15 +27,29 @@ A faith-based scavenger hunt app that helps youth discover spiritual significanc
 - Team uploads, clue-by-clue comparison, presentation mode, and a leader ZIP export
 
 Open the app online and wait for **Ready for offline hunting** before leaving
-coverage. Progress and photos belong to this browser on this device. Photos only
-leave the device when someone explicitly shares, downloads, or sends them to an
-event. Use **Save all photos** in the gallery or finish screen
+coverage. Progress and photos belong to this browser on this device. Photos are sent to an event when auto-send is enabled or the team chooses
+them for manual sending. Device-only hunts keep photos local until shared or exported. Use **Save all photos** in the gallery or finish screen
 to download a ZIP backup. Saving a ZIP does not remove photos from the gallery.
 
 Refreshing resumes an active hunt on the last viewed challenge. After going
 home, **Continue your hunt** skips setup. **Reset progress** keeps photos;
 **Start fresh** clears progress and photos for the selected local game or event
 team only. An event hunt keeps its event, team name and path after a reset.
+
+## Finding your way around a hunt
+
+The clue screen keeps the camera and Previous/Next controls visible. **Menu** is
+the single entry to **Photo gallery**, event **Photo sharing**, and **Hunt
+checklist**. Opening or dismissing the menu does not change the current clue.
+Gallery and sharing close back onto that clue. The checklist is an optional way
+to browse all clues, with a fixed **Back to current clue** button that restores
+the exact clue you left, even if it is already complete.
+
+**Menu → More options** contains **Start over**, **Back to home**, and (for a
+local hunt) **Edit team & path**. Start over explains the reset choices before
+changing anything. Home asks whether to leave and confirms that progress and
+photos remain saved; **Stay in hunt** is the default focused action. The same
+menu is available from the checklist and finish screen.
 
 ## Group events
 
@@ -51,10 +65,14 @@ team only. An event hunt keeps its event, team name and path after a reset.
 3. **Join & start hunt** opens the instructions with the event's game and the
    assigned team name/path. Paths are balanced automatically across A–F. Reopening
    **Open team hunt** resumes saved progress. There is no path-picker step for joining.
-4. **Back to event** opens that team's upload screen directly. Teams choose
-   photos and tap **Send**; taking a photo never uploads it automatically.
+4. **Menu → Photo sharing** controls auto-send. **Back to event · send photos**
+   opens the team's event page for manual selection and sending.
 5. The leader opens the separate private **leader link** on a phone or laptop
-   to see **Send photos as we go** defaults on in the new-event wizard. Each team can turn
+   to see **Team progress** and compare photos one clue at a time. **Present**
+   opens the larger discussion view; **Leader tools** includes close/reopen, ZIP
+   and deletion.
+
+**Send photos as we go** defaults on in the new-event wizard. Each team can turn
 it off before joining or at any time in the hunt or event page. The choice stays
 with that event/team on this device; later leader edits only change the default
 for new joins. Existing events retain manual sending until their default is edited.
@@ -76,8 +94,6 @@ local gallery. Cloud deletion from the event page never deletes device originals
 a server removal marker prevents delayed automatic retries from restoring it.
 Manual selection and sending can deliberately restore a deleted cloud copy.
 
-**Team progress** and compare teams' photos one clue at a time. **Present** opens the larger
-   discussion view; **Leader tools** also has close/reopen, ZIP and deletion.
 
 Join and Start each show only their own setup, with a small link to switch.
 The in-app scanner reads QR codes locally, accepts only this app’s team invites,

@@ -1,3 +1,4 @@
+import { openChecklist, openMoreOptions } from './hunt-controls';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile, writeFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
@@ -41,17 +42,18 @@ test('refresh and Continue restore the viewed challenge and saved progress', asy
   await page.reload();
   await expect(page.locator('h3').first()).toHaveText(title!);
   await expect(page.getByRole('status', { name: '1 of 15 challenges done' })).toBeAttached();
-  // Focus mode has its own top bar; leave it before opening hunt controls.
-  await page.getByRole('button', { name: /overview/i }).first().click();
-  await page.getByRole('button', { name: 'More hunt options' }).click();
-  await page.getByRole('menuitem', { name: 'Back to home' }).click();
+  // Checklist and Home are explicit menu destinations.
+  await openChecklist(page);
+  await openMoreOptions(page);
+  await page.getByRole('menuitem', { name: 'Back to home' }).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
   await page.getByRole('button', { name: 'Continue Scavenger Hunt' }).click();
   await expect(page.locator('h3').first()).toHaveText(title!);
   await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
-  await page.getByRole('button', { name: /overview/i }).first().click();
-  await page.getByRole('button', { name: 'Resume hunt', exact: true }).click();
+  const current = await page.locator('h3').first().textContent();
+  await openChecklist(page);
+  await page.getByRole('button', { name: 'Back to current clue', exact: true }).click();
   await page.reload();
-  await expect(page.locator('h3').first()).toHaveText(title!);
+  await expect(page.locator('h3').first()).toHaveText(current!);
 });
 
 test('first-time setup and pre-existing hunts both support Continue', async ({ page }) => {
@@ -179,7 +181,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
   await start(page, ids.slice(0, -1));
   await page.locator('input[type=file]').setInputFiles(image);
   await expect(page.getByRole('heading', { name: 'Hunt complete!' })).toBeVisible();
-  await page.getByRole('button', { name: 'More hunt options' }).click();
+  await openMoreOptions(page);
   await page.getByRole('menuitem', { name: 'Start over' }).click();
   await page.getByRole('button', { name: /^Reset progress/ }).click();
   expect(await photoCount(page)).toBe(1);
@@ -187,7 +189,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
   await page.getByRole('button', { name: /Let's go on Path A/ }).click();
   await page.getByRole('button', { name: 'Start the hunt on Path A' }).click();
   await expect(page.getByRole('button', { name: 'Take photo for this challenge' })).toBeVisible();
-  await page.getByRole('button', { name: /overview/i }).first().click();
+  await openChecklist(page);
   await page.evaluate(({ other }) => new Promise<void>(resolve => {
     const request = indexedDB.open('ScavengerHuntPhotos');
     request.onsuccess = () => {
@@ -197,7 +199,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
       tx.oncomplete = () => { db.close(); resolve(); };
     };
   }), { other: creationPack.categories[0].challenges[0].id });
-  await page.getByRole('button', { name: 'More hunt options' }).click();
+  await openMoreOptions(page);
   await page.getByRole('menuitem', { name: 'Start over' }).click();
   await page.getByRole('button', { name: /^Start fresh/ }).click();
   await page.getByRole('button', { name: 'Delete & start fresh', exact: true }).click();

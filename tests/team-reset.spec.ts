@@ -1,3 +1,4 @@
+import { openHuntMenu, openChecklist, openGallery, openMoreOptions } from './hunt-controls';
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
@@ -27,9 +28,9 @@ async function start(page: Page, name = 'The Lost Sheep') {
   await page.getByRole('button', { name: 'Start the hunt on Path B' }).click();
 }
 async function home(page: Page) {
-  await page.getByRole('button', { name: 'Back to all tasks overview' }).click();
-  await page.getByRole('button', { name: 'More hunt options' }).click();
-  await page.getByRole('menuitem', { name: 'Back to home' }).click();
+  await openChecklist(page);
+  await openMoreOptions(page);
+  await page.getByRole('menuitem', { name: 'Back to home' }).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
 }
 async function capture(page: Page, width = 640, height = 480) {
   const count = (await photos(page)).length;
@@ -54,11 +55,11 @@ test('names persist, label new JPEGs and exports, and never relabel older photos
   const labels = await page.evaluate(() => (window as unknown as { labels: string[] }).labels.join(' '));
   expect(labels).toContain('The Lost Sheep');
   expect(labels).toMatch(/Path B/i);
-  await page.getByRole('button', { name: 'Back to all tasks overview' }).click();
-  await page.getByRole('button', { name: /Edit team and path/ }).click();
+  await openChecklist(page);
+  await openMoreOptions(page);await page.getByRole('menuitem',{name:'Edit team & path',exact:true}).click();
   await page.getByRole('textbox', { name: /Team name/ }).fill('New Shepherds');
   await page.getByRole('button', { name: "Let's go on Path B" }).click();
-  await page.getByRole('button', { name: 'Resume hunt', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to current clue', exact: true }).click();
   await capture(page, 480, 640);
   expect((await photos(page)).find(photo => photo.id === first.id)?.imageData).toBe(first.imageData);
   expect((await photos(page)).map(photo => photo.teamName).sort()).toEqual(['New Shepherds', 'The Lost Sheep']);
@@ -69,8 +70,8 @@ test('names persist, label new JPEGs and exports, and never relabel older photos
   await page.getByRole('button', { name: 'Continue Christmas', exact: true }).click();
   // Wait for the asynchronous count: until it loads, the underlying navigation
   // and the visible full-screen challenge briefly share the same gallery label.
-  await expect(page.getByRole('navigation', { name: 'Hunt controls' }).getByRole('button', { name: 'Open photo gallery (2 photos)', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Open photo gallery', exact: true }).click();
+  await openHuntMenu(page);await expect(page.getByRole('menuitem',{name:'Photo gallery',exact:true})).toContainText('2');
+  await openGallery(page);
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save all photos', exact: true }).click();
   const files = unzipSync(await readFile((await (await downloadPromise).path())!));
@@ -164,7 +165,7 @@ test('long team names fit photo captions and the finish screen offers reset', as
   await page.evaluate(data => { document.body.innerHTML = ''; const img = document.createElement('img'); img.src = data; document.body.append(img); }, photo.imageData);
   await page.locator('img').screenshot({ path: info.outputPath('long-team-caption.png') });
   await page.reload();
-  await page.getByRole('button', { name: 'Start over Christmas', exact: true }).click();
+  await openMoreOptions(page);await page.getByRole('menuitem',{name:'Start over',exact:true}).click();
   await expect(page.getByRole('alertdialog')).toContainText('Christmas');
   await page.getByRole('button', { name: /^Reset progress/ }).click();
   await expect(page.getByRole('textbox', { name: /Team name/ })).toHaveValue('W'.repeat(40));
@@ -176,9 +177,9 @@ test('photo viewer keeps the card clear of controls and supports save, share, na
   await capture(page, 480, 640);
   await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
   await capture(page, 960, 540);
-  await page.getByRole('button', { name: 'Open photo gallery', exact: true }).click();
+  await openGallery(page);
   await page.getByRole('button', { name: /View photo for .* full screen/ }).first().click();
-  let viewer = page.getByRole('dialog', { name: /^Photo / });
+  let viewer = page.getByRole('dialog', { name: /^Photo \d+ of/ });
   await expect(viewer).toBeVisible();
   const imageBox = await viewer.getByRole('img').boundingBox();
   const saveBox = await viewer.getByRole('button', { name: 'Save', exact: true }).boundingBox();
@@ -198,7 +199,7 @@ test('photo viewer keeps the card clear of controls and supports save, share, na
   await viewer.getByRole('button', { name: 'Next photo', exact: true }).last().click();
   await expect(page.getByRole('dialog', { name: /^Photo 2 of 2/ })).toBeVisible();
   await page.setViewportSize({ width: 844, height: 390 });
-  viewer = page.getByRole('dialog', { name: /^Photo / });
+  viewer = page.getByRole('dialog', { name: /^Photo \d+ of/ });
   await page.screenshot({ path: info.outputPath('photo-viewer-landscape.png'), animations: 'disabled' });
   const landscapeImage = await viewer.getByRole('img').boundingBox();
   const landscapeSave = await viewer.getByRole('button', { name: 'Save', exact: true }).boundingBox();
@@ -207,5 +208,5 @@ test('photo viewer keeps the card clear of controls and supports save, share, na
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect.poll(async () => (await photos(page)).length).toBe(1);
   await page.getByRole('button', { name: 'Close photo viewer', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: /^Photo / })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: /^Photo \d+ of/ })).toHaveCount(0);
 });

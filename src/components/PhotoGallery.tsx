@@ -14,6 +14,7 @@ import { SaveAllPhotos } from './SaveAllPhotos';
 interface PhotoGalleryProps {
   isOpen: boolean;
   onClose: () => void;
+  returnLabel?: string;
   onPhotoCountChange?: (count: number) => void;
   onPhotoDeleted?: () => void; // Callback when a photo is deleted
   filterChallengeId?: string | null; // If provided, only show photos for this challenge
@@ -21,7 +22,7 @@ interface PhotoGalleryProps {
   packId?: string; // Scope the gallery to the active game pack
 }
 
-export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDeleted, filterChallengeId, packId, huntId }: PhotoGalleryProps) {
+export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDeleted, filterChallengeId, packId, huntId, returnLabel }: PhotoGalleryProps) {
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [allPhotosForFilter, setAllPhotosForFilter] = useState<StoredPhoto[]>([]); // All photos for filter dropdown
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -48,6 +49,23 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
   });
 
   const viewerOpen = selectedPhotoIndex !== null;
+  const galleryPanel = useRef<HTMLDivElement>(null);
+  const closeGalleryRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!isOpen || viewerOpen || photoToDelete) return;
+    // Let the menu release its focus trap before focusing this non-Radix gallery.
+    const frame = requestAnimationFrame(() => closeGalleryRef.current?.focus({ preventScroll: true }));
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+      if (event.key !== 'Tab') return;
+      const targets = Array.from(galleryPanel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], select:not(:disabled), input:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length > 0);
+      const first = targets[0], last = targets.at(-1);
+      if (event.shiftKey && (document.activeElement === first || !galleryPanel.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !galleryPanel.current?.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
+    };
+    window.addEventListener('keydown', keyboard);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('keydown', keyboard); };
+  }, [isOpen, viewerOpen, photoToDelete, onClose]);
   const closeViewerRef = useRef<HTMLButtonElement>(null);
 
   // Viewer keyboard: Escape closes, arrows step. Paused while the delete
@@ -264,14 +282,15 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       {/* Gallery Modal - hidden when in full-screen mode */}
       {selectedPhotoIndex === null && (
         <div className="fixed inset-0 bg-ink/80 z-[55] flex items-center justify-center p-4">
-          <div className="sticker-card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div ref={galleryPanel} role="dialog" aria-modal="true" aria-label="Photo gallery" className="sticker-card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="p-4 border-b-2 border-ink/10 bg-paper">
+            {returnLabel && <button ref={closeGalleryRef} onClick={onClose} aria-label="Close photo gallery" className="mb-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-extrabold text-ink"><ChevronLeft className="h-5 w-5" />{returnLabel}</button>}
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-display text-2xl text-ink">📸 Photo Gallery <span className="text-ink/40">({photos.length})</span></h2>
-              <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0" aria-label="Close photo gallery">
+              {!returnLabel && <Button ref={closeGalleryRef} variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0" aria-label="Close photo gallery">
                 <X className="w-6 h-6" />
-              </Button>
+              </Button>}
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">

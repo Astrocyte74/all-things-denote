@@ -6,7 +6,6 @@ import { Rules } from '@/sections/Rules';
 import { Categories } from '@/sections/Categories';
 import { BonusSection } from '@/sections/BonusSection';
 import { Footer } from '@/sections/Footer';
-import { StickyHuntHeader } from '@/components/StickyHuntHeader';
 import { StartOverDialog } from '@/components/StartOverDialog';
 import { GameLibrary, type GameSummary } from '@/sections/GameLibrary';
 import { PACKS, getPackById, DEFAULT_PACK_ID } from '@/data/packs';
@@ -57,7 +56,6 @@ function App() {
   const [libraryRevision, setLibraryRevision] = useState(0);
   const [bonusUnlocked, setBonusUnlocked] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [photoCount, setPhotoCount] = useState(0);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [pathSelectionOpen, setPathSelectionOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState<string | null>(null);
@@ -114,6 +112,8 @@ function App() {
     }
   }, [libraryRevision, resetTarget, appState]);
 
+  const [resetReturnFocus, setResetReturnFocus] = useState<HTMLElement | null>(null);
+  const [focusedHunt, setFocusedHunt] = useState(true);
   const canResume = Boolean(selectedPath && startedByPack[pack.id]);
   const summaries: Record<string, GameSummary> = Object.fromEntries(PACKS.map(game => {
     const ids = game.categories.flatMap(category => category.challenges.map(challenge => challenge.id));
@@ -140,7 +140,6 @@ function App() {
     setActivePackId(id);
     setBonusUnlocked(false);
     setGalleryOpen(false);
-    setPhotoCount(0);
     setProgress({ completed: summaries[id].completed, total: summaries[id].total });
     setAppState('game');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -162,7 +161,6 @@ function App() {
     setBonusUnlocked(false);
     setGalleryOpen(false);
     setPathSelectionOpen(false);
-    setPhotoCount(0);
     setProgress({ completed: 0, total: 0 });
     setAppState(startedByPack[scope] ? 'hunt' : 'rules');
     if (play) leaveReview();
@@ -300,25 +298,10 @@ function App() {
       {/* Hunt */}
       {appState === 'hunt' && selectedPath && (
         <>
-          {/* Sticky Header */}
-          <StickyHuntHeader
-            pathId={selectedPathId}
-            teamName={teamName}
-            eventTitle={activeEvent?.event.title}
-            onBackToEvent={activeEvent ? returnToEvent : undefined}
-            onChangePath={handleChangePath}
-            onOpenGallery={() => setGalleryOpen(true)}
-            completed={progress.completed}
-            total={progress.total}
-            photoCount={photoCount}
-            onExit={handleBackToLanding}
-            onStartOver={() => setResetTarget(pack.id)}
-          />
-
           <Categories
             key={huntId ?? pack.id}
             teamName={teamName}
-            onReset={() => setResetTarget(pack.id)}
+            onReset={target => { setResetReturnFocus(target); setResetTarget(pack.id); }}
             onShareWithEvent={returnToEvent}
             isVisible={true}
             selectedPathId={selectedPathId}
@@ -327,18 +310,23 @@ function App() {
             bonusUnlocked={bonusUnlocked}
             galleryOpen={galleryOpen}
             setGalleryOpen={setGalleryOpen}
-            onPhotoCountChange={setPhotoCount}
             onProgressChange={handleProgressChange}
-            photoSyncControl={activeEvent ? <PhotoAutoSendControl hunt={activeEvent} compact onOpenEvent={returnToEvent} /> : undefined}
+            eventHunt={activeEvent}
+            onHome={handleBackToLanding}
+            onEditTeam={handleChangePath}
+            onFocusModeChange={setFocusedHunt}
             onCompletedChange={handleCompletedChange}
             packId={pack.id}
             huntId={huntId}
             categories={pack.categories}
           />
+          {!focusedHunt && <>
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} total={progress.total} bonusItems={pack.bonusItems} />
           <Footer pack={pack} />
           {/* Collapsed rules at bottom during hunt */}
           <Rules isVisible={false} collapsed={true} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} rules={pack.rules} />
+
+          </>}
 
           {/* Path Selection Modal */}
           {pathSelectionOpen && (
@@ -367,6 +355,7 @@ function App() {
       )}
 
       <StartOverDialog
+        returnFocus={resetReturnFocus}
         isOpen={resetTarget !== null}
         eventTeam={appState !== 'library' ? activeEvent?.team.name : undefined}
         gameTitle={resetTarget ? getPackById(resetTarget).title : undefined}

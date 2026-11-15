@@ -12,6 +12,7 @@ interface StartOverDialogProps {
   /** The game being reset, named in the copy ("Start over Christmas?"). */
   gameTitle?: string;
   eventTeam?: string;
+  returnFocus?: HTMLElement | null;
 }
 
 type Busy = null | 'progress' | 'all';
@@ -22,7 +23,7 @@ type Busy = null | 'progress' | 'all';
  * a successful promise closes the dialog. While an action runs, Escape and
  * Cancel are disabled so a half-finished delete can't be dismissed.
  */
-export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll, gameTitle, eventTeam }: StartOverDialogProps) {
+export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll, gameTitle, eventTeam, returnFocus }: StartOverDialogProps) {
   const [busy, setBusy] = useState<Busy>(null);
 
   return (
@@ -37,6 +38,7 @@ export function StartOverDialog({ isOpen, onClose, onResetProgress, onResetAll, 
         <div className="pointer-events-none fixed inset-0 z-[76] flex items-center justify-center p-4">
           <AlertDialog.Content
             aria-busy={busy !== null}
+            onCloseAutoFocus={e => { if (returnFocus?.isConnected) { e.preventDefault(); returnFocus.focus({ preventScroll: true }); } }}
             onEscapeKeyDown={(e) => {
               if (busy) e.preventDefault();
             }}
