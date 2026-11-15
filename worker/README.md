@@ -23,6 +23,15 @@ was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was mad
 Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
 
+Hunt navigation follow-up checks (2026-11-14): lint, production build and Worker
+validation passed. Across the full suites and targeted reruns, all 46 hunt/navigation
+and 49 applicable event checks passed (one unsupported WebKit native-camera skip).
+Checks cover skipped clues on forward/reversed/interleaved paths, swipe and Next
+recovery, distinct clue IDs and path steps, unobscured capture controls, error-only
+Menu attention, offline waiting, Retry, and persistent failed-setting warnings.
+The WebKit event-editor test now waits for and scopes controls to its dialog;
+three repeated runs passed. This release changes no Worker API or schema.
+
 Hunt navigation release checks (2026-11-14): lint, production build and Worker
 validation passed, along with 40 hunt/navigation checks and 47 applicable event
 browser checks (one unsupported WebKit native-camera skip). The single Menu,
@@ -194,7 +203,9 @@ stay unknown. Closed events still accept status reports and pending removals.
 
 On the hunt screen, Menu → Photo sharing opens the sharing sheet, including
 the manual-send/event link. The leader dashboard retains the reported queue
-status; sharing controls stay out of the main clue view. A single compact camera/navigation dock replaces duplicate Next controls;
+status; sharing controls stay out of the main clue view. The menu shows live status,
+with an attention mark on its trigger only for failed sends or settings. Normal
+offline queueing is a waiting state, not an error. A single compact camera/navigation dock replaces duplicate Next controls;
 clues scroll independently and each newly opened clue starts at the top.
 
 Migration `0004_auto_photo_sync.sql` adds `auto_upload_default` (off on existing

@@ -37,8 +37,12 @@ test('team override, new captures only, queued upload cancellation and event-def
  const e=await make(request,baseURL!);await join(page,e.invite,true);await capture(page);expect((await state(request,e.access)).photos.length).toBe(0);
  await openSharing(page);await sharing(page).click();await expect(sharing(page)).toBeChecked();expect((await dbRows(page,'photoSyncJobs')).length).toBe(0);await capture(page,'pink');await expect.poll(async()=>(await state(request,e.access)).photos.length).toBe(1);expect((await dbRows(page)).length).toBe(2);
  await page.evaluate(()=>navigator.serviceWorker.ready);await page.context().setOffline(true);await capture(page,'green');await expect.poll(async()=>(await dbRows(page,'photoSyncJobs')).length).toBe(1);await openSharing(page);await sharing(page).click();await expect.poll(async()=>(await dbRows(page,'photoSyncJobs')).length).toBe(0);await page.reload();await openSharing(page);await expect(sharing(page)).not.toBeChecked();await page.context().setOffline(false);expect((await state(request,e.access)).photos.length).toBe(1);
- await page.getByRole('button',{name:/Back to event · send photos/}).click();await expect(sharing(page)).not.toBeChecked();await page.getByRole('button',{name:'Send 2 photos',exact:true}).click();await expect.poll(async()=>(await state(request,e.access)).photos.length).toBe(3);
- await page.goto(e.leader);await page.getByRole('button',{name:'Edit event',exact:true}).first().click();await sharing(page).click();await page.getByRole('button',{name:'Save changes',exact:true}).click();expect((await state(request,e.access)).event.autoUploadDefault).toBe(false);
+ await page.getByRole('button',{name:/Event & photos/}).click();await expect(sharing(page)).not.toBeChecked();await page.getByRole('button',{name:'Send 2 photos',exact:true}).click();await expect.poll(async()=>(await state(request,e.access)).photos.length).toBe(3);
+ await page.goto(e.leader);
+ await page.getByRole('button',{name:'Edit event',exact:true}).first().click();
+ const editor=page.getByRole('dialog',{name:'Edit event',exact:true});
+ await expect(editor).toBeVisible();
+ await editor.getByRole('switch',{name:'Send photos as we go',exact:true}).click();await page.getByRole('button',{name:'Save changes',exact:true}).click();expect((await state(request,e.access)).event.autoUploadDefault).toBe(false);
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('sharedReviews:v1')!));const team=saved.find((entry:{access:Access&{role:string}})=>entry.access.role==='team').access;await page.goto(`${baseURL}#event=${team.eventId}&team=${team.token}`);await expect(sharing(page)).not.toBeChecked();
 });
 
@@ -59,4 +63,28 @@ test('wizard defaults on and a failed join-time opt-out never becomes an automat
  // Fail the first settings transaction, not registration or photo storage.
  await page.evaluate(()=>{const original=IDBDatabase.prototype.transaction;let once=true;IDBDatabase.prototype.transaction=function(...args:Parameters<typeof original>){if(once&&String(args[0]).includes('photoSyncSettings')&&args[1]==='readwrite'){once=false;throw new DOMException('Synthetic settings failure','QuotaExceededError');}return original.apply(this,args);};});
  await page.getByRole('button',{name:'Join & start hunt',exact:true}).click();await expect(page.getByRole('alert')).toContainText('You’re in as');expect((await state(request,e.access)).teams.length).toBe(1);await page.getByRole('button',{name:'Start the hunt',exact:true}).click();await expect(sharing(page)).not.toBeChecked();await page.getByRole('button',{name:'Start the hunt on Path A',exact:true}).click();await capture(page);expect((await state(request,e.access)).photos.length).toBe(0);expect((await dbRows(page,'photoSyncJobs')).length).toBe(0);
+});
+
+test('a failed sharing choice signals the closed menu and retry clears it without changing the choice', async ({ page, request, baseURL }) => {
+  const e = await make(request, baseURL!); await join(page, e.invite); await openSharing(page);
+  await page.evaluate(() => {
+    const original = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function(...args: Parameters<typeof original>) {
+      if (String(args[0]).includes('photoSyncSettings') && args[1] === 'readwrite') throw new DOMException('Synthetic settings failure', 'QuotaExceededError');
+      return original.apply(this, args);
+    };
+    window.addEventListener('restore-test-photo-settings', () => { IDBDatabase.prototype.transaction = original; }, { once: true });
+  });
+  await sharing(page).click();
+  await expect(page.getByText(/Couldn’t save this choice/)).toBeVisible();
+  await closeSharing(page);
+  await expect(page.getByRole('button', { name: 'Hunt menu', exact: true })).toHaveAccessibleDescription('Photo sharing needs attention');
+  await openSharing(page);
+  await page.evaluate(() => window.dispatchEvent(new Event('restore-test-photo-settings')));
+  await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(sharing(page)).not.toBeChecked();
+  await expect(page.getByText('Off · you choose what to send', { exact: true })).toBeVisible();
+  await closeSharing(page);
+  await expect(page.getByRole('button', { name: 'Hunt menu', exact: true })).not.toHaveAttribute('aria-describedby');
+  await capture(page); expect((await state(request, e.access)).photos.length).toBe(0);
 });

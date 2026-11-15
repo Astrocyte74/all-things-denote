@@ -1,9 +1,11 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { ArrowLeft, Camera, ChevronRight, CloudUpload, Home, ListChecks, Menu, PencilLine, RotateCcw, Settings2 } from 'lucide-react';
 import type { EventHunt } from '@/lib/eventHunt';
-import { PhotoAutoSendControl } from './shared-review/PhotoAutoSendControl';
+import { usePhotoAutoSend, type PhotoAutoSendState } from '@/hooks/usePhotoAutoSend';
+import { photoSharingStatus } from '@/lib/photoSharingStatus';
+import { PhotoAutoSendContent } from './shared-review/PhotoAutoSendControl';
 
 interface HuntMenuProps {
   triggerRef: RefObject<HTMLButtonElement | null>;
@@ -20,7 +22,19 @@ const item = 'flex min-h-12 cursor-pointer items-center gap-3 rounded-xl px-3 py
 
 /** One predictable menu in both hunt views. Routine tools stay together; leaving
  * or resetting takes a second, explicitly named step. Modal tools return here. */
-export function HuntMenu({ triggerRef, photoCount, onGallery, onChecklist, eventHunt, onEvent, onEditTeam, onStartOver, onHome }: HuntMenuProps) {
+export function HuntMenu(props: HuntMenuProps) {
+  return props.eventHunt ? <EventHuntMenu {...props} hunt={props.eventHunt} /> : <HuntMenuContents {...props} />;
+}
+
+function EventHuntMenu(props: HuntMenuProps & { hunt: EventHunt }) {
+  const photoSharing = usePhotoAutoSend(props.hunt);
+  return <HuntMenuContents {...props} photoSharing={photoSharing} />;
+}
+
+function HuntMenuContents({ triggerRef, photoCount, onGallery, onChecklist, eventHunt, onEvent, onEditTeam, onStartOver, onHome, photoSharing }: HuntMenuProps & { photoSharing?: PhotoAutoSendState }) {
+  const sharingStatus = photoSharing ? photoSharingStatus(photoSharing) : null;
+  const needsAttention = sharingStatus?.tone === 'error';
+  const attentionId = useId();
   const [open, setOpen] = useState(false);
   const [more, setMore] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -35,8 +49,9 @@ export function HuntMenu({ triggerRef, photoCount, onGallery, onChecklist, event
   return <>
     <DropdownMenu.Root open={open} onOpenChange={value => { setOpen(value); if (!value) setMore(false); }}>
       <DropdownMenu.Trigger asChild>
-        <button ref={triggerRef} aria-label="Hunt menu" className="btn-3d btn-white inline-flex min-h-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-ink">
+        <button ref={triggerRef} aria-label="Hunt menu" aria-describedby={needsAttention ? attentionId : undefined} className="relative btn-3d btn-white inline-flex min-h-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-ink">
           <Menu className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Menu
+          {needsAttention && <><span aria-hidden="true" className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-ink bg-coral text-[10px] leading-none">!</span><span id={attentionId} role="status" className="sr-only">Photo sharing needs attention</span></>}
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -57,7 +72,7 @@ export function HuntMenu({ triggerRef, photoCount, onGallery, onChecklist, event
               <Camera className="h-4 w-4" /><span className="flex-1">Photo gallery<span className="block text-xs font-semibold text-ink/60">Photos saved on this phone</span></span><span className="text-ink/60">{photoCount}</span>
             </DropdownMenu.Item>
             {eventHunt && <DropdownMenu.Item aria-label="Photo sharing" onSelect={() => setSharing(true)} className={item}>
-              <CloudUpload className="h-4 w-4" /><span>Photo sharing<span className="block text-xs font-semibold text-ink/60">Auto-send and event uploads</span></span>
+              <CloudUpload className="h-4 w-4" /><span>Photo sharing<span className="block text-xs font-semibold text-ink/60">Send photos to your leader</span><span className={`block text-xs font-semibold ${needsAttention ? 'text-red-800' : 'text-ink/60'}`}>{sharingStatus?.text}</span></span>
             </DropdownMenu.Item>}
             {onChecklist && <DropdownMenu.Item aria-label="Hunt checklist" onSelect={onChecklist} className={item}>
               <ListChecks className="h-4 w-4" /><span>Hunt checklist<span className="block text-xs font-semibold text-ink/60">Browse all clues; return to this one</span></span>
@@ -71,7 +86,7 @@ export function HuntMenu({ triggerRef, photoCount, onGallery, onChecklist, event
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
 
-    {eventHunt && <PhotoAutoSendControl hunt={eventHunt} onOpenEvent={onEvent} dialogState={{ open: sharing, onOpenChange: setSharing, restoreFocus }} />}
+    {eventHunt && photoSharing && <PhotoAutoSendContent hunt={eventHunt} state={photoSharing} onOpenEvent={onEvent} dialogState={{ open: sharing, onOpenChange: setSharing, restoreFocus }} />}
 
     <AlertDialog.Root open={leaving} onOpenChange={setLeaving}>
       <AlertDialog.Portal>

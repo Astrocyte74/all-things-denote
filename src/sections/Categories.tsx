@@ -280,6 +280,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
     if (direction === 'prev') {
       newFlatIndex = Math.max(0, flatIndex - 1);
+    } else if (flatIndex === allChallenges.length - 1) {
+      // The last stop is not a dead end when earlier clues were skipped. Use
+      // this path's order, and keep swipe and the visible Next button in sync.
+      newFlatIndex = allChallenges.findIndex((clue, index) => index !== flatIndex && !completedChallenges.has(clue.id));
+      if (newFlatIndex < 0) return;
     } else {
       newFlatIndex = Math.min(allChallenges.length - 1, flatIndex + 1);
     }
@@ -337,6 +342,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const isCompleted = completedChallenges.has(challenge.id);
     const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
     const isLastChallenge = flatIndex >= allChallenges.length - 1;
+    const nextUnfinished = isLastChallenge ? allChallenges.find(clue => clue.id !== challenge.id && !completedChallenges.has(clue.id)) : undefined;
     const theme = getCategoryTheme(category.id);
     const shots = challengePhotos[challenge.id] ?? [];
 
@@ -349,7 +355,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       >
         {/* The clue is the primary view. Optional tools have one labeled entry. */}
         <header className="mx-auto flex w-full max-w-2xl flex-shrink-0 items-center gap-3 px-4 pb-2 pt-[max(.75rem,env(safe-area-inset-top))]">
-          <div className="min-w-0 flex-1" role="status" aria-label={`${totalProgress.completed} of ${totalProgress.total} challenges done`}>
+          <div className="min-w-0 flex-1" role="status" aria-label={`${totalProgress.completed} of ${totalProgress.total} clues done`}>
             <p className="truncate font-display text-lg text-ink">{category.title}</p>
             <p className="text-xs font-bold text-ink/65"><span role="progressbar" aria-label="Hunt progress" aria-valuemin={0} aria-valuemax={totalProgress.total} aria-valuenow={totalProgress.completed}>{totalProgress.completed} of {totalProgress.total} found</span> · Path {selectedPathId}</p>
           </div>
@@ -367,11 +373,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
             {/* Challenge number: a sticker stuck on the card corner */}
             <span
-              className="absolute -left-1 -top-3 flex h-9 w-9 rotate-[-8deg] items-center justify-center rounded-xl border-2 border-ink font-display text-xl"
+              className="absolute -left-1 -top-3 flex h-10 min-w-10 rotate-[-8deg] items-center justify-center rounded-xl border-2 border-ink px-1 font-display text-lg"
               style={{ backgroundColor: theme.main, color: readableTextOn(theme.main), boxShadow: '3px 3px 0 0 #2E2459' }}
-              aria-label={`Challenge ${challenge.number}`}
+              aria-label={`Clue #${challenge.number}`}
             >
-              {challenge.number}
+              #{challenge.number}
             </span>
 
             <div className="flex items-center justify-center gap-3 pl-5">
@@ -487,27 +493,28 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             {/* First-run hint only: gone as soon as the team finishes one challenge */}
             {totalProgress.completed === 0 && (
               <p className="mt-3 text-center text-xs font-semibold text-ink/70">
-                Tap the camera to take a photo; that counts as done. Swipe to move between challenges.
+                Tap the camera to take a photo; that counts as done. Swipe to move between clues.
               </p>
             )}
           </div>
         </div>
 
         {/* One compact navigation dock. The camera stays reachable while reading. */}
-        <nav aria-label="Challenge navigation" className="flex-shrink-0 border-t-2 border-ink bg-cream px-4 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2">
+        <nav aria-label="Clue navigation" className="flex-shrink-0 border-t-2 border-ink bg-cream px-4 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
-            <button onClick={() => navigateDisplayMode('prev')} disabled={flatIndex === 0} className="btn-3d btn-white flex h-12 w-12 items-center justify-center rounded-2xl text-ink" aria-label="Previous challenge">
+            <button onClick={() => navigateDisplayMode('prev')} disabled={flatIndex === 0} className="btn-3d btn-white flex h-12 w-12 items-center justify-center rounded-2xl text-ink" aria-label="Previous clue">
               <ChevronLeft className="h-6 w-6" strokeWidth={3} />
             </button>
             <PhotoCapture teamName={teamName} key={challenge.id} pathId={selectedPathId}
               challenge={challenge} category={category} onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved} packId={packId} huntId={huntId} variant="display" pulse={!isCompleted}
             />
-            <button onClick={() => navigateDisplayMode('next')} disabled={isLastChallenge} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 w-12 items-center justify-center rounded-2xl text-ink`} aria-label="Next challenge">
+            <button onClick={() => navigateDisplayMode('next')} disabled={isLastChallenge && !nextUnfinished} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 w-12 flex-col items-center justify-center rounded-2xl text-ink`} aria-label={nextUnfinished ? `Next unfinished clue, #${nextUnfinished.number}` : 'Next clue'}>
               <ChevronRight className="h-6 w-6" strokeWidth={3} />
+              {nextUnfinished && <span aria-hidden="true" className="text-[10px] font-extrabold leading-none">#{nextUnfinished.number}</span>}
             </button>
           </div>
-          <p className="mt-1.5 text-center text-[11px] font-bold text-ink/65">Challenge {flatIndex + 1} of {allChallenges.length}</p>
+          <p className="mt-1.5 text-center text-[11px] font-bold text-ink/65">Step {flatIndex + 1} of {allChallenges.length}{nextUnfinished && ` · Next: unfinished clue #${nextUnfinished.number}`}</p>
         </nav>
       </div>
 

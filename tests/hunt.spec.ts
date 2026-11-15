@@ -37,18 +37,18 @@ async function photoCount(page: Page, packId = 'scavenger') {
 test('refresh and Continue restore the viewed challenge and saved progress', async ({ page }) => {
   await start(page);
   await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
-  await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Next clue', exact: true }).last().click();
   const title = await page.locator('h3').first().textContent();
   await page.reload();
   await expect(page.locator('h3').first()).toHaveText(title!);
-  await expect(page.getByRole('status', { name: '1 of 15 challenges done' })).toBeAttached();
+  await expect(page.getByRole('status', { name: '1 of 15 clues done' })).toBeAttached();
   // Checklist and Home are explicit menu destinations.
   await openChecklist(page);
   await openMoreOptions(page);
   await page.getByRole('menuitem', { name: 'Back to home' }).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
   await page.getByRole('button', { name: 'Continue Scavenger Hunt' }).click();
   await expect(page.locator('h3').first()).toHaveText(title!);
-  await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Next clue', exact: true }).last().click();
   const current = await page.locator('h3').first().textContent();
   await openChecklist(page);
   await page.getByRole('button', { name: 'Back to current clue', exact: true }).click();
@@ -64,9 +64,9 @@ test('first-time setup and pre-existing hunts both support Continue', async ({ p
   await page.getByRole('button', { name: /Path A/ }).first().click();
   await page.getByRole('button', { name: /Let's go on Path A/ }).click();
   await page.getByRole('button', { name: 'Start the hunt on Path A' }).click();
-  await expect(page.getByRole('button', { name: 'Take photo for this challenge' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take photo for this clue' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Take photo for this challenge' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take photo for this clue' })).toBeVisible();
   // Simulate storage from the previous app version, which had no session keys.
   await page.evaluate(firstId => {
     localStorage.removeItem('huntScreen');
@@ -75,7 +75,7 @@ test('first-time setup and pre-existing hunts both support Continue', async ({ p
   }, ids[0]);
   await page.reload();
   await page.getByRole('button', { name: 'Continue Scavenger Hunt' }).click();
-  await expect(page.getByRole('status', { name: '1 of 15 challenges done' })).toBeAttached();
+  await expect(page.getByRole('status', { name: '1 of 15 clues done' })).toBeAttached();
 });
 
 test('invalid photos offer recovery without completing a challenge', async ({ page }) => {
@@ -145,7 +145,7 @@ test('finish screen exports every photo for this pack, with unique labeled JPEGs
   await page.screenshot({ path: testInfo.outputPath('finish-photos-mobile.png'), animations: 'disabled' });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: testInfo.outputPath('finish-mobile.png'), animations: 'disabled' });
-  await page.getByRole('button', { name: 'Review challenges & connections' }).click();
+  await page.getByRole('button', { name: 'Review clues & connections' }).click();
   await expect(page.getByRole('heading', { name: 'Hunt checklist' })).toBeVisible();
   await page.getByRole('button', { name: 'See hunt celebration & photos' }).click();
   await expect(page.getByRole('heading', { name: 'Hunt complete!' })).toBeVisible();
@@ -168,7 +168,7 @@ test('unvisited pack works offline, including photos, fonts, and artwork', async
     localStorage.setItem('huntScreen', JSON.stringify('hunt'));
   });
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Take photo for this challenge' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take photo for this clue' })).toBeVisible();
   await page.locator('input[type=file]').setInputFiles(image);
   await expect(page.getByText('Nailed it!', { exact: true })).toBeVisible();
   expect(await photoCount(page, 'creation')).toBe(1);
@@ -188,7 +188,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
   expect(await page.evaluate(() => localStorage.getItem('completedChallenges:scavenger'))).toBeNull();
   await page.getByRole('button', { name: /Let's go on Path A/ }).click();
   await page.getByRole('button', { name: 'Start the hunt on Path A' }).click();
-  await expect(page.getByRole('button', { name: 'Take photo for this challenge' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Take photo for this clue' })).toBeVisible();
   await openChecklist(page);
   await page.evaluate(({ other }) => new Promise<void>(resolve => {
     const request = indexedDB.open('ScavengerHuntPhotos');
@@ -209,7 +209,7 @@ test('reset keeps photos; start fresh deletes only the active pack', async ({ pa
 
 test('new worker waits for approval and updating preserves the current challenge', async ({ page }) => {
   await start(page);
-  await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Next clue', exact: true }).last().click();
   const title = await page.locator('h3').first().textContent();
   const original = await readFile('dist/sw.js', 'utf8');
   try {

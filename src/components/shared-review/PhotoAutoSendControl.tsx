@@ -2,7 +2,8 @@ import { useId, useState, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AlertTriangle, Check, CloudUpload, Loader2, RefreshCw, X, ArrowRight } from 'lucide-react';
 import type { EventHunt } from '@/lib/eventHunt';
-import { usePhotoAutoSend } from '@/hooks/usePhotoAutoSend';
+import { photoSharingStatus } from '@/lib/photoSharingStatus';
+import { usePhotoAutoSend, type PhotoAutoSendState } from '@/hooks/usePhotoAutoSend';
 
 export const AUTO_SEND_LABEL = 'Send photos as we go';
 
@@ -40,20 +41,7 @@ export function AutoSendSwitch({ checked, onChange, disabled, labelledBy, descri
   );
 }
 
-type Status = { tone: 'idle' | 'ok' | 'busy' | 'wait' | 'error'; text: string };
-
-function statusOf(state: { ready: boolean; enabled: boolean; pending: number; uploading: boolean; error: string | null }, action: 'switching' | 'retrying' | null): Status {
-  if (action === 'switching') return { tone: 'busy', text: state.enabled ? 'Turning off…' : 'Turning on…' };
-  if (action === 'retrying') return { tone: 'busy', text: 'Retrying…' };
-  // An error (including a failed first load) is shown as it is, never as "Checking…".
-  if (state.error) return { tone: 'error', text: state.error };
-  if (!state.ready) return { tone: 'busy', text: 'Checking…' };
-  if (!state.enabled) return state.pending > 0 ? {tone:'wait',text:`Off · ${state.pending} removal${state.pending===1?'':'s'} waiting`} : { tone: 'idle', text: 'Off' };
-  const waiting = `${state.pending} ${state.pending === 1 ? 'change' : 'changes'}`;
-  if (state.uploading) return { tone: 'busy', text: state.pending > 1 ? `Sending… ${waiting} left` : 'Sending…' };
-  if (state.pending > 0) return { tone: 'wait', text: `${waiting} waiting to send` };
-  return { tone: 'ok', text: 'On · all caught up' };
-}
+type Status = ReturnType<typeof photoSharingStatus>;
 
 const TONE: Record<Status['tone'], string> = {
   idle: 'bg-cream text-ink/75',
@@ -75,13 +63,25 @@ function StatusIcon({ tone }: { tone: Status['tone'] }) {
  * rules (pre-hunt instructions, team page); `dialogState` opens these controls in a sheet from the
  * hunt menu. Errors are shown as they are, with Retry, and never block play.
  */
-export function PhotoAutoSendControl({ hunt, onOpenEvent, dialogState }: { hunt: EventHunt; onOpenEvent?: () => void; dialogState?: { open: boolean; onOpenChange: (open: boolean) => void; restoreFocus: () => void } }) {
-  const state = usePhotoAutoSend(hunt);
+type PhotoAutoSendControlProps = {
+  hunt: EventHunt;
+  onOpenEvent?: () => void;
+  dialogState?: { open: boolean; onOpenChange: (open: boolean) => void; restoreFocus: () => void };
+};
+
+export function PhotoAutoSendControl(props: PhotoAutoSendControlProps) {
+  const state = usePhotoAutoSend(props.hunt);
+  return <PhotoAutoSendContent {...props} state={state} />;
+}
+
+/** The hunt menu shares one subscription with its sheet, so status stays current
+ * while the sheet is closed and changing a setting updates both surfaces. */
+export function PhotoAutoSendContent({ hunt, onOpenEvent, dialogState, state }: PhotoAutoSendControlProps & { state: PhotoAutoSendState }) {
   const [switching, setSwitching] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const ids = { label: useId(), status: useId(), hint: useId() };
-  const status = statusOf(state, switching ? 'switching' : retrying ? 'retrying' : null);
+  const status = photoSharingStatus(state, switching ? 'switching' : retrying ? 'retrying' : null);
   const shownError = toggleError ?? state.error;
 
   const toggle = async (next: boolean) => {
@@ -134,7 +134,7 @@ export function PhotoAutoSendControl({ hunt, onOpenEvent, dialogState }: { hunt:
           <h2 id={ids.label} className="font-display text-xl leading-tight">{AUTO_SEND_LABEL}</h2>
           <p id={ids.status} role="status" className={`mt-1 inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-xs font-extrabold ${TONE[status.tone]}`}>
             <StatusIcon tone={status.tone} />
-            <span className="min-w-0 break-words">{status.tone === 'error' ? 'Not sending right now' : status.text}</span>
+            <span className="min-w-0 break-words">{status.text}</span>
           </p>
         </div>
         {switchEl}
@@ -178,7 +178,7 @@ export function PhotoAutoSendControl({ hunt, onOpenEvent, dialogState }: { hunt:
           <Dialog.Close aria-label="Close photo sharing" className="btn-3d btn-white flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"><X className="h-5 w-5" /></Dialog.Close>
         </div>
         {controls}
-        {onOpenEvent && <button onClick={() => { dialogState.onOpenChange(false); onOpenEvent(); }} className="btn-3d btn-sky mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 font-extrabold">Back to event · send photos <ArrowRight className="h-5 w-5" /></button>}
+        {onOpenEvent && <button onClick={() => { dialogState.onOpenChange(false); onOpenEvent(); }} className="btn-3d btn-sky mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 font-extrabold">Event &amp; photos <ArrowRight className="h-5 w-5" /></button>}
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;

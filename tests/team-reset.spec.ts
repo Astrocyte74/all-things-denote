@@ -175,7 +175,7 @@ test('long team names fit photo captions and the finish screen offers reset', as
 test('photo viewer keeps the card clear of controls and supports save, share, navigation and delete', async ({ page }, info) => {
   await start(page);
   await capture(page, 480, 640);
-  await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Next clue', exact: true }).last().click();
   await capture(page, 960, 540);
   await openGallery(page);
   await page.getByRole('button', { name: /View photo for .* full screen/ }).first().click();

@@ -23,7 +23,7 @@ async function capture(page: Page, color: string, name: string) {
   await page.getByRole('button', { name:'Start the hunt on Path A' }).click();
   await page.locator('input[type=file]').setInputFiles({ name:'scene.svg', mimeType:'image/svg+xml', buffer:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480"><rect width="720" height="480" fill="${color}"/><circle cx="550" cy="100" r="64" fill="#ffeaa0"/><path d="M0 480V350L180 180L390 480M240 480L490 230L720 480" fill="#5d8a72"/></svg>`) });
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(1);
-  await expect(page.getByRole('button',{name:'Take photo for this challenge',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Take photo for this clue',exact:true})).toBeEnabled();
   await openHuntMenu(page);await expect(page.getByRole('menuitem',{name:'Photo gallery',exact:true})).toContainText('1');await page.keyboard.press('Escape');
 }
 async function makeLeader(browser: Browser, baseURL: string, title: string) {
@@ -220,7 +220,7 @@ test('teams delete single or all cloud copies, including from another device aft
   await capture(page,'#c5e7d7','Cloud cleanup');
   for (const color of ['gold','plum']) {
     await page.locator('input[type=file]').setInputFiles({name:'extra.svg',mimeType:'image/svg+xml',buffer:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="480"><rect width="320" height="480" fill="${color}"/></svg>`)});
-    await expect(page.getByRole('button',{name:'Take photo for this challenge',exact:true})).toBeEnabled();
+    await expect(page.getByRole('button',{name:'Take photo for this clue',exact:true})).toBeEnabled();
   }
   await expect.poll(async()=>(await storedPhotos(page)).length).toBe(3);
   const originals = await storedPhotos(page);
@@ -303,7 +303,7 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
   await expect(page.getByRole('textbox', {name:/Team name/})).toHaveCount(0);
   await page.getByRole('button', {name:'Start the hunt on Path A',exact:true}).click();
-  await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'0 of 12 clues done'})).toBeAttached();
   await page.locator('input[type=file]').setInputFiles({name:'event.svg', mimeType:'image/svg+xml', buffer:Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="skyblue"/></svg>')});
   await expect.poll(async () => (await storedPhotos(page)).length).toBe(2);
   const eventPhoto = (await storedPhotos(page)).find(photo => photo.id !== oldPhoto.id)!;
@@ -314,12 +314,12 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   expect(await page.evaluate(() => localStorage.getItem('completedChallenges:christmas'))).toBe(oldProgress);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('teamNameByPack')!).christmas)).toBe('Old local team');
   await page.reload();
-  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'1 of 12 clues done'})).toBeAttached();
   await openChecklist(page);
   await openGallery(page);
   await expect(page.getByRole('button', {name:/View photo for #.*full screen/})).toHaveCount(1);
   await page.getByRole('button', {name:'Close photo gallery',exact:true}).click();
-  await openSharingMenu(page);await page.getByRole('button', {name:/Back to event · send photos/}).click();
+  await openSharingMenu(page);await page.getByRole('button', {name:/Event & photos/}).click();
   expect(page.url()).toBe(teamLink);
   await expect(page.getByRole('region', {name:'Your event hunt'})).toBeVisible();
   await page.screenshot({path:info.outputPath('event-team-ready.png'),fullPage:true});
@@ -327,7 +327,7 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.goto(leader.invite);
   await page.getByRole('button', {name:'Continue as your team',exact:true}).click();
   await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
-  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'1 of 12 clues done'})).toBeAttached();
   expect((await snapshot(leader.page)).teams).toHaveLength(1);
   // A second team on the phone has its own fresh progress and photo collection.
   await page.goto(leader.invite);
@@ -336,17 +336,17 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.getByRole('textbox', {name:/Your own name/}).fill('New team');
   await page.getByRole('button', {name:'Join & start hunt',exact:true}).click();
   await page.getByRole('button', {name:'Start the hunt on Path B',exact:true}).click();
-  await expect(page.getByRole('status', {name:'0 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'0 of 12 clues done'})).toBeAttached();
   await expect(page.getByRole('button', {name:'Hunt menu',exact:true})).toBeVisible();
   expect(await storedPhotos(page)).toHaveLength(2);
   await page.goto(teamLink);
   await page.getByRole('button', {name:'Open team hunt',exact:true}).click();
-  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'1 of 12 clues done'})).toBeAttached();
   await page.screenshot({path:info.outputPath('event-hunt-phone.png')});
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.context().setOffline(true);
   await page.reload();
-  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'1 of 12 clues done'})).toBeAttached();
   await openChecklist(page);
   await openMoreOptions(page);
   await page.getByRole('menuitem', {name:'Back to home'}).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
@@ -355,7 +355,7 @@ test('joining sets up an isolated team hunt and returns directly to its event', 
   await page.getByRole('button', {name:'All games',exact:true}).click();
   await page.getByText('Saved team hunts on this device (2)', {exact:true}).click();
   await page.getByRole('button', {name:'Continue Scripture Scouts',exact:true}).click();
-  await expect(page.getByRole('status', {name:'1 of 12 challenges done'})).toBeAttached();
+  await expect(page.getByRole('status', {name:'1 of 12 clues done'})).toBeAttached();
   await openChecklist(page);
   await openMoreOptions(page);
   await page.getByRole('menuitem', {name:'Start over',exact:true}).click();

@@ -21,7 +21,7 @@ export function StickyHuntHeader({ pathId, teamName, completed, total, onResume,
       </div>
       <div className="mt-2 flex items-center justify-between gap-3 text-xs font-bold text-ink/65">
         <p className="min-w-0 truncate">{teamName ? `${teamName} · ` : ''}Path {pathId}</p>
-        <p role="status" aria-label={`${completed} of ${total} challenges done`} className="flex-shrink-0">{completed} of {total} found</p>
+        <p role="status" aria-label={`${completed} of ${total} clues done`} className="flex-shrink-0">{completed} of {total} found</p>
       </div>
     </nav>
   </header>;

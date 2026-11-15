@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openChecklist, openGallery, openHuntMenu, openMoreOptions } from './hunt-controls';
+import { scriptureDetectivesPack } from '../src/data/packs/scriptureDetectivesPack';
 
 test('new players have one menu, explicit detours, and protected exits that preserve their current clue', async ({ page }, info) => {
   await page.goto('./');
@@ -10,7 +11,7 @@ test('new players have one menu, explicit detours, and protected exits that pres
     localStorage.setItem('huntScreen', JSON.stringify('hunt'));
   });
   await page.reload(); await page.setViewportSize({ width: 375, height: 620 });
-  await page.getByRole('button', { name: 'Next challenge', exact: true }).click();
+  await page.getByRole('button', { name: 'Next clue', exact: true }).click();
   await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
   const current = await page.locator('h3').textContent();
   const before = await page.evaluate(() => localStorage.getItem('completedChallenges:scripture-detectives'));
@@ -55,3 +56,41 @@ test('new players have one menu, explicit detours, and protected exits that pres
   expect(await page.evaluate(() => localStorage.getItem('completedChallenges:scripture-detectives'))).toBe(before);
   await page.screenshot({ path: info.outputPath('quiet-clue-phone.png') });
 });
+
+for (const pathId of ['A', 'B', 'D']) {
+  test(`last stop finds skipped clues in Path ${pathId} order and captures keep the dock clear`, async ({ page }, info) => {
+    const clues = scriptureDetectivesPack.categories.flatMap(category => category.challenges);
+    const route = scriptureDetectivesPack.paths.find(path => path.id === pathId)!.order.map(number => clues[number - 1]);
+    const last = route.at(-1)!, skipped = route[1];
+    await page.goto('./');
+    await page.evaluate(({ pathId, lastId, completed }) => {
+      localStorage.setItem('activePackId', JSON.stringify('scripture-detectives'));
+      localStorage.setItem('pathByPack', JSON.stringify({ 'scripture-detectives': pathId }));
+      localStorage.setItem('startedByPack', JSON.stringify({ 'scripture-detectives': true }));
+      localStorage.setItem('huntScreen', JSON.stringify('hunt'));
+      localStorage.setItem('lastChallenge:scripture-detectives', JSON.stringify({ [pathId]: lastId }));
+      localStorage.setItem('completedChallenges:scripture-detectives', JSON.stringify(completed));
+    }, { pathId, lastId: last.id, completed: route.filter(clue => clue.id !== skipped.id && clue.id !== last.id).map(clue => clue.id) });
+    await page.reload(); await page.setViewportSize({ width: 320, height: 568 });
+    await expect(page.getByLabel(`Clue #${last.number}`, { exact: true })).toHaveText(`#${last.number}`);
+    await expect(page.getByText(`Step 12 of 12 · Next: unfinished clue #${skipped.number}`, { exact: true })).toBeVisible();
+    await page.getByLabel('Take photo', { exact: true }).setInputFiles({ name: 'clue.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="gold"/></svg>') });
+    await expect(page.getByText('Nailed it!', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Photo 1', exact: true })).toBeAttached();
+    await expect(page.getByText('Photo saved on this device', { exact: true })).toHaveCount(0);
+    const next = page.getByRole('button', { name: `Next unfinished clue, #${skipped.number}`, exact: true });
+    await expect(next).toBeEnabled(); await expect(next).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`last-stop-${pathId}.png`) });
+    if (pathId === 'D') {
+      const target = await page.getByTestId('clue-scroll').elementHandle();
+      await page.getByTestId('clue-scroll').dispatchEvent('touchstart', { touches: [{ identifier: 1, target, clientX: 270, clientY: 300 }] });
+      await page.getByTestId('clue-scroll').dispatchEvent('touchend', { changedTouches: [{ identifier: 1, target, clientX: 80, clientY: 300 }] });
+    } else await next.click();
+    await expect(page.getByLabel(`Clue #${skipped.number}`, { exact: true })).toBeVisible();
+    await expect(page.getByText('Step 2 of 12', { exact: true })).toBeVisible();
+    await page.reload(); await expect(page.locator('h3')).toHaveText(skipped.title);
+    await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
+    await expect(page.getByText('You finished all 12 clues.', { exact: false })).toBeVisible();
+  });
+}

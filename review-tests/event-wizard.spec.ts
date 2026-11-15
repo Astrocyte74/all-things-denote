@@ -112,7 +112,7 @@ test('two phones claiming one name recover with fresh names, automatic paths and
     const snapshot=await state(page,event);
     expect(snapshot.teams.map((t:{name:string})=>t.name)).toEqual(['Bright Sparks','Our Name']);
     await page.getByRole('button',{name:'Start the hunt on Path A',exact:true}).click();
-    await expect(page.getByRole('status',{name:'0 of 12 challenges done'})).toBeAttached();
+    await expect(page.getByRole('status',{name:'0 of 12 clues done'})).toBeAttached();
   }finally{await otherContext.close();}
 });
 

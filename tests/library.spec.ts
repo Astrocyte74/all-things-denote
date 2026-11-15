@@ -53,17 +53,17 @@ test('switching games preserves independent progress, paths, and the viewed clue
   await expect(page.getByRole('progressbar', { name: 'Christmas progress' })).toHaveAttribute('aria-valuenow', '1');
   await play(page, 'Scripture Detectives', 'D');
   await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
-  await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
+  await page.getByRole('button', { name: 'Next clue', exact: true }).last().click();
   await library(page);
   await page.getByRole('button', { name: 'Continue Christmas', exact: true }).click();
-  await expect(page.getByLabel('Challenge 12', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Clue #12', { exact: true })).toBeVisible();
   await expect(page.getByText('Nailed it!', { exact: true })).toBeVisible();
   await library(page);
   await page.getByRole('button', { name: 'Continue Scripture Detectives', exact: true }).click();
-  await expect(page.getByLabel('Challenge 3', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Clue #3', { exact: true })).toBeVisible();
   await expect(page.getByText('Nailed it!', { exact: true })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByLabel('Challenge 3', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Clue #3', { exact: true })).toBeVisible();
 });
 
 test('scripture clues work offline before completion, then reveal discussion; route crosses categories', async ({ page, context }, info) => {
@@ -80,11 +80,11 @@ test('scripture clues work offline before completion, then reveal discussion; ro
   await page.locator('input[type=file]').setInputFiles({ name: 'clue.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="gold"/></svg>') });
   await expect(page.getByText(first.gospelConnection, { exact: true })).toBeVisible();
   for (const number of [3, 5, 7, 9, 11, 2]) {
-    await page.getByRole('button', { name: 'Next challenge', exact: true }).last().click();
-    await expect(page.getByLabel(`Challenge ${number}`, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Next clue', exact: true }).last().click();
+    await expect(page.getByLabel(`Clue #${number}`, { exact: true })).toBeVisible();
   }
   await page.reload();
-  await expect(page.getByLabel('Challenge 2', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Clue #2', { exact: true })).toBeVisible();
 });
 
 test('12 challenge games show correct results, bonus totals, and library results action', async ({ page }) => {
@@ -98,7 +98,7 @@ test('12 challenge games show correct results, bonus totals, and library results
   }, { id: pack.id, ids: pack.categories.flatMap(category => category.challenges.map(challenge => challenge.id)) });
   await page.reload();
   await page.getByRole('button', { name: 'View Scripture Detectives results', exact: true }).click();
-  await expect(page.getByText('You finished all 12 challenges.', { exact: false })).toBeVisible();
+  await expect(page.getByText('You finished all 12 clues.', { exact: false })).toBeVisible();
   await expect(page.getByText(pack.discussionPrompt!, { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'You Did All 12!' })).toBeAttached();
   await expect(page.getByText('3 more discoveries for your team.', { exact: false })).toBeAttached();

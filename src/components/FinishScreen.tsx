@@ -56,7 +56,7 @@ export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotos
           <StickerArt name={pack.mascotArt} emoji={pack.mascotEmoji} alt="" className="mx-auto h-28 w-28" />
           <p className="mt-4 font-extrabold">{[pack.title, team, `Path ${pathId}`].filter(Boolean).join(' · ')}</p>
           <h1 ref={heading} tabIndex={-1} className="mt-2 font-display text-5xl focus:outline-none">Hunt complete!</h1>
-          <p className="mt-3 text-lg font-bold">You finished all {total} challenges. Time to share what you found.</p>
+          <p className="mt-3 text-lg font-bold">You finished all {total} clues. Time to share what you found.</p>
         </div>
 
         <div className="sticker-card mt-8 bg-sun-soft p-6">
@@ -77,9 +77,9 @@ export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotos
               <img src={photo.imageData} alt={photo.challengeTitle} loading="lazy" className="aspect-square w-full object-cover" />
               <span className="block p-3 text-sm font-extrabold">#{photo.challengeNumber} {photo.challengeTitle}</span>
             </button>)}
-          </div> : <p className="my-6 rounded-2xl border-2 border-dashed border-ink/30 p-6 text-center font-semibold">You completed the hunt without photos. You can still revisit a challenge and capture a favorite discovery.</p>}
+          </div> : <p className="my-6 rounded-2xl border-2 border-dashed border-ink/30 p-6 text-center font-semibold">You completed the hunt without photos. You can still revisit a clue and capture a favorite discovery.</p>}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button onClick={onReview} className="btn-3d btn-sky rounded-full px-6 py-3 font-bold text-ink">Review challenges & connections</button>
+          <button onClick={onReview} className="btn-3d btn-sky rounded-full px-6 py-3 font-bold text-ink">Review clues & connections</button>
           {photos.length > 0 && <button onClick={() => setGalleryOpen(true)} className="btn-3d btn-white rounded-full px-6 py-3 font-bold text-ink">Open photo gallery</button>}
         </div>
         {onShareWithEvent && <div className="sticker-card mt-8 flex flex-col items-start gap-3 bg-sky-soft p-5 sm:flex-row sm:items-center">

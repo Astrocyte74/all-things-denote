@@ -73,8 +73,9 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
     try {
       onCaptureComplete?.(photo.challengeId);
       await onPhotoSaved?.();
-      // This confirmation has no action; keep the camera and Next controls tappable.
-      toast.success('Photo saved on this device', { style: { pointerEvents: 'none' } });
+      // Focus mode already confirms with the completion stamp and photo strip.
+      // A toast here would cover the camera/Next dock just as it is needed.
+      if (variant !== 'display') toast.success('Photo saved on this device', { style: { pointerEvents: 'none' } });
     } catch (cause) {
       // The image is already committed. Never suggest re-saving it for a UI error.
       console.error('Photo saved, but refresh failed:', cause);
@@ -113,7 +114,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         className={variant === 'display'
           ? `btn-3d btn-go inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 py-3 text-ink ${pulse && !saving && !error ? 'animate-pulse-ring' : ''}`
           : 'btn-3d btn-sky rounded-xl p-2 text-ink'}
-        aria-label={saving ? 'Saving photo' : retryFile ? 'Retry saving photo' : 'Take photo for this challenge'}
+        aria-label={saving ? 'Saving photo' : retryFile ? 'Retry saving photo' : 'Take photo for this clue'}
       >
         <Icon className={`${variant === 'display' ? 'h-7 w-7' : 'h-5 w-5'} ${saving ? 'animate-spin' : ''}`} strokeWidth={2.5} />
         {variant === 'display' && <span className="font-display text-lg">{saving ? 'Saving…' : retryFile ? 'Retry photo' : 'Take photo'}</span>}

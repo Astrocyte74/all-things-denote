@@ -257,7 +257,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Challenge #${photo.challengeNumber}`,
+          title: `Clue #${photo.challengeNumber}`,
           text: photo.challengeTitle
         });
         toast.success('Photo shared!', { style: { pointerEvents: 'none' } });
@@ -323,7 +323,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                     className="px-3 py-2 text-sm font-bold text-ink border-2 border-ink/20 rounded-xl bg-white focus:outline-none focus:border-ink"
                   >
                     <option value="newest">Sort: Newest</option>
-                    <option value="challenge">Sort: Challenge #</option>
+                    <option value="challenge">Sort: Clue #</option>
                   </select>
                 </>
               )}
