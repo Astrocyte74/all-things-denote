@@ -23,6 +23,15 @@ was verified on 2026-11-14. No plan upgrade, subscription, or DNS change was mad
 Small event use is expected to fit the free allowances, but R2 usage above its
 account-wide allowance is billable. Keep this separate from a guaranteed cost cap.
 
+Hunt layout and photo-status release checks (2026-11-14): lint, production build,
+Worker dry-run, all 33 API cases, 47 applicable shared-review browser checks,
+and 38 hunt regressions passed (one unsupported WebKit native-camera skip).
+Checks cover small phone clue space, a single navigation dock, the accessible
+sharing sheet and focus restoration, private/validated/ordered status reports,
+waiting/error counts that drain after retry, offline opt-out/reload recovery,
+and unchanged event-edit identity and progress fields. Phone and desktop layouts
+were inspected in Chromium and WebKit device simulations.
+
 Automatic photo sharing release checks (2026-11-14): lint, production build and
 Worker dry-run passed, along with 30 API cases, all 43 applicable shared-review
 browser checks (one WebKit native fake-camera skip), and 38 hunt regressions.
@@ -158,6 +167,27 @@ and keep the global event cap in place. This implementation is intended for smal
 group events; a broader public launch would need stronger abuse controls.
 
 ## Routine operation
+
+Migration `0005_team_photo_status.sql` adds an optional photo-sharing report to
+team rows. Team-only POST `/events/:id/photo-status` accepts the device's
+`autoSend` choice, `queuedUploads`, `pendingDeletes`, `hasError`, and a monotonic
+`clientUpdatedAt`. Counts include in-flight work and retries; they do not inventory
+older/manual photos. The report contains no photo bytes, IDs, or device details.
+It is visible only to that team and the leader, and expires with the event.
+
+The client reads the durable queue on changes, reconnect, reload, and foreground
+return. A receipt signature avoids idle API requests; failures retry while the
+app is open. Server timestamps label reports, and strictly older/repeated client
+updates cannot overwrite newer choices or counts. The dashboard explicitly shows
+last reported time, not online status. An offline phone cannot report its current
+queue until it reconnects. Auto-send off may leave other unshared photos on the
+phone; these are not mislabeled as queued uploads. Missing older-client reports
+stay unknown. Closed events still accept status reports and pending removals.
+
+On the hunt screen, the cloud button opens an accessible photo-sharing sheet,
+including the manual-send/event link. Its badge signals waiting changes or an
+error. A single compact camera/navigation dock replaces duplicate Next controls;
+clues scroll independently and each newly opened clue starts at the top.
 
 Migration `0004_auto_photo_sync.sql` adds `auto_upload_default` (off on existing
 rows) and private `photo_removals` markers scoped to event/team/local photo ID.

@@ -222,16 +222,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     onProgressChange?.(totalProgress.completed, totalProgress.total);
   }, [onProgressChange, totalProgress.completed, totalProgress.total]);
 
-  // challenge id -> its category's theme (used to color the progress pips)
-  const themeByChallengeId = useMemo(() => {
-    const map: Record<string, ReturnType<typeof getCategoryTheme>> = {};
-    categories.forEach((cat) => {
-      const catTheme = getCategoryTheme(cat.id);
-      cat.challenges.forEach((c) => { map[c.id] = catTheme; });
-    });
-    return map;
-  }, [categories]);
-
   const enterDisplayMode = (category: CategoryType, challengeIndex: number) => {
     const allChallenges = orderedChallenges;
     const flatIndex = allChallenges.findIndex(c => c.id === category.challenges[challengeIndex].id);
@@ -342,35 +332,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         className="paper-dots fixed inset-0 z-50 flex flex-col"
         style={{ backgroundColor: theme.soft }}
       >
-        {/* Progress pips: one per challenge in path order, filled with that challenge's category color */}
-        <div
-          className="mx-auto flex w-full max-w-2xl flex-shrink-0 gap-1 px-4 pt-4"
-          role="progressbar"
-          aria-label="Hunt progress"
-          aria-valuemin={0}
-          aria-valuemax={totalProgress.total}
-          aria-valuenow={totalProgress.completed}
-          aria-valuetext={`${totalProgress.completed} of ${totalProgress.total} done`}
-        >
-          {allChallenges.map((c, i) => {
-            const done = completedChallenges.has(c.id);
-            return (
-              <span
-                key={c.id}
-                className="pip"
-                data-done={done}
-                data-current={i === flatIndex}
-                style={done ? { backgroundColor: themeByChallengeId[c.id]?.main } : undefined}
-              />
-            );
-          })}
-        </div>
-
-        {/* Top toolbar */}
-        <div className="flex flex-shrink-0 items-center justify-between px-4 pt-4">
+        {/* One toolbar; sharing details live in a sheet, leaving room for the clue. */}
+        <header className="mx-auto flex w-full max-w-2xl flex-shrink-0 items-center gap-2 px-3 pb-2 pt-[max(.75rem,env(safe-area-inset-top))] sm:px-4">
           <button
             onClick={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
-            className="btn-3d btn-white relative inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-ink"
+            className="btn-3d btn-white relative inline-flex h-11 min-w-11 flex-shrink-0 items-center justify-center gap-2 rounded-xl px-2 text-sm font-extrabold text-ink"
             aria-label="Open photo gallery"
           >
             <Camera className="h-4 w-4" strokeWidth={2.5} />
@@ -382,58 +348,44 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             )}
           </button>
 
-          <span
-            className="rounded-full border-2 border-ink px-3 py-1 font-display text-sm"
-            style={{ backgroundColor: theme.main, color: readableTextOn(theme.main) }}
-          >
-            {category.title}
-          </span>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="truncate font-display text-base text-ink">{category.title}</p>
+            <p className="text-xs font-bold text-ink/65"><span role="progressbar" aria-label="Hunt progress" aria-valuemin={0} aria-valuemax={totalProgress.total} aria-valuenow={totalProgress.completed}>{totalProgress.completed} of {totalProgress.total} found</span> · Path {selectedPathId}</p>
+          </div>
+          {photoSyncControl}
 
           <button
             onClick={exitDisplayMode}
-            className="btn-3d btn-white inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-extrabold text-ink"
+            className="btn-3d btn-white inline-flex h-11 min-w-11 flex-shrink-0 items-center justify-center gap-2 rounded-xl px-2 text-sm font-extrabold text-ink"
             aria-label="Back to all tasks overview"
           >
             <LayoutGrid className="h-4 w-4" strokeWidth={2.5} />
             <span className="hidden sm:inline">Overview</span>
           </button>
-        </div>
-
-        {photoSyncControl && <div className="mx-4 mt-2 flex-shrink-0">{photoSyncControl}</div>}
-        {huntId && onShareWithEvent && <button onClick={onShareWithEvent} className="mx-4 mt-3 min-h-10 flex-shrink-0 rounded-xl border-2 border-ink bg-cream px-3 text-sm font-extrabold text-ink">Back to event · send photos</button>}
+        </header>
 
         {/* Challenge card */}
         {/* min-h-0 + my-auto (not items-center): a centered flex item taller than the
             scroll area can't be scrolled back to its top, clipping the card after a photo
             adds the "Your shots" strip. Auto margins center when there's room and collapse
             to 0 when overflowing, keeping the top reachable. */}
-        <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-4 pt-9">
-          <div className="flat-card relative my-auto w-full max-w-2xl px-6 pb-6 pt-8 md:px-8 md:pb-8">
+        <div key={challenge.id} data-testid="clue-scroll" className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto overscroll-contain px-3 pb-3 pt-4 sm:px-4">
+          <div className="flat-card relative my-auto w-full max-w-2xl px-4 pb-4 pt-4 md:px-8 md:pb-6">
             <ConfettiBurst burstKey={burstKey} />
 
             {/* Challenge number: a sticker stuck on the card corner */}
             <span
-              className="absolute -left-2 -top-5 flex h-14 w-14 rotate-[-8deg] items-center justify-center rounded-2xl border-2 border-ink font-display text-3xl md:h-16 md:w-16 md:text-4xl"
+              className="absolute -left-1 -top-3 flex h-9 w-9 rotate-[-8deg] items-center justify-center rounded-xl border-2 border-ink font-display text-xl"
               style={{ backgroundColor: theme.main, color: readableTextOn(theme.main), boxShadow: '3px 3px 0 0 #2E2459' }}
               aria-label={`Challenge ${challenge.number}`}
             >
               {challenge.number}
             </span>
 
-            {/* Category art tells you which theme you're in at a glance */}
-            <div className="flex justify-center">
-              <StickerArt
-                name={theme.art}
-                emoji={theme.emoji}
-                alt=""
-                className="h-24 w-24 md:h-32 md:w-32"
-                emojiSize="5rem"
-              />
+            <div className="flex items-center justify-center gap-3 pl-5">
+              <StickerArt name={theme.art} emoji={theme.emoji} alt="" className="h-12 w-12 flex-shrink-0" emojiSize="2.75rem" />
+              <h3 className="font-display text-2xl leading-tight text-ink md:text-3xl">{challenge.title}</h3>
             </div>
-
-            <h3 className="mt-3 text-center font-display text-2xl leading-tight text-ink md:text-4xl">
-              {challenge.title}
-            </h3>
 
             {challenge.scriptureClue && <ScriptureClue clue={challenge.scriptureClue} />}
 
@@ -446,23 +398,16 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
             {/* Completion. The camera in the bottom bar is the main action (taking a photo
                 completes the challenge), so "Mark as done" stays a quiet fallback. */}
-            <div className="mt-6 flex flex-col items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
               {isCompleted ? (
                 <>
                   <span
                     role="status"
-                    className="animate-stamp-in inline-flex items-center gap-2 rounded-full border-2 border-ink bg-sun px-5 py-2 font-display text-xl text-ink"
+                    className="animate-stamp-in inline-flex items-center gap-2 rounded-full border-2 border-ink bg-sun px-3 py-1 font-display text-base text-ink"
                   >
                     <Check className="h-5 w-5" strokeWidth={3.5} />
                     Nailed it!
                   </span>
-                  <button
-                    onClick={() => isLastChallenge ? exitDisplayMode() : navigateDisplayMode('next')}
-                    className="btn-3d btn-sky animate-pop-in flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 font-display text-lg tracking-wide text-ink"
-                  >
-                    {isLastChallenge ? 'See overview' : 'Next challenge'}
-                    {isLastChallenge ? <LayoutGrid className="h-5 w-5" strokeWidth={2.5} /> : <ChevronRight className="h-5 w-5" strokeWidth={3} />}
-                  </button>
                   <button
                     onClick={() => toggleChallenge(challenge.id)}
                     className="min-h-11 rounded-full px-4 text-sm font-extrabold text-ink/70 underline underline-offset-4 hover:text-ink"
@@ -484,7 +429,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             {/* Gospel connection */}
             {showAnalogies ? (
               <div
-                className="mt-6 rounded-2xl border-2 border-ink/15 p-5"
+                className="mt-4 rounded-2xl border-2 border-ink/15 p-3"
                 style={{ backgroundColor: theme.soft }}
               >
                 <p className="text-sm font-extrabold" style={{ color: theme.text }}>
@@ -505,8 +450,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                 )}
               </div>
             ) : (
-              <div className="mt-6 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-5 text-center">
-                <p className="text-lg font-semibold italic text-ink/70">
+              <div className="mt-4 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-3 text-center">
+                <p className="text-base font-semibold italic text-ink/70">
                   🤔 {challenge.scriptureClue ? 'Which words in the scripture connect to your object? Explain your thinking.' : 'Talk it over: what gospel truth hides in this one?'}
                 </p>
               </div>
@@ -549,50 +494,29 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
             {/* First-run hint only: gone as soon as the team finishes one challenge */}
             {totalProgress.completed === 0 && (
-              <p className="mt-6 text-center text-sm font-semibold text-ink/70">
+              <p className="mt-3 text-center text-xs font-semibold text-ink/70">
                 Tap the camera to take a photo; that counts as done. Swipe to move between challenges.
               </p>
             )}
           </div>
         </div>
 
-        {/* Bottom nav */}
-        <div className="flex-shrink-0 border-t-2 border-ink bg-cream/90 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-sm">
-          <div className="mx-auto flex max-w-2xl items-center justify-between text-sm font-extrabold text-ink/70">
-            <span>Challenge {flatIndex + 1} of {allChallenges.length}</span>
-            <span>Path {selectedPathId}</span>
-          </div>
-
-          <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between gap-3">
-            <button
-              onClick={() => navigateDisplayMode('prev')}
-              disabled={flatIndex === 0}
-              className="btn-3d btn-white rounded-2xl p-4 text-ink"
-              aria-label="Previous challenge"
-            >
-              <ChevronLeft className="h-7 w-7" strokeWidth={3} />
+        {/* One compact navigation dock. The camera stays reachable while reading. */}
+        <nav aria-label="Challenge navigation" className="flex-shrink-0 border-t-2 border-ink bg-cream px-4 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+            <button onClick={() => navigateDisplayMode('prev')} disabled={flatIndex === 0} className="btn-3d btn-white flex h-12 w-12 items-center justify-center rounded-2xl text-ink" aria-label="Previous challenge">
+              <ChevronLeft className="h-6 w-6" strokeWidth={3} />
             </button>
-
             <PhotoCapture teamName={teamName} key={challenge.id} pathId={selectedPathId}
-              challenge={challenge}
-              category={category}
-              onCaptureComplete={markChallengeComplete}
-              onPhotoSaved={handlePhotoSaved}
-              packId={packId} huntId={huntId}
-              variant="display"
-              pulse={!isCompleted}
+              challenge={challenge} category={category} onCaptureComplete={markChallengeComplete}
+              onPhotoSaved={handlePhotoSaved} packId={packId} huntId={huntId} variant="display" pulse={!isCompleted}
             />
-
-            <button
-              onClick={() => navigateDisplayMode('next')}
-              disabled={flatIndex === allChallenges.length - 1}
-              className="btn-3d btn-white rounded-2xl p-4 text-ink"
-              aria-label="Next challenge"
-            >
-              <ChevronRight className="h-7 w-7" strokeWidth={3} />
+            <button onClick={() => isLastChallenge ? exitDisplayMode() : navigateDisplayMode('next')} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 w-12 items-center justify-center rounded-2xl text-ink`} aria-label={isLastChallenge ? 'See overview' : 'Next challenge'}>
+              {isLastChallenge ? <LayoutGrid className="h-5 w-5" strokeWidth={2.5} /> : <ChevronRight className="h-6 w-6" strokeWidth={3} />}
             </button>
           </div>
-        </div>
+          <p className="mt-1.5 text-center text-[11px] font-bold text-ink/65">Challenge {flatIndex + 1} of {allChallenges.length}</p>
+        </nav>
       </div>
 
       {/* Photo Gallery Modal */}

@@ -20,6 +20,7 @@ import { openReview, openReviewHome, readReviewRoute, type ReviewRoute, type Eve
 import { eventHuntId, makeEventHunt, type EventHunt } from '@/lib/eventHunt';
 import { recordEventProgress, startProgressSync } from '@/lib/eventProgress';
 import { startPhotoSync } from '@/lib/photoSync';
+import { startPhotoStatusSync } from '@/lib/photoStatus';
 import { PhotoAutoSendControl } from '@/components/shared-review/PhotoAutoSendControl';
 import './App.css';
 
@@ -41,6 +42,7 @@ function findExistingHunts(): Record<string, boolean> {
 function App() {
   useEffect(startProgressSync, []);
   useEffect(startPhotoSync, []);
+  useEffect(startPhotoStatusSync, []);
   const [existingHunts] = useState(findExistingHunts);
   const [savedAppState, setAppState] = usePersistedState<AppState>('huntScreen', 'library');
   const [startedByPack, setStartedByPack] = usePersistedState<Record<string, boolean>>('startedByPack', existingHunts);
@@ -327,7 +329,7 @@ function App() {
             setGalleryOpen={setGalleryOpen}
             onPhotoCountChange={setPhotoCount}
             onProgressChange={handleProgressChange}
-            photoSyncControl={activeEvent ? <PhotoAutoSendControl hunt={activeEvent} compact /> : undefined}
+            photoSyncControl={activeEvent ? <PhotoAutoSendControl hunt={activeEvent} compact onOpenEvent={returnToEvent} /> : undefined}
             onCompletedChange={handleCompletedChange}
             packId={pack.id}
             huntId={huntId}

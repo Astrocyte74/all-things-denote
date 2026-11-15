@@ -111,11 +111,12 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         disabled={saving}
         aria-busy={saving}
         className={variant === 'display'
-          ? `btn-3d btn-go rounded-full p-6 text-ink ${pulse && !saving && !error ? 'animate-pulse-ring' : ''}`
+          ? `btn-3d btn-go inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 py-3 text-ink ${pulse && !saving && !error ? 'animate-pulse-ring' : ''}`
           : 'btn-3d btn-sky rounded-xl p-2 text-ink'}
         aria-label={saving ? 'Saving photo' : retryFile ? 'Retry saving photo' : 'Take photo for this challenge'}
       >
-        <Icon className={`${variant === 'display' ? 'h-10 w-10' : 'h-5 w-5'} ${saving ? 'animate-spin' : ''}`} strokeWidth={2.5} />
+        <Icon className={`${variant === 'display' ? 'h-7 w-7' : 'h-5 w-5'} ${saving ? 'animate-spin' : ''}`} strokeWidth={2.5} />
+        {variant === 'display' && <span className="font-display text-lg">{saving ? 'Saving…' : retryFile ? 'Retry photo' : 'Take photo'}</span>}
       </button>
       {saving && <span role="status" className="text-sm font-bold text-ink">Saving…</span>}
       {error && <div role="alert" className="max-w-40 text-center text-xs font-bold text-ink">

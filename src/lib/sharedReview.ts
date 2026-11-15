@@ -15,7 +15,15 @@ export interface ReviewEvent {
   autoUploadDefault?: boolean;
 }
 export interface ReviewProgress { completedChallengeIds: string[]; updatedAt: number; clientUpdatedAt: number }
-export interface ReviewTeam { id: string; name: string; pathId?: string; joinedAt: number; progress?: ReviewProgress }
+export interface ReviewPhotoStatus {
+  autoSend: boolean;
+  queuedUploads: number;
+  pendingDeletes: number;
+  hasError: boolean;
+  updatedAt: number;
+  clientUpdatedAt: number;
+}
+export interface ReviewTeam { id: string; name: string; pathId?: string; joinedAt: number; progress?: ReviewProgress; photoStatus?: ReviewPhotoStatus }
 export interface ReviewPhoto {
   id: string;
   teamId: string;
@@ -199,6 +207,10 @@ export async function updateReviewSettings(access: EventAccess, changes: { title
   const snapshot = await request<ReviewSnapshot>(`/events/${access.eventId}`, access, { method: 'PATCH', body: JSON.stringify(changes) });
   rememberReview(access, snapshot.event);
   return snapshot;
+}
+
+export async function sendReviewPhotoStatus(access: EventAccess, status: Omit<ReviewPhotoStatus, 'updatedAt'>) {
+  return request<{ photoStatus: ReviewPhotoStatus }>(`/events/${access.eventId}/photo-status`, access, { method: 'POST', body: JSON.stringify(status) });
 }
 
 export async function sendReviewProgress(access: EventAccess, progress: { completedChallengeIds: string[]; clientUpdatedAt: number }) {

@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
-import { AlertTriangle, Check, CloudUpload, Loader2, RefreshCw } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { AlertTriangle, Check, CloudUpload, Loader2, RefreshCw, X, ArrowRight } from 'lucide-react';
 import type { EventHunt } from '@/lib/eventHunt';
 import { usePhotoAutoSend } from '@/hooks/usePhotoAutoSend';
 
@@ -71,10 +72,11 @@ function StatusIcon({ tone }: { tone: Status['tone'] }) {
 
 /**
  * Live auto-send control for a team's event hunt. The full card explains the
- * rules (pre-hunt instructions, team page); `compact` is a single row for the
- * clue screen. Errors are shown as they are, with Retry, and never block play.
+ * rules (pre-hunt instructions, team page); `compact` opens these controls in a sheet from the
+ * clue toolbar. Errors are shown as they are, with Retry, and never block play.
  */
-export function PhotoAutoSendControl({ hunt, compact }: { hunt: EventHunt; compact?: boolean }) {
+export function PhotoAutoSendControl({ hunt, compact, onOpenEvent }: { hunt: EventHunt; compact?: boolean; onOpenEvent?: () => void }) {
+  const [open, setOpen] = useState(false);
   const state = usePhotoAutoSend(hunt);
   const [switching, setSwitching] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -116,28 +118,14 @@ export function PhotoAutoSendControl({ hunt, compact }: { hunt: EventHunt; compa
       checked={state.enabled}
       onChange={next => void toggle(next)}
       disabled={!state.ready || switching}
-      labelledBy={compact ? undefined : ids.label}
+      labelledBy={ids.label}
       label={AUTO_SEND_LABEL}
-      describedBy={`${ids.status}${compact ? '' : ` ${ids.hint}`}`}
-      size={compact ? 'sm' : 'md'}
+      describedBy={`${ids.status} ${ids.hint}`}
+      size="md"
     />
   );
 
-  if (compact) {
-    return (
-      <div className="flex min-h-11 min-w-0 items-center gap-2 rounded-2xl border-2 border-ink bg-cream px-2.5 py-1.5">
-        {switchEl}
-        <span aria-hidden="true" className="flex-shrink-0 text-sm font-extrabold">Auto-send</span>
-        <span id={ids.status} role="status" className={`inline-flex min-w-0 items-center gap-1 truncate rounded-full px-2 py-0.5 text-xs font-extrabold ${TONE[status.tone]}`}>
-          <StatusIcon tone={status.tone} />
-          <span className="truncate">{shownError && !switching && !retrying ? 'Error' : status.text}</span>
-        </span>
-        {retryButton && <span className="ml-auto">{retryButton}</span>}
-      </div>
-    );
-  }
-
-  return (
+  const controls = (
     <section className="sticker-card p-4" aria-labelledby={ids.label}>
       <div className="flex items-start gap-3">
         <span aria-hidden="true" className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-sky">
@@ -178,6 +166,34 @@ export function PhotoAutoSendControl({ hunt, compact }: { hunt: EventHunt; compa
       </ul>
     </section>
   );
+  if (!compact) return controls;
+  return <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Trigger asChild>
+      <button type="button" aria-label="Photo sharing" title={`Photo sharing: ${status.text}`} className="btn-3d btn-white relative flex h-11 min-w-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 text-ink">
+        <CloudUpload className="h-5 w-5" strokeWidth={2.5} aria-hidden="true" />
+        <span className="hidden text-sm font-extrabold sm:inline">Sharing</span>
+        <span aria-hidden="true" className={`absolute -right-1 -top-1 flex min-h-3 min-w-3 items-center justify-center rounded-full border-2 border-ink text-[10px] font-black ${shownError ? 'bg-coral' : state.pending ? 'bg-sun' : state.enabled ? 'bg-go' : 'bg-white'} ${state.pending || shownError ? 'h-5 px-1' : ''}`}>
+          {shownError ? '!' : state.pending ? state.pending : ''}
+        </span>
+        <span className="sr-only">{status.text}</span>
+      </button>
+    </Dialog.Trigger>
+    <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-[70] bg-ink/60" />
+      <Dialog.Content className="fixed inset-x-0 bottom-0 z-[71] max-h-[90dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-2 border-ink bg-cream p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-ink focus:outline-none sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(36rem,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Dialog.Title className="font-display text-2xl">Photo sharing</Dialog.Title>
+            <Dialog.Description className="break-words text-sm font-semibold text-ink/70">{hunt.team.name} · Path {hunt.pathId}</Dialog.Description>
+          </div>
+          <Dialog.Close aria-label="Close photo sharing" className="btn-3d btn-white flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"><X className="h-5 w-5" /></Dialog.Close>
+        </div>
+        {controls}
+        {onOpenEvent && <button onClick={() => { setOpen(false); onOpenEvent(); }} className="btn-3d btn-sky mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 font-extrabold">Back to event · send photos <ArrowRight className="h-5 w-5" /></button>}
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>;
+
 }
 
 function Hint({ children }: { children: ReactNode }) {

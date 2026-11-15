@@ -9,7 +9,7 @@ interface EventRow {
   team_naming: string | null;
   settings_revision: number; auto_upload_default: number;
 }
-interface TeamRow { id: string; event_id: string; token_hash: string; name: string; path_id: string | null; joined_at: number; completed_challenges: string | null; progress_updated_at: number | null; progress_client_at: number | null }
+interface TeamRow { id: string; event_id: string; token_hash: string; name: string; path_id: string | null; joined_at: number; completed_challenges: string | null; progress_updated_at: number | null; progress_client_at: number | null; photo_status: string | null; photo_status_updated_at: number | null; photo_status_client_at: number | null }
 interface PhotoRow {
   id: string; event_id: string; team_id: string; local_photo_id: string;
   challenge_id: string; challenge_number: number; challenge_title: string;
@@ -93,7 +93,10 @@ function eventView(event: EventRow) {
 function progressView(team: TeamRow) {
   return team.completed_challenges === null ? undefined : { completedChallengeIds: JSON.parse(team.completed_challenges), updatedAt: team.progress_updated_at!, clientUpdatedAt: team.progress_client_at! };
 }
-function teamView(team: TeamRow) { return { id: team.id, name: team.name, pathId: team.path_id || undefined, joinedAt: team.joined_at, progress: progressView(team) }; }
+function photoStatusView(team: TeamRow) {
+  return team.photo_status === null ? undefined : { ...JSON.parse(team.photo_status), updatedAt: team.photo_status_updated_at!, clientUpdatedAt: team.photo_status_client_at! };
+}
+function teamView(team: TeamRow) { return { id: team.id, name: team.name, pathId: team.path_id || undefined, joinedAt: team.joined_at, progress: progressView(team), photoStatus: photoStatusView(team) }; }
 function photoView(photo: PhotoRow) {
   return { id: photo.id, teamId: photo.team_id, localPhotoId: photo.local_photo_id, challengeId: photo.challenge_id, challengeNumber: photo.challenge_number, challengeTitle: photo.challenge_title, teamName: photo.team_name || undefined, pathId: photo.path_id || undefined, capturedAt: photo.captured_at, uploadedAt: photo.uploaded_at, bytes: photo.bytes };
 }
@@ -254,6 +257,24 @@ async function updateProgress(request: Request, env: Env, auth: Auth) {
   return json({ progress: progressView(team) });
 }
 
+async function updatePhotoStatus(request: Request, env: Env, auth: Auth) {
+  if (auth.role !== 'team') throw new HttpError(403, 'Only a joined team can report its photo status.');
+  const input = await bodyJSON(request);
+  const { autoSend, queuedUploads, pendingDeletes, hasError, clientUpdatedAt: at } = input;
+  const count = (n: unknown) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= 10000;
+  if (Object.keys(input).some(key => !['autoSend', 'queuedUploads', 'pendingDeletes', 'hasError', 'clientUpdatedAt'].includes(key)) || typeof autoSend !== 'boolean' || typeof hasError !== 'boolean' || !count(queuedUploads) || !count(pendingDeletes)) throw new HttpError(400, 'Invalid photo sharing status.');
+  if (typeof at !== 'number' || !Number.isSafeInteger(at) || at <= 0 || at > Date.now() + DAY) throw new HttpError(400, 'Invalid photo status time.');
+  // Counts describe this phone's queue when reported, never proof it is online.
+  // A delayed/offline retry must not overwrite a newer report or opt-out.
+  await env.DB.prepare(`UPDATE teams SET photo_status = ?, photo_status_updated_at = ?, photo_status_client_at = ?
+    WHERE id = ? AND (photo_status_client_at IS NULL OR photo_status_client_at < ?)
+    AND EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND expires_at > ?)`)
+    .bind(JSON.stringify({ autoSend, queuedUploads, pendingDeletes, hasError }), Date.now(), at, auth.team!.id, at, auth.event.id, Date.now()).run();
+  const team = await env.DB.prepare('SELECT * FROM teams WHERE id = ?').bind(auth.team!.id).first<TeamRow>();
+  if (!team) throw new HttpError(410, 'This event has ended.');
+  return json({ photoStatus: photoStatusView(team) });
+}
+
 function objectKey(photo: Pick<PhotoRow, 'id' | 'event_id'>) { return `events/${photo.event_id}/${photo.id}.jpg`; }
 
 async function uploadPhoto(request: Request, env: Env, auth: Auth) {
@@ -402,6 +423,7 @@ async function route(request: Request, env: Env) {
     }
   }
   if (parts[2] === 'teams' && parts.length === 3 && request.method === 'POST') return joinEvent(request, env, auth);
+  if (parts[2] === 'photo-status' && parts.length === 3 && request.method === 'POST') return updatePhotoStatus(request, env, auth);
   if (parts[2] === 'progress' && parts.length === 3 && request.method === 'POST') return updateProgress(request, env, auth);
   if (parts[2] === 'local-photos' && parts.length === 4 && request.method === 'DELETE') {
     if (auth.role !== 'team') throw new HttpError(403, 'Only a team can sync its local photo deletions.');

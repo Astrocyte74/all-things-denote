@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type ReactNode } from 'react';
-import { Camera, CheckCircle2, ChevronDown, Clock, Flag, Info, Users } from 'lucide-react';
+import { AlertCircle, Camera, CheckCircle2, ChevronDown, Clock, CloudUpload, Flag, Info, Users } from 'lucide-react';
 import type { GamePack } from '@/types';
 import type { ReviewSnapshot, ReviewTeam } from '@/lib/sharedReview';
 import { PATH_COLORS, packClues, relativeTime } from './common';
@@ -107,6 +107,7 @@ export function LeaderDashboard({ snapshot, pack, now }: DashboardProps) {
 
       <p className="mt-3 text-xs font-semibold leading-snug text-ink/60">
         Progress syncs from each team’s phone while they play. A team that’s offline catches up when it reconnects, so a quiet team may just be between signals.
+        {' '}Photo queues are last reported counts, not live connection status. Photos taken with auto-send off aren’t included in the queue.
       </p>
     </section>
   );
@@ -182,8 +183,25 @@ function TeamCard({ row, total, now }: { row: TeamRow; total: number; now: numbe
           <p className="mt-1.5 text-xs font-semibold text-ink/65">Waiting for first progress update · joined {relativeTime(team.joinedAt, now)}</p>
         </>
       )}
+      <TeamPhotoStatus team={team} now={now} />
     </li>
   );
+}
+
+function TeamPhotoStatus({ team, now }: { team: ReviewTeam; now: number }) {
+  const status = team.photoStatus;
+  if (!status) return <p className="mt-2 text-xs font-semibold text-ink/55">Photo sharing not reported yet</p>;
+  const waiting = status.queuedUploads;
+  return <div className="mt-2 border-t border-ink/10 pt-2 text-xs font-semibold" aria-label={`${team.name} photo sharing`}>
+    <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 ${status.hasError || waiting || status.pendingDeletes ? 'text-ink' : 'text-ink/65'}`}>
+      {status.hasError ? <AlertCircle className="h-3.5 w-3.5 text-coral" aria-hidden="true" /> : <CloudUpload className="h-3.5 w-3.5" aria-hidden="true" />}
+      <span>Auto-send {status.autoSend ? 'on' : 'off'}</span>
+      {waiting > 0 && <span className="rounded-full bg-sun-soft px-1.5 font-extrabold">{waiting} {waiting === 1 ? 'photo' : 'photos'} waiting</span>}
+      {status.pendingDeletes > 0 && <span>· {status.pendingDeletes} {status.pendingDeletes === 1 ? 'removal' : 'removals'} waiting</span>}
+      {status.hasError && <span>· needs retry</span>}
+      <span className="text-ink/55">· reported {relativeTime(status.updatedAt, now)}</span>
+    </p>
+  </div>;
 }
 
 /** Compact team × clue matrix. Scrolls sideways on phones with the team column pinned. */
