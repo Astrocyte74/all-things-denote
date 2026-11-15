@@ -13,8 +13,8 @@ domain, object access keys, or user accounts are required.
 - D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
 - R2: `scavenger-review-photos`, Standard storage, public access disabled.
 - Retention: hourly cron `17 * * * *`, with seven-day event expiry.
-- Worker version: `596c8745-f6cf-4756-b066-09663e518dbe` (2026-11-14),
-  deployed from source commit `196e8564`, after migration `0004_auto_photo_sync.sql`.
+- Worker version: `ecf63e9d-c73b-4e9f-8bbb-8902782a86d8` (2026-11-14),
+  deployed from source commit `cb14e1b6`, after migration `0005_team_photo_status.sql`.
 - The public API URL is committed in `.env.production`; local review tests
   override it with their isolated Miniflare endpoint.
 
