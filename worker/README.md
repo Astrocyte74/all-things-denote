@@ -13,8 +13,8 @@ domain, object access keys, or user accounts are required.
 - D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
 - R2: `scavenger-review-photos`, Standard storage, public access disabled.
 - Retention: hourly cron `17 * * * *`, with seven-day event expiry.
-- Worker version: `ecf63e9d-c73b-4e9f-8bbb-8902782a86d8` (2026-11-14),
-  deployed from source commit `cb14e1b6`, after migration `0005_team_photo_status.sql`.
+- Worker version: `3e244994-8ee6-46a9-98a3-2a1cc1739419` (2026-11-19 UTC),
+  with migration `0005_team_photo_status.sql`.
 - The public API URL is committed in `.env.production`; local review tests
   override it with their isolated Miniflare endpoint.
 
@@ -166,7 +166,7 @@ and plan; do not enable public bucket access or change DNS.
 
 ## Limits and retries
 
-- 20 active events for this deployment, five creations per IP per hour.
+- 20 active events for this deployment, 30 creations per public IP per clock hour. The allowance resets at the top of the hour.
 - 20 teams per event, 60 photos per team, 300 photos or 100 MiB per event.
 - Only JPEGs, up to 5 MiB each. No video or arbitrary file uploads.
 - A database reservation enforces limits before R2 storage. Retrying the same

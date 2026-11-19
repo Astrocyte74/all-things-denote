@@ -29,8 +29,7 @@ async function capture(page: Page, color: string, name: string) {
 async function makeLeader(browser: Browser, baseURL: string, title: string) {
   const context = await browser.newContext({ baseURL, viewport:{width:1280,height:900}, isMobile:false, hasTouch:false, deviceScaleFactor:1 });
   const page = await context.newPage();
-  // Each fixture is a separate event creator. Keep the production five-per-IP
-  // limit intact; the API suite tests that limit independently.
+  // Each fixture represents a separate creator. The API suite exercises the per-IP limit.
   const creator = `browser-test-${crypto.randomUUID()}`;
   await page.route(`${API}/events`, route => route.continue({headers:{...route.request().headers(),'CF-Connecting-IP':creator}}));
   await page.goto('./');

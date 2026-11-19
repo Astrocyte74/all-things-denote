@@ -24,6 +24,7 @@ const MAX_EVENT_BYTES = 100 * 1024 * 1024;
 const MAX_TEAMS = 20;
 const MAX_PHOTOS = 300;
 const MAX_ACTIVE_EVENTS = 20;
+const MAX_EVENTS_PER_IP_PER_HOUR = 30;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const ID = /^[a-f0-9-]{36}$/;
 
@@ -146,8 +147,8 @@ async function createEvent(request: Request, env: Env) {
   if (input.autoUploadDefault !== undefined && typeof input.autoUploadDefault !== 'boolean') throw new HttpError(400, 'Choose whether photos send automatically by default.');
   const now = Date.now();
   const rateKey = await hash(`${request.headers.get('CF-Connecting-IP') || 'local'}:${Math.floor(now / 3_600_000)}`);
-  const rate = await env.DB.prepare('INSERT INTO rate_limits(key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 WHERE count < 5 RETURNING count').bind(rateKey, now + 2 * 3_600_000).first();
-  if (!rate) throw new HttpError(429, 'Too many events created recently. Please try again in an hour.');
+  const rate = await env.DB.prepare('INSERT INTO rate_limits(key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 WHERE count < ? RETURNING count').bind(rateKey, now + 2 * 3_600_000, MAX_EVENTS_PER_IP_PER_HOUR).first();
+  if (!rate) throw new HttpError(429, 'This network has reached its hourly event creation limit. Try again at the start of the next hour.');
   const id = crypto.randomUUID();
   const leaderToken = token();
   const joinToken = token();

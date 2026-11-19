@@ -146,8 +146,14 @@ test('interrupted upload reservations can be retried without losing completed ph
 });
 
 test('creation rate limits and CORS reject unrelated sites without disclosing credentials', async () => {
-  for (let i = 0; i < 5; i++) assert.equal((await call('/events', null, 'POST', {title:'Rate test',packId:'christmas'}, {'CF-Connecting-IP':'rate-test'})).status, 201);
-  assert.equal((await call('/events', null, 'POST', {title:'Rate test',packId:'christmas'}, {'CF-Connecting-IP':'rate-test'})).status, 429);
+  const createFromNetwork = () => call('/events', null, 'POST', { title: 'Rate test', packId: 'christmas' }, { 'CF-Connecting-IP': 'rate-test' });
+  for (let i = 0; i < 30; i++) {
+    const response = await createFromNetwork();
+    assert.equal(response.status, 201);
+    const { access } = await response.json();
+    assert.ok((await call(`/events/${access.eventId}`, access, 'DELETE')).ok);
+  }
+  assert.equal((await createFromNetwork()).status, 429);
   const denied = await call('/events', null, 'POST', {title:'Nope',packId:'christmas'}, {Origin:'https://unrelated.example'});
   assert.equal(denied.status, 403); assert.equal(denied.headers.get('Access-Control-Allow-Origin'), null);
   const allowed = await call('/events', null, 'OPTIONS', undefined, {Origin:'https://astrocyte74.github.io'});
