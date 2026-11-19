@@ -112,7 +112,7 @@ export function PhotoCapture({ challenge, category, onCaptureComplete, onPhotoSa
         disabled={saving}
         aria-busy={saving}
         className={variant === 'display'
-          ? `btn-3d btn-go inline-flex min-h-14 items-center gap-2 rounded-2xl px-5 py-3 text-ink ${pulse && !saving && !error ? 'animate-pulse-ring' : ''}`
+          ? `btn-3d btn-go inline-flex min-h-14 items-center gap-1.5 rounded-2xl px-2 py-3 min-[360px]:gap-2 min-[360px]:px-5 text-ink ${pulse && !saving && !error ? 'animate-pulse-ring' : ''}`
           : 'btn-3d btn-sky rounded-xl p-2 text-ink'}
         aria-label={saving ? 'Saving photo' : retryFile ? 'Retry saving photo' : 'Take photo for this clue'}
       >

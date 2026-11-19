@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, CalendarDays, Camera, Check, ChevronDown, Crown, MapPin, Play, QrCode, RotateCcw, Route, Smartphone, Trophy } from 'lucide-react';
+import { ArrowRight, CalendarDays, Camera, ChevronDown, Crown, MapPin, Play, QrCode, RotateCcw, Route, Smartphone, Trophy } from 'lucide-react';
 import { getSavedReviews, reviewConfigured } from '@/lib/sharedReview';
 import type { GamePack } from '@/types';
 import './GameLibrary.css';
@@ -88,11 +88,9 @@ export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onO
           >
             {eventsFirst ? 'Hunt together' : 'Choose your adventure'}
           </h1>
-          <p className="mx-auto mt-3 max-w-lg text-base font-medium text-ink/75 md:text-lg">
-            {eventsFirst
-              ? 'Playing with a group? Join your leader’s event and your game, team name and path are set up for you.'
-              : 'Pick a game for your group. Each one saves its own progress.'}
-          </p>
+          {!eventsFirst && <p className="mx-auto mt-3 max-w-lg text-base font-medium text-ink/75 md:text-lg">
+            Pick a game for your group. Each one saves its own progress.
+          </p>}
         </header>
 
         {eventsFirst && (
@@ -102,21 +100,13 @@ export function GameLibrary({ packs, summaries, onSelect, onResume, onReset, onO
               <EventCard
                 tone="join"
                 title="Join an event"
-                body="Scan your leader’s QR code right here, then tap a team name. Your game and path are set for you."
-                chips={['Game', 'Team name', 'Path']}
-                chipsLabel="Set up for you"
-                cta="Join an event"
-                delay={80}
+                body="Teams scan their leader’s QR code or open an invite link."
                 onClick={() => openEvents('join')}
               />
               <EventCard
                 tone="create"
                 title="Start an event"
-                body="For leaders. Three quick steps: pick a game, name it, set team names. Share one QR code, then review every clue on a phone or laptop."
-                chips={['QR invite', 'Private', '7 days']}
-                chipsLabel="Includes"
-                cta="Start an event"
-                delay={150}
+                body="Leaders choose a game and invite their teams."
                 onClick={() => openEvents('create')}
               />
             </div>
@@ -195,56 +185,23 @@ interface EventCardProps {
   tone: 'join' | 'create';
   title: string;
   body: string;
-  chips: string[];
-  chipsLabel: string;
-  cta: string;
-  delay: number;
   onClick: () => void;
 }
 
-function EventCard({ tone, title, body, chips, chipsLabel, cta, delay, onClick }: EventCardProps) {
+function EventCard({ tone, title, body, onClick }: EventCardProps) {
   const join = tone === 'join';
   const Icon = join ? QrCode : Crown;
+  const id = `event-entry-${tone}`;
   return (
-    <article
-      className={`gl-event gl-event--${tone} sticker-card animate-rise-in flex h-full flex-col p-4 sm:p-5`}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="flex items-start gap-3.5">
-        <span
-          aria-hidden="true"
-          className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border-2 border-ink shadow-[3px_3px_0_0_#2E2459] ${join ? '-rotate-3 bg-go' : 'rotate-3 bg-sun'}`}
-        >
-          <Icon className="h-7 w-7 text-ink" strokeWidth={2.5} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[1.65rem] leading-[1.05] text-ink sm:text-[1.8rem]">{title}</h3>
-          <p className="mt-1 text-[0.98rem] font-medium leading-snug text-ink/80">{body}</p>
-        </div>
-      </div>
-
-      <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-        <span className="mr-0.5 text-xs font-extrabold uppercase tracking-wider text-ink/60">{chipsLabel}</span>
-        <ul className="flex flex-wrap gap-1.5" aria-label={chipsLabel}>
-          {chips.map(chip => (
-            <li key={chip} className="gl-event-chip inline-flex items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-extrabold text-ink">
-              {join && <Check className="h-3 w-3" strokeWidth={3.5} aria-hidden="true" />}
-              {chip}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-auto pt-4">
-        <button
-          type="button"
-          onClick={onClick}
-          className={`btn-3d ${join ? 'btn-go' : 'btn-sun'} inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-5 font-display text-xl tracking-wide text-ink`}
-        >
-          {cta} <ArrowRight className="h-5 w-5" strokeWidth={3} aria-hidden="true" />
-        </button>
-      </div>
-    </article>
+    <button type="button" onClick={onClick} aria-labelledby={id} aria-describedby={`${id}-description`}
+      className={`btn-3d ${join ? 'btn-go' : 'btn-sun'} flex w-full items-center gap-3 rounded-2xl p-4 text-left text-ink sm:p-5`}>
+      <Icon className="h-7 w-7 flex-shrink-0" strokeWidth={2.5} aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span id={id} className="block font-display text-2xl leading-tight">{title}</span>
+        <span id={`${id}-description`} className="mt-1 block text-sm font-semibold leading-snug">{body}</span>
+      </span>
+      <ArrowRight className="h-5 w-5 flex-shrink-0" strokeWidth={3} aria-hidden="true" />
+    </button>
   );
 }
 

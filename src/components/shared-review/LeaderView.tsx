@@ -134,11 +134,17 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
             <div className="p-3"><p className="font-display text-3xl leading-none">{snapshot.teams.length}</p><p className="mt-1 text-xs font-extrabold uppercase tracking-wide text-ink/65">{snapshot.teams.length === 1 ? 'Team' : 'Teams'}</p></div>
             <div className="p-3"><p className="font-display text-3xl leading-none">{snapshot.photos.length}</p><p className="mt-1 text-xs font-extrabold uppercase tracking-wide text-ink/65">Photos</p></div>
           </div>
-          <div className="flex items-center justify-between gap-2 border-t-2 border-ink/10 px-3 py-2">
-            <span className={`inline-flex items-center gap-1 rounded-full border-2 border-ink px-2 py-0.5 text-xs font-extrabold ${event.closed ? 'bg-coral-soft' : 'bg-go-soft'}`}>
-              {event.closed ? <Lock className="h-3 w-3" strokeWidth={3} aria-hidden="true" /> : <LockOpen className="h-3 w-3" strokeWidth={3} aria-hidden="true" />}
-              {event.closed ? 'Uploads closed' : 'Open for uploads'}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-ink/10 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1 rounded-full border-2 border-ink px-2 py-0.5 text-xs font-extrabold ${event.closed ? 'bg-coral-soft' : 'bg-go-soft'}`}>
+                {event.closed ? <Lock className="h-3 w-3" strokeWidth={3} aria-hidden="true" /> : <LockOpen className="h-3 w-3" strokeWidth={3} aria-hidden="true" />}
+                {event.closed ? 'Uploads closed' : 'Open for uploads'}
+              </span>
+              {event.closed && <button type="button" onClick={() => void toggleClosed()} disabled={toggling}
+                className="btn-3d btn-white inline-flex min-h-11 items-center gap-1 rounded-xl px-2 text-sm font-extrabold">
+                <LockOpen className="h-4 w-4" aria-hidden="true" /> Reopen uploads
+              </button>}
+            </div>
             <button type="button" onClick={() => void refresh()} disabled={refreshing} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-2 text-xs font-extrabold text-ink/70 hover:text-ink">
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={3} aria-hidden="true" />
               {refreshing ? 'Refreshing…' : `Updated ${relativeTime(updatedAt, now)}`}
@@ -204,14 +210,14 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
               </button>
               <input aria-label="Private leader link" readOnly value={leaderLink} onFocus={e => e.currentTarget.select()} className="mt-2 min-h-11 w-full rounded-xl border-2 border-ink bg-cream px-3 text-sm" />
             </div>
-            <div>
+            {!event.closed && <div>
               <h3 className="font-extrabold">Uploads</h3>
-              <p className="mt-1 text-sm font-semibold text-ink/70">{event.closed ? 'Reopen to let teams join and send photos again.' : 'Close when you start reviewing. You can still see and download everything.'}</p>
+              <p className="mt-1 text-sm font-semibold text-ink/70">Close when you start reviewing. You can still see and download everything.</p>
               <button type="button" onClick={() => void toggleClosed()} disabled={toggling} className="btn-3d btn-white mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-extrabold text-ink">
-                {toggling ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={3} aria-hidden="true" /> : event.closed ? <LockOpen className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> : <Lock className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}
-                {event.closed ? 'Reopen uploads' : 'Close uploads'}
+                {toggling ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={3} aria-hidden="true" /> : <Lock className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}
+                Close uploads
               </button>
-            </div>
+            </div>}
             <div>
               <h3 className="font-extrabold">Save every photo</h3>
               <p className="mt-1 text-sm font-semibold text-ink/70">One ZIP with a folder per clue.</p>

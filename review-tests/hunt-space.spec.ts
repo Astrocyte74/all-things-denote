@@ -73,7 +73,11 @@ test('leader sees reported queue/errors, retry clears it, and an offline opt-out
     await leader.screenshot({ path: info.outputPath('leader-queue-desktop.png'), fullPage: true });
     await leader.setViewportSize({ width: 375, height: 700 }); expect(await leader.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await leader.screenshot({ path: info.outputPath('leader-queue-phone.png'), fullPage: true });
-    await request.patch(`${API}/events/${e.access.eventId}`, { headers: auth(e.access), data: { closed: false } });
+    const reopen = leader.getByRole('button', { name: 'Reopen uploads', exact: true });
+    await expect(leader.locator('details').filter({ hasText: 'Leader tools' })).not.toHaveAttribute('open');
+    await expect(reopen).toBeInViewport({ ratio: 1 });
+    await reopen.click();
+    await expect(leader.getByText('Open for uploads', { exact: true })).toBeVisible();
     await openSharingMenu(page); await page.getByRole('button', { name: 'Retry', exact: true }).click(); await closeSharing(page);
     await expect.poll(async () => (await state(request, e.access)).photos.length).toBe(1);
     await expect.poll(async () => (await state(request, e.access)).teams[0].photoStatus?.queuedUploads).toBe(0);

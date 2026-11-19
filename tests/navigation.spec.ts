@@ -61,7 +61,7 @@ for (const pathId of ['A', 'B', 'D']) {
   test(`last stop finds skipped clues in Path ${pathId} order and captures keep the dock clear`, async ({ page }, info) => {
     const clues = scriptureDetectivesPack.categories.flatMap(category => category.challenges);
     const route = scriptureDetectivesPack.paths.find(path => path.id === pathId)!.order.map(number => clues[number - 1]);
-    const last = route.at(-1)!, skipped = route[1];
+    const last = route.at(-1)!, skipped = route[1], otherSkipped = route[6];
     await page.goto('./');
     await page.evaluate(({ pathId, lastId, completed }) => {
       localStorage.setItem('activePackId', JSON.stringify('scripture-detectives'));
@@ -70,10 +70,10 @@ for (const pathId of ['A', 'B', 'D']) {
       localStorage.setItem('huntScreen', JSON.stringify('hunt'));
       localStorage.setItem('lastChallenge:scripture-detectives', JSON.stringify({ [pathId]: lastId }));
       localStorage.setItem('completedChallenges:scripture-detectives', JSON.stringify(completed));
-    }, { pathId, lastId: last.id, completed: route.filter(clue => clue.id !== skipped.id && clue.id !== last.id).map(clue => clue.id) });
+    }, { pathId, lastId: last.id, completed: route.filter(clue => clue.id !== skipped.id && clue.id !== otherSkipped.id && clue.id !== last.id).map(clue => clue.id) });
     await page.reload(); await page.setViewportSize({ width: 320, height: 568 });
     await expect(page.getByLabel(`Clue #${last.number}`, { exact: true })).toHaveText(`#${last.number}`);
-    await expect(page.getByText(`Step 12 of 12 · Next: unfinished clue #${skipped.number}`, { exact: true })).toBeVisible();
+    await expect(page.getByText('Step 12 of 12', { exact: true })).toBeVisible();
     await page.getByLabel('Take photo', { exact: true }).setInputFiles({ name: 'clue.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="gold"/></svg>') });
     await expect(page.getByText('Nailed it!', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Photo 1', exact: true })).toBeAttached();
@@ -81,6 +81,10 @@ for (const pathId of ['A', 'B', 'D']) {
     const next = page.getByRole('button', { name: `Next unfinished clue, #${skipped.number}`, exact: true });
     await expect(next).toBeEnabled(); await expect(next).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    for (const control of [page.getByRole('button', { name: 'Previous clue', exact: true }), page.getByRole('button', { name: 'Take photo for this clue', exact: true }), next]) {
+      await expect(control).toBeInViewport({ ratio: 1 });
+      expect((await control.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+    }
     await page.screenshot({ path: info.outputPath(`last-stop-${pathId}.png`) });
     if (pathId === 'D') {
       const target = await page.getByTestId('clue-scroll').elementHandle();
@@ -90,6 +94,12 @@ for (const pathId of ['A', 'B', 'D']) {
     await expect(page.getByLabel(`Clue #${skipped.number}`, { exact: true })).toBeVisible();
     await expect(page.getByText('Step 2 of 12', { exact: true })).toBeVisible();
     await page.reload(); await expect(page.locator('h3')).toHaveText(skipped.title);
+    await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
+    const nextSkipped = page.getByRole('button', { name: `Next unfinished clue, #${otherSkipped.number}`, exact: true });
+    await expect(nextSkipped).toContainText('Next unfinished');
+    await nextSkipped.click();
+    await expect(page.locator('h3')).toHaveText(otherSkipped.title);
+    await expect(page.getByRole('button', { name: 'Next clue', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
     await expect(page.getByText('You finished all 12 clues.', { exact: false })).toBeVisible();
   });

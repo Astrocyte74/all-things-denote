@@ -60,6 +60,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [lastChallengeByPath, setLastChallengeByPath] = usePersistedState<Record<string, string>>(`lastChallenge:${huntId ?? packId}`, {});
+  const [recoveryPaths, setRecoveryPaths] = usePersistedState<Set<string>>(`recoveryPaths:${huntId ?? packId}`, new Set());
   const [reviewingCompleted, setReviewingCompleted] = useState(false);
 
   const celebrate = useCallback(() => setBurstKey(k => k + 1), []);
@@ -272,21 +273,26 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     openNextIncomplete(true);
   }, [isVisible, selectedPathId, openNextIncomplete]);
 
+  const currentIndex = displayModeChallenge?.flatIndex ?? -1;
+  const inRecovery = recoveryPaths.has(selectedPathId) && totalProgress.completed < totalProgress.total;
+  const seekUnfinished = inRecovery || currentIndex === orderedChallenges.length - 1;
+  // Start after the current clue and wrap in path order, including on a second skip.
+  const nextUnfinished = seekUnfinished && displayModeChallenge
+    ? [...orderedChallenges.slice(currentIndex + 1), ...orderedChallenges.slice(0, currentIndex)]
+        .find(clue => !completedChallenges.has(clue.id))
+    : undefined;
+  const nextIndex = seekUnfinished
+    ? (nextUnfinished ? orderedChallenges.indexOf(nextUnfinished) : -1)
+    : currentIndex + 1;
+
   const navigateDisplayMode = (direction: 'prev' | 'next') => {
     if (!displayModeChallenge) return;
 
     const { allChallenges, flatIndex } = displayModeChallenge;
-    let newFlatIndex = flatIndex;
-
-    if (direction === 'prev') {
-      newFlatIndex = Math.max(0, flatIndex - 1);
-    } else if (flatIndex === allChallenges.length - 1) {
-      // The last stop is not a dead end when earlier clues were skipped. Use
-      // this path's order, and keep swipe and the visible Next button in sync.
-      newFlatIndex = allChallenges.findIndex((clue, index) => index !== flatIndex && !completedChallenges.has(clue.id));
-      if (newFlatIndex < 0) return;
-    } else {
-      newFlatIndex = Math.min(allChallenges.length - 1, flatIndex + 1);
+    const newFlatIndex = direction === 'prev' ? Math.max(0, flatIndex - 1) : nextIndex;
+    if (newFlatIndex < 0) return;
+    if (direction === 'next' && nextUnfinished && !inRecovery) {
+      setRecoveryPaths(paths => new Set(paths).add(selectedPathId));
     }
 
     if (newFlatIndex !== flatIndex) {
@@ -341,8 +347,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const challenge = category.challenges[challengeIndex];
     const isCompleted = completedChallenges.has(challenge.id);
     const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
-    const isLastChallenge = flatIndex >= allChallenges.length - 1;
-    const nextUnfinished = isLastChallenge ? allChallenges.find(clue => clue.id !== challenge.id && !completedChallenges.has(clue.id)) : undefined;
     const theme = getCategoryTheme(category.id);
     const shots = challengePhotos[challenge.id] ?? [];
 
@@ -501,20 +505,22 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
         {/* One compact navigation dock. The camera stays reachable while reading. */}
         <nav aria-label="Clue navigation" className="flex-shrink-0 border-t-2 border-ink bg-cream px-4 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2">
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
-            <button onClick={() => navigateDisplayMode('prev')} disabled={flatIndex === 0} className="btn-3d btn-white flex h-12 w-12 items-center justify-center rounded-2xl text-ink" aria-label="Previous clue">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-1 min-[360px]:gap-3">
+            <button onClick={() => navigateDisplayMode('prev')} disabled={flatIndex === 0} className="btn-3d btn-white flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-ink" aria-label="Previous clue">
               <ChevronLeft className="h-6 w-6" strokeWidth={3} />
             </button>
             <PhotoCapture teamName={teamName} key={challenge.id} pathId={selectedPathId}
               challenge={challenge} category={category} onCaptureComplete={markChallengeComplete}
               onPhotoSaved={handlePhotoSaved} packId={packId} huntId={huntId} variant="display" pulse={!isCompleted}
             />
-            <button onClick={() => navigateDisplayMode('next')} disabled={isLastChallenge && !nextUnfinished} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 w-12 flex-col items-center justify-center rounded-2xl text-ink`} aria-label={nextUnfinished ? `Next unfinished clue, #${nextUnfinished.number}` : 'Next clue'}>
-              <ChevronRight className="h-6 w-6" strokeWidth={3} />
-              {nextUnfinished && <span aria-hidden="true" className="text-[10px] font-extrabold leading-none">#{nextUnfinished.number}</span>}
+            <button onClick={() => navigateDisplayMode('next')} disabled={nextIndex < 0} className={`btn-3d ${isCompleted ? 'btn-sky' : 'btn-white'} flex h-12 ${nextUnfinished ? 'w-[5.75rem] shrink-0 px-1' : 'w-12'} flex-col items-center justify-center rounded-2xl text-ink`} aria-label={nextUnfinished ? `Next unfinished clue, #${nextUnfinished.number}` : 'Next clue'}>
+              {nextUnfinished ? <>
+                <span className="text-[11px] font-extrabold leading-tight">Next unfinished</span>
+                <span className="inline-flex items-center text-sm font-extrabold">#{nextUnfinished.number}<ChevronRight className="h-4 w-4" strokeWidth={3} /></span>
+              </> : <ChevronRight className="h-6 w-6" strokeWidth={3} />}
             </button>
           </div>
-          <p className="mt-1.5 text-center text-[11px] font-bold text-ink/65">Step {flatIndex + 1} of {allChallenges.length}{nextUnfinished && ` · Next: unfinished clue #${nextUnfinished.number}`}</p>
+          <p className="mt-1.5 text-center text-[11px] font-bold text-ink/65">Step {flatIndex + 1} of {allChallenges.length}</p>
         </nav>
       </div>
 

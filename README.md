@@ -46,8 +46,9 @@ to browse all clues, with a fixed **Back to current clue** button that restores
 the exact clue you left, even if it is already complete.
 
 The card badge identifies the clue (for example **#12**), while **Step 1 of 12**
-shows its position on the team's path. At the last step, Next points to an
-unfinished clue if any were skipped, in that path's order. Taking a photo confirms
+shows its position on the team's path. At the last step, **Next unfinished**
+returns to the first skipped clue. From there, the forward button and left swipe
+visit the remaining unfinished clues in path order, even after a refresh. Taking a photo confirms
 completion on the card without a success toast covering the bottom controls.
 
 Photo sharing shows **Send photos to your leader** and its current status inside
@@ -79,8 +80,9 @@ menu is available from the checklist and finish screen.
    opens the team's event page for manual selection and sending.
 5. The leader opens the separate private **leader link** on a phone or laptop
    to see **Team progress** and compare photos one clue at a time. **Present**
-   opens the larger discussion view; **Leader tools** includes close/reopen, ZIP
-   and deletion.
+   opens the larger discussion view. Use **Leader tools** to close uploads, download
+   a ZIP or delete the event. **Reopen uploads** appears beside **Uploads closed**
+   on the dashboard.
 
 **Send photos as we go** defaults on in the new-event wizard. Each team can turn
 it off before joining or at any time in the hunt or event page. The choice stays

@@ -121,16 +121,6 @@
 }
 
 /* ---------- Event-first landing ---------- */
-.gl-event.gl-event--join {
-  background-color: #e7f8d8;
-}
-.gl-event.gl-event--create {
-  background-color: #fff4d9;
-}
-.gl-event-chip {
-  background: #fffdf7;
-}
-
 /* "Your events": quiet row that lifts like a sticker on hover. */
 .gl-events-link {
   box-shadow: 3px 3px 0 0 #2e2459;

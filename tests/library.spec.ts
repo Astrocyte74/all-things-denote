@@ -23,8 +23,10 @@ async function library(page: Page) {
 test('library presents four games and opens every detail page on phone and desktop', async ({ page }, info) => {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Hunt together' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Join an event', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Start an event', exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 568 });
+  for (const name of ['Join an event', 'Start an event']) {
+    await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+  }
   await expect(page.locator('.gl-card')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('event-first-phone.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: /Play on this device/ }).click();

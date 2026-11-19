@@ -4,7 +4,7 @@ import { clearAllPhotos } from './photoStorage';
 export async function resetGame(packId: string, deletePhotos: boolean, huntId?: string): Promise<void> {
   // A failed photo deletion must leave progress and team settings available.
   if (deletePhotos) await clearAllPhotos(packId, huntId ?? null);
-  for (const key of ['completedChallenges', 'lastChallenge', 'showAnalogiesEarly']) {
+  for (const key of ['completedChallenges', 'lastChallenge', 'recoveryPaths', 'showAnalogiesEarly']) {
     localStorage.removeItem(`${key}:${huntId ?? packId}`);
   }
 }
