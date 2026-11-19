@@ -5,6 +5,8 @@ import { unzipSync } from 'fflate';
 import { readFile } from 'node:fs/promises';
 import type { StoredPhoto } from '../src/lib/photoStorage';
 
+import { getPackById, PACKS } from '../src/data/packs';
+
 const API = 'http://127.0.0.1:8788';
 async function storedPhotos(page: Page): Promise<StoredPhoto[]> {
   return page.evaluate(() => new Promise(resolve => {
@@ -106,7 +108,8 @@ test('two team phones upload to one leader; private QR, clue comparison, present
   await expect.poll(async()=>grid.locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).naturalWidth>0))).toBe(true);
   await leader.page.screenshot({path:info.outputPath('leader-desktop.png'),fullPage:true});
   await leader.page.getByRole('button',{name:'Show discussion question',exact:true}).click();
-  await expect(leader.page.getByText(/star helped guide the wise men/)).toBeVisible();
+  const starDiscussion = getPackById('christmas').categories[0].challenges[0].gospelConnection;
+  await expect(leader.page.getByText(starDiscussion, { exact: true })).toBeVisible();
   await leader.page.getByRole('button',{name:'Present',exact:true}).click();
   await expect(leader.page.getByRole('dialog',{name:'Presenting clue 1',exact:true})).toBeVisible();
   await leader.page.screenshot({path:info.outputPath('presentation-desktop.png'),animations:'disabled'});
@@ -210,7 +213,7 @@ test('lost upload response retries safely; offline reload, saved sessions and li
   await expect(page.getByText('Everything on this phone has been sent.')).toBeVisible();
   await page.getByRole('button',{name:'All events',exact:true}).click();
   await page.getByRole('button',{name:'Back to games',exact:true}).click();
-  await expect(page.locator('.gl-card')).toHaveCount(4);
+  await expect(page.locator('.gl-card')).toHaveCount(PACKS.length);
   await page.goBack(); await expect(page.getByRole('heading',{name:'Group events'})).toBeVisible();
   await leader.context.close();
 });

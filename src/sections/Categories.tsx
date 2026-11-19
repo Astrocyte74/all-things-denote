@@ -36,13 +36,14 @@ interface CategoriesProps {
   packId: string;
   huntId?: string;
   categories: CategoryType[];
+  cluePrompt?: string;
   teamName?: string;
   onReset: (returnFocus: HTMLButtonElement | null) => void;
   /** Finish-screen entry to shared review for this game. */
   onShareWithEvent?: () => void;
 }
 
-export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onProgressChange, onCompletedChange, packId, huntId, categories, teamName, onReset, onShareWithEvent, eventHunt, onHome, onEditTeam, onFocusModeChange }: CategoriesProps) {
+export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete, bonusUnlocked, galleryOpen, setGalleryOpen, onProgressChange, onCompletedChange, packId, huntId, categories, cluePrompt, teamName, onReset, onShareWithEvent, eventHunt, onHome, onEditTeam, onFocusModeChange }: CategoriesProps) {
   const [expandedCategoryState, setExpandedCategoryState] = useState<{
     pathId: string;
     categoryId: string | null | undefined;
@@ -449,7 +450,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
             ) : (
               <div className="mt-4 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-3 text-center">
                 <p className="text-base font-semibold italic text-ink/70">
-                  🤔 {challenge.scriptureClue ? 'Which words in the verse fit what you found?' : 'What made your team choose this? Point out the detail that connects it to the gospel for you.'}
+                  🤔 {cluePrompt ?? (challenge.scriptureClue ? 'Which words in the verse fit what you found?' : 'What made your team choose this? Point out the detail that connects it to the gospel for you.')}
                 </p>
               </div>
             )}

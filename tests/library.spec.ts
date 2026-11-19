@@ -20,7 +20,7 @@ async function library(page: Page) {
   await page.getByRole('menuitem', { name: 'Back to home' }).click();await page.getByRole('button',{name:'Go to home',exact:true}).click();
 }
 
-test('library presents four games and opens every detail page on phone and desktop', async ({ page }, info) => {
+test('library presents every registered game and opens every detail page on phone and desktop', async ({ page }, info) => {
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Hunt together' })).toBeVisible();
   await page.setViewportSize({ width: 320, height: 568 });
@@ -30,7 +30,7 @@ test('library presents four games and opens every detail page on phone and deskt
   await expect(page.locator('.gl-card')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('event-first-phone.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: /Play on this device/ }).click();
-  await expect(page.locator('.gl-card')).toHaveCount(4);
+  await expect(page.locator('.gl-card')).toHaveCount(PACKS.length);
   for (const pack of PACKS) {
     const device = page.getByRole('button', { name: /Play on this device/ });
     if (await device.getAttribute('aria-expanded') === 'false') await device.click();

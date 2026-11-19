@@ -199,8 +199,7 @@ existing entries and the default pack. The registry already calls `validatePacks
 The chooser, setup, photo labels, and event API all use this same registry.
 
 Update game lists/counts in documentation and any fixed-count test expectations.
-For example, `tests/library.spec.ts` currently asserts four chooser cards even
-though it also loops over `PACKS`. Preserve the coverage when adapting that count.
+The library tests check the chooser count against the registry and play each registered pack.
 
 Run these commands **sequentially from `app/`** for a new registered game:
 

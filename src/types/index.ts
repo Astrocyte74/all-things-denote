@@ -91,6 +91,8 @@ export interface GamePack {
   };
   /** Optional theme-specific wrap-up prompt. */
   discussionPrompt?: string;
+  /** Optional team cue shown while composing a clue photo. */
+  cluePrompt?: string;
   statChips: StatChip[];
   rules: Rule[];
   categories: Category[];

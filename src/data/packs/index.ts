@@ -3,10 +3,11 @@ import { scavengerPack } from './scavengerPack';
 import { creationPack } from './creationPack';
 import { christmasPack } from './christmasPack';
 import { scriptureDetectivesPack } from './scriptureDetectivesPack';
+import { scriptureFreezeFramesPack } from './scriptureFreezeFramesPack';
 import { validatePacks } from './defineThemePack';
 
 /** All registered game packs. Add a new game by authoring a pack and listing it here. */
-export const PACKS: GamePack[] = [scavengerPack, creationPack, christmasPack, scriptureDetectivesPack];
+export const PACKS: GamePack[] = [scavengerPack, creationPack, christmasPack, scriptureDetectivesPack, scriptureFreezeFramesPack];
 validatePacks(PACKS);
 
 export const DEFAULT_PACK_ID = 'scavenger';

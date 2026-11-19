@@ -440,7 +440,7 @@ function PackArt({ pack }: { pack: GamePack }) {
 function illustrationFor(pack: GamePack): 'christmas' | 'detective' | null {
   const key = `${pack.id} ${pack.title}`.toLowerCase();
   if (/christmas|nativity|advent/.test(key)) return 'christmas';
-  if (/scripture|detective/.test(key)) return 'detective';
+  if (pack.id === 'scripture-detectives') return 'detective';
   return null;
 }
 

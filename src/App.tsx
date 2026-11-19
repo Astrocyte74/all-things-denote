@@ -315,6 +315,7 @@ function App() {
             onHome={handleBackToLanding}
             onEditTeam={handleChangePath}
             onFocusModeChange={setFocusedHunt}
+            cluePrompt={pack.cluePrompt}
             onCompletedChange={handleCompletedChange}
             packId={pack.id}
             huntId={huntId}

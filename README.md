@@ -12,7 +12,7 @@ A faith-based scavenger hunt app that helps youth discover spiritual significanc
 ## Features
 
 - Mobile-first design
-- Four games: Gospel Analogies, Creation, Christmas, and Scripture Detectives
+- Five games: Scavenger Hunt, Creation Quest, Christmas, Scripture Detectives, and Scripture Freeze Frames
 - Saved paths, optional team names, progress, and current challenges for each game
 - Labeled photos stored on this device, with save confirmation and retry
 - Gospel analogy prompts
@@ -35,6 +35,16 @@ Refreshing resumes an active hunt on the last viewed challenge. After going
 home, **Continue your hunt** skips setup. **Reset progress** keeps photos;
 **Start fresh** clears progress and photos for the selected local game or event
 team only. An event hunt keeps its event, team name and path after a reset.
+
+## Hosting Scripture Freeze Frames
+
+Choose **Start an event → Scripture Freeze Frames** and share the invite. Each
+team privately picks a scripture story for each of the six prompts and stages a
+still photo using people, props, or both. The scene title appears on the photo.
+Once the teams have sent their frames, open **Present** on the leader dashboard.
+Let the group guess each team's story and point to the detail that tipped them
+off. Then invite the team to reveal its choice. For a one-phone game, take turns
+showing the photos from the gallery.
 
 ## Finding your way around a hunt
 
