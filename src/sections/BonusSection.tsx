@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { BonusItem } from '@/types';
-import { getBonusArt } from '@/lib/theme';
+import { getBonusArt, readableTextOn } from '@/lib/theme';
 import { StickerArt } from '@/components/StickerArt';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 
@@ -53,43 +53,38 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems, total }: Bonus
             You Did <span className="text-sticker-sun">All {total}!</span>
           </h2>
           <p className="mt-2 font-semibold text-ink/70">
-            {bonusItems.length} more discoveries for your team. Tap a card to reveal its meaning.
+            {bonusItems.length} more discoveries for your team. Choose one to try, then turn it over for a question.
           </p>
-
-          {/* Analogy tip */}
-          <div className="mx-auto mt-6 max-w-xl rounded-2xl border-2 border-dashed border-ink/30 bg-leaf-soft p-4 text-left">
-            <p className="font-extrabold text-leaf-edge">
-              💡 Leader tip: triple-tap the progress bar to reveal every gospel analogy
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-ink/70">
-              Perfect for when the group is ready to talk about what they found.
-            </p>
-          </div>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {bonusItems.map((item, index) => {
             const isFlipped = flippedCard === item.id;
             const art = getBonusArt(item.id);
+            const backColor = bonusColors[index % bonusColors.length];
+            const promptId = `bonus-prompt-${item.id}`;
 
             return (
               <div
                 key={item.id}
-                className={`transform transition-all duration-500 ${
+                className={`relative transform transition-all duration-500 ${
                   isAnimated ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
                 }`}
                 style={{ transitionDelay: `${index * 100}ms`, perspective: '1000px' }}
               >
+                <button type="button" aria-label={item.title} aria-expanded={isFlipped} aria-describedby={promptId}
+                  onClick={() => setFlippedCard(isFlipped ? null : item.id)}
+                  className="absolute inset-0 z-10 rounded-3xl" />
                 <div
-                  className="relative h-64 cursor-pointer transition-transform duration-700"
+                  className="relative min-h-72 transition-transform duration-700"
                   style={{
                     transformStyle: 'preserve-3d',
                     transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
                   }}
-                  onClick={() => setFlippedCard(isFlipped ? null : item.id)}
                 >
                   {/* Front */}
                   <div
+                    aria-hidden={isFlipped}
                     className="backface-hidden absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-ink p-6 shadow-sticker"
                     style={{ backfaceVisibility: 'hidden', backgroundColor: bonusSofts[index % bonusSofts.length] }}
                   >
@@ -103,19 +98,20 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems, total }: Bonus
                       />
                     </div>
                     <h3 className="mt-3 text-center font-display text-xl text-ink">{item.title}</h3>
-                    <p className="mt-1 text-center text-sm font-semibold text-ink/70">{item.hint}</p>
+                    <p id={!isFlipped ? promptId : undefined} className="mt-1 text-center text-sm font-semibold text-ink/70">{item.hint}</p>
                     <span className="mt-3 rounded-full border-2 border-ink/20 bg-white px-3 py-1 text-sm font-extrabold text-ink/70">
-                      Tap to reveal
+                      Turn over
                     </span>
                   </div>
 
                   {/* Back */}
                   <div
+                    aria-hidden={!isFlipped}
                     className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-ink p-6 shadow-sticker"
                     style={{
                       backfaceVisibility: 'hidden',
                       transform: 'rotateY(180deg)',
-                      backgroundColor: bonusColors[index % bonusColors.length] === '#FFFDF7' ? '#2E2459' : bonusColors[index % bonusColors.length],
+                      backgroundColor: backColor, color: readableTextOn(backColor),
                     }}
                   >
                     <StickerArt
@@ -125,8 +121,8 @@ export function BonusSection({ isVisible, isUnlocked, bonusItems, total }: Bonus
                       className="h-14 w-14"
                       emojiSize="2.5rem"
                     />
-                    <h3 className="mt-2 text-center font-display text-lg text-white">{item.title}</h3>
-                    <p className="mt-2 text-center text-sm font-semibold leading-relaxed text-white/90">
+                    <h3 className="mt-2 text-center font-display text-lg">{item.title}</h3>
+                    <p id={isFlipped ? promptId : undefined} className="mt-2 text-center text-sm font-semibold leading-relaxed">
                       {item.connection}
                     </p>
                   </div>

@@ -143,8 +143,7 @@ example reuses a passage from the existing Scripture Detectives pack.
 
 Supported collection labels are `Bible` and `Book of Mormon`. The scripture
 excerpt is visible before completing the clue and works offline; its source link
-needs internet. Discussion appears after completing that clue. For ordinary
-object hunts, connections follow the existing hunt-wide reveal behavior.
+needs internet. Completing a clue reveals its discussion in both scripture and object hunts.
 
 Verify new quotations against the linked scripture edition and preserve their
 wording. Clearly distinguish a paraphrase from a quotation. Use open-ended tasks

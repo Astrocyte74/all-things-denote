@@ -203,7 +203,7 @@ function ClueHeader({ clue, total, showPrompt, onTogglePrompt, accent, soft, dar
           “{passage.excerpt}” <span className="not-italic text-ink/65">— {passage.reference}</span>
         </blockquote>
       )}
-      {!passage && <p className="mt-3 text-sm font-semibold text-ink/75"><span className="font-extrabold">Teams looked for:</span> {challenge.photoTarget}</p>}
+      {challenge.photoTarget && <p className="mt-3 text-sm font-semibold text-ink/75"><span className="font-extrabold">Teams looked for:</span> {challenge.photoTarget}</p>}
       <div className="mt-3">
         <button type="button" onClick={onTogglePrompt} aria-expanded={showPrompt} className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 border-ink bg-cream px-3 text-sm font-extrabold text-ink">
           {showPrompt ? <EyeOff className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> : <Eye className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}

@@ -53,15 +53,15 @@ const categoryTheme: GamePack['categoryTheme'] = {
 };
 
 const bonusArt: GamePack['bonusArt'] = {
-  'bonus-1': { art: 'bonus-drop', emoji: '💧' },
-  'bonus-2': { art: 'bonus-dove', emoji: '🕊️' },
-  'bonus-3': { art: 'bonus-heart', emoji: '❤️' },
-  'bonus-4': { art: 'bonus-ring', emoji: '♾️' },
+  'bonus-1': { art: '', emoji: '📷' },
+  'bonus-2': { art: '', emoji: '🔍' },
+  'bonus-3': { art: '', emoji: '🤲' },
+  'bonus-4': { art: '', emoji: '🗓️' },
 };
 
 export const scavengerPack: GamePack = {
   id: 'scavenger',
-  library: { summary: 'Find gospel truths hiding in everyday things.', label: 'Everyday discoveries', color: '#FFB020', soft: '#FFF4D9' },
+  library: { summary: 'See familiar shelves through someone else’s eyes.', label: 'Everyday discoveries', color: '#FFB020', soft: '#FFF4D9' },
   title: 'Scavenger Hunt',
   tagline: 'Gospel Analogies · Youth Activity',
   setting: 'the store',
@@ -73,7 +73,8 @@ export const scavengerPack: GamePack = {
   scriptureQuote:
     '“All things denote there is a God; yea, even the earth, and all things that are upon the face of it…”',
   blurb:
-    'Team up, race the aisles, and snap 15 photos of everyday things that secretly teach gospel truths.',
+    'Explore the aisles together. Choose 15 ordinary finds and show what each one helps you understand about following Jesus Christ.',
+  discussionPrompt: 'Choose a store photo another team might find puzzling. Let someone guess why you took it, then point out the detail that connected it to the gospel for you.',
   statChips: [
     { emoji: '📸', label: '15 photos' },
     { emoji: '👥', label: '6 team paths' },

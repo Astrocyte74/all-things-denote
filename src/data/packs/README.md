@@ -23,9 +23,9 @@ and supplies theme maps and count chips. The registry validates unique IDs,
 complete routes, and scripture source links. Keep IDs stable when editing wording
 so existing photos and progress continue to match their challenges.
 
-Each challenge has a `title`, `photoTarget`, and `gospelConnection`. A normal hunt
-shows the photo target immediately and reveals connections when the hunt is
-complete (or when a leader uses the existing reveal control).
+Each challenge has a `title`, `photoTarget`, and `gospelConnection`. The hunt
+shows the photo target immediately and reveals its discussion when the team
+completes that clue. Leaders can also reveal questions early.
 
 A `scriptureClue` adds `reference`, `excerpt`, `collection`, and a source `url`.
 The excerpt appears before the photo, and the discussion prompt appears after

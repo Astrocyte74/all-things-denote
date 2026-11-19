@@ -122,3 +122,31 @@ test('pack registry rejects unsafe identities and routes; future counts generate
   expect(clues.filter(clue => clue.scriptureClue?.collection === 'Bible')).toHaveLength(6);
   expect(clues.filter(clue => clue.scriptureClue?.collection === 'Book of Mormon')).toHaveLength(6);
 });
+
+for (const pack of PACKS) {
+  test(`${pack.title} reveals each discussion and all bonus questions`, async ({ page }) => {
+    await page.goto('./');
+    await play(page, pack.title);
+    const clues = pack.categories.flatMap(category => category.challenges);
+    for (const [index, clue] of clues.entries()) {
+      await expect(page.getByRole('heading', { name: clue.title, exact: true })).toBeVisible();
+      await expect(page.getByText(clue.photoTarget!, { exact: true })).toBeVisible();
+      await expect(page.getByText(clue.gospelConnection, { exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
+      await expect(page.getByText(clue.gospelConnection, { exact: true })).toBeVisible();
+      // Leave the first clue open so the last clue's discussion is visible before the finish.
+      if (index === 0) await page.getByRole('button', { name: 'Undo', exact: true }).click();
+      if (index < clues.length - 1) await page.getByRole('button', { name: 'Next clue', exact: true }).click();
+    }
+    await page.getByRole('button', { name: 'Next unfinished clue, #1', exact: true }).click();
+    await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
+    await expect(page.getByText(pack.discussionPrompt!, { exact: true })).toBeVisible();
+    for (const bonus of pack.bonusItems) {
+      const card = page.getByRole('button', { name: bonus.title, exact: true });
+      await expect(card).toHaveAccessibleDescription(bonus.hint);
+      await card.click();
+      await expect(card).toHaveAccessibleDescription(bonus.connection);
+      await expect(card).toHaveAttribute('aria-expanded', 'true');
+    }
+  });
+}

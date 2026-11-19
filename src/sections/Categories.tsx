@@ -346,7 +346,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     const { category, challengeIndex, allChallenges, flatIndex } = displayModeChallenge;
     const challenge = category.challenges[challengeIndex];
     const isCompleted = completedChallenges.has(challenge.id);
-    const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
+    const showAnalogies = shouldShowAnalogies() || isCompleted;
     const theme = getCategoryTheme(category.id);
     const shots = challengePhotos[challenge.id] ?? [];
 
@@ -435,7 +435,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                 style={{ backgroundColor: theme.soft }}
               >
                 <p className="text-sm font-extrabold" style={{ color: theme.text }}>
-                  💡 {challenge.scriptureClue ? 'Discuss your discovery' : 'Gospel connection'}
+                  💡 Discuss your discovery
                 </p>
                 <p className="mt-1.5 text-lg font-semibold leading-snug" style={{ color: theme.text }}>
                   {challenge.gospelConnection}
@@ -445,16 +445,11 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                     {challenge.scripture}
                   </p>
                 )}
-                {challenge.photoTarget && !challenge.scriptureClue && (
-                  <p className="mt-3 border-t-2 border-dashed border-ink/10 pt-3 text-sm font-semibold opacity-80" style={{ color: theme.text }}>
-                    📸 Photo hint: {challenge.photoTarget}
-                  </p>
-                )}
               </div>
             ) : (
               <div className="mt-4 rounded-2xl border-2 border-dashed border-ink/25 bg-paper p-3 text-center">
                 <p className="text-base font-semibold italic text-ink/70">
-                  🤔 {challenge.scriptureClue ? 'Which words in the scripture connect to your object? Explain your thinking.' : 'Talk it over: what gospel truth hides in this one?'}
+                  🤔 {challenge.scriptureClue ? 'Which words in the verse fit what you found?' : 'What made your team choose this? Point out the detail that connects it to the gospel for you.'}
                 </p>
               </div>
             )}
@@ -634,7 +629,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                     <div className="space-y-3 p-4 sm:p-5">
                       {category.challenges.map((challenge, challengeIndex) => {
                         const isCompleted = completedChallenges.has(challenge.id);
-                        const showAnalogies = shouldShowAnalogies() || Boolean(challenge.scriptureClue && isCompleted);
+                        const showAnalogies = shouldShowAnalogies() || isCompleted;
 
                         return (
                           <div
@@ -719,7 +714,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                         )}
                                       </>
                                     ) : (
-                                      /* What to look for. The gospel connection stays hidden until the leader reveals it. */
+                                      /* What to look for. Teams can discuss a clue after completing it. */
                                       challenge.photoTarget && (
                                         <p className="text-sm font-semibold leading-snug text-ink/70">{challenge.photoTarget}</p>
                                       )
