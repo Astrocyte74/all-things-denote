@@ -28,7 +28,7 @@ async function capture(page: Page, color: string, name: string) {
   await expect(page.getByRole('button',{name:'Take photo for this clue',exact:true})).toBeEnabled();
   await openHuntMenu(page);await expect(page.getByRole('menuitem',{name:'Photo gallery',exact:true})).toContainText('1');await page.keyboard.press('Escape');
 }
-async function makeLeader(browser: Browser, baseURL: string, title: string) {
+async function makeLeader(browser: Browser, baseURL: string, title: string, gameName = /Christmas/) {
   const context = await browser.newContext({ baseURL, viewport:{width:1280,height:900}, isMobile:false, hasTouch:false, deviceScaleFactor:1 });
   const page = await context.newPage();
   // Each fixture represents a separate creator. The API suite exercises the per-IP limit.
@@ -36,7 +36,7 @@ async function makeLeader(browser: Browser, baseURL: string, title: string) {
   await page.route(`${API}/events`, route => route.continue({headers:{...route.request().headers(),'CF-Connecting-IP':creator}}));
   await page.goto('./');
   await page.getByRole('button', {name:'Start an event',exact:true}).click();
-  await page.getByRole('radio',{name:/Christmas/}).locator('..').click();
+  await page.getByRole('radio',{name:gameName}).locator('..').click();
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('textbox',{name:'Event name',exact:true}).fill(title);
   await page.getByRole('button',{name:'Next',exact:true}).click();
@@ -68,6 +68,26 @@ async function snapshot(page: Page) {
   const response = await page.request.get(`${API}/events/${params.get('event')}`,{headers:{Authorization:`Bearer ${params.get('leader') || params.get('team')}`}});
   expect(response.ok()).toBeTruthy(); return response.json();
 }
+
+test('presenting a freeze frame keeps team story ideas out of the guessing round', async ({ browser, baseURL }) => {
+  const pack = getPackById('scripture-freeze-frames');
+  const scenes = pack.categories.flatMap(category => category.challenges);
+  const { context, page } = await makeLeader(browser, baseURL!, 'Guess the story', /Scripture Freeze Frames/);
+  try {
+    await page.getByRole('button', { name: 'Present', exact: true }).click();
+    for (const scene of scenes) {
+      const stage = page.getByRole('dialog', { name: `Presenting clue ${scene.number}`, exact: true });
+      await expect(stage.getByRole('heading', { name: scene.title, exact: true })).toBeVisible();
+      await stage.getByRole('button', { name: 'Discussion question', exact: true }).click();
+      await expect(stage.getByText(scene.gospelConnection, { exact: true })).toBeVisible();
+      await expect(page.getByText('Need a story idea?', { exact: true })).toHaveCount(0);
+      for (const idea of scene.teamStoryIdeas!) await expect(page.getByText(idea, { exact: true })).toHaveCount(0);
+      if (scene.number < scenes.length) await stage.getByRole('button', { name: 'Next clue' }).click();
+    }
+  } finally {
+    await context.close();
+  }
+});
 
 test('two team phones upload to one leader; private QR, clue comparison, presentation and ZIP work', async ({page,browser,baseURL},info) => {
   const errors: string[] = []; page.on('pageerror',error=>errors.push(error.message));

@@ -1,6 +1,7 @@
 import { openChecklist, openMoreOptions } from './hunt-controls';
 import { test, expect, type Page } from '@playwright/test';
 import { PACKS } from '../src/data/packs';
+import { scriptureFreezeFramesPack } from '../src/data/packs/scriptureFreezeFramesPack';
 import { scriptureDetectivesPack } from '../src/data/packs/scriptureDetectivesPack';
 import { createPaths, validatePacks } from '../src/data/packs/defineThemePack';
 
@@ -66,6 +67,34 @@ test('switching games preserves independent progress, paths, and the viewed clue
   await expect(page.getByText('Nailed it!', { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByLabel('Clue #3', { exact: true })).toBeVisible();
+});
+
+test('freeze frame story ideas stay folded until requested and disappear when a team finishes the scene', async ({ page, context }) => {
+  await page.goto('./');
+  await expect(page.getByText(/Ready for offline hunting/).first()).toBeVisible();
+  await context.setOffline(true);
+  await page.reload();
+  await play(page, scriptureFreezeFramesPack.title);
+  const toggle = page.getByText('Need a story idea?', { exact: true });
+  const scenes = scriptureFreezeFramesPack.categories.flatMap(category => category.challenges);
+  expect(scenes).toHaveLength(6);
+  for (const scene of scenes) {
+    await expect(page.getByRole('heading', { name: scene.title, exact: true })).toBeVisible();
+    const ideas = scene.teamStoryIdeas ?? [];
+    expect(ideas).toHaveLength(3);
+    for (const idea of ideas) await expect(page.getByText(idea, { exact: true })).toBeHidden();
+    await toggle.click();
+    for (const idea of ideas) await expect(page.getByText(idea, { exact: true })).toBeVisible();
+    if (scene.number === 1) {
+      await page.getByRole('button', { name: 'Next clue', exact: true }).click();
+      await page.getByRole('button', { name: 'Previous clue', exact: true }).click();
+      await expect(page.getByText(ideas[0], { exact: true })).toBeHidden();
+      await toggle.click();
+    }
+    await page.getByRole('button', { name: 'Mark as done', exact: true }).click();
+    await expect(toggle).toHaveCount(0);
+    if (scene.number < scenes.length) await page.getByRole('button', { name: 'Next clue', exact: true }).click();
+  }
 });
 
 test('scripture clues work offline before completion, then reveal discussion; route crosses categories', async ({ page, context }, info) => {

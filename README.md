@@ -40,7 +40,9 @@ team only. An event hunt keeps its event, team name and path after a reset.
 
 Choose **Start an event → Scripture Freeze Frames** and share the invite. Each
 team privately picks a scripture story for each of the six prompts and stages a
-still photo using people, props, or both. The scene title appears on the photo.
+still photo using people, props, or both. On an unfinished scene, a team can tap
+**Need a story idea?** for three suggestions with scripture references. Only the
+open-ended scene title identifies the story on the photo and in the guessing round.
 Once the teams have sent their frames, open **Present** on the leader dashboard.
 Let the group guess each team's story and point to the detail that tipped them
 off. Then invite the team to reveal its choice. For a one-phone game, take turns

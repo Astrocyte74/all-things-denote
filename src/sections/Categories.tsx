@@ -17,6 +17,22 @@ import { FinishScreen } from '@/components/FinishScreen';
 import { getCategoryTheme, readableTextOn } from '@/lib/theme';
 import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
 
+function TeamStoryIdeas({ ideas }: { ideas: string[] }) {
+  return (
+    <details className="mx-auto mt-3 max-w-md rounded-xl border border-ink/20 bg-paper text-sm text-ink">
+      <summary className="min-h-11 cursor-pointer rounded-xl px-4 py-3 font-extrabold focus-visible:outline-offset-2">
+        Need a story idea?
+      </summary>
+      <div className="px-4 pb-4">
+        <p className="font-semibold">For your team only. Try one of these or choose your own.</p>
+        <ul className="mt-2 list-disc space-y-2 pl-5">
+          {ideas.map(idea => <li key={idea}>{idea}</li>)}
+        </ul>
+      </div>
+    </details>
+  );
+}
+
 interface CategoriesProps {
   eventHunt?: EventHunt | null;
   onHome: () => void;
@@ -399,6 +415,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
               </p>
             )}
 
+            {!isCompleted && !galleryOpen && challenge.teamStoryIdeas && <TeamStoryIdeas ideas={challenge.teamStoryIdeas} />}
+
             {/* Completion. The camera in the bottom bar is the main action (taking a photo
                 completes the challenge), so "Mark as done" stays a quiet fallback. */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
@@ -721,6 +739,8 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                       )
                                     )}
                                   </div>
+
+                                  {!isCompleted && !galleryOpen && challenge.teamStoryIdeas && <TeamStoryIdeas ideas={challenge.teamStoryIdeas} />}
 
                                   {/* Photo thumbnails */}
                                   {(challengePhotos[challenge.id] ?? []).length > 0 && (

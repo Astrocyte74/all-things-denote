@@ -4,6 +4,8 @@ export interface Challenge {
   title: string;
   photoTarget: string;
   gospelConnection: string;
+  /** Optional suggestions for the team composing this scene. */
+  teamStoryIdeas?: string[];
   scripture?: string;
   /** A passage shown BEFORE taking a photo, rather than a hidden answer. */
   scriptureClue?: {
