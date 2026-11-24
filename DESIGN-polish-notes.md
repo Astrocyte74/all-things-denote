@@ -19,7 +19,7 @@ Changes on top of the Sticker Quest system. The identity is unchanged; this pass
 - Checklist: single column; rows are horizontal; title opens focus mode; the repeated filler line is replaced by the photo target.
 
 ## Assets
-- `public/art/c-*.png` (Creation Quest): the white matte is now transparent, so the `mix-blend-multiply` workaround in StickerArt is gone.
+- `c-*` stickers (Creation Quest): the white matte is now transparent, so the `mix-blend-multiply` workaround in StickerArt is gone.
 
 ## Data copy
 - Path D description now matches its order ("Take one challenge from each theme, then go around again").

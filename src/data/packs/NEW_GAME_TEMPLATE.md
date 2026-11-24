@@ -183,7 +183,8 @@ the event comparison. Put any task that needs clue-by-clue photo comparison in
 - Use short titles that fit phone cards and photo captions. Give concrete,
   achievable photo tasks and discussion prompts that invite explanation.
 - Set `mascotArt` to a filename stem from `public/art` (for example, `my-mascot`
-  refers to `public/art/my-mascot.png`), or use `''` and provide an emoji fallback.
+  refers to `public/art/my-mascot.webp`, published from a master by
+  `scripts/optimize-art.mjs`), or use `''` and provide an emoji fallback.
   Groups and bonuses can also have an optional `art` filename stem. Do not assume
   a new pack gets one of the chooser's existing theme-specific illustrations.
 - Use existing design colours where practical and check text contrast. Artwork

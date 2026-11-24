@@ -284,7 +284,7 @@ export const creationPack: GamePack = {
   tagline: 'Gospel Truths in the Outdoors · Youth Activity',
   setting: 'the outdoors',
   locationLabel: 'Outdoors',
-  mascotArt: 'c-mascot', // Creation Quest mascot; emoji fallback shows until the PNG is generated
+  mascotArt: 'c-mascot', // Creation Quest mascot; emoji fallback shows until the WebP is published
   mascotEmoji: '🌿',
   mascotAlt: 'Creation Quest mascot — a magnifying glass over a sprouting leaf',
   scriptureCitation: 'Psalm 19:1',

@@ -1,6 +1,9 @@
 // Generate sticker-style art for the Sticker Quest redesign via OpenAI image API.
+// Writes 1024 px PNG masters to art-src/ (not published). Publish the ones you
+// want as 512 px WebP in public/art:  node scripts/optimize-art.mjs
 import fs from 'node:fs';
 import path from 'node:path';
+import { ART_SRC } from './optimize-art.mjs';
 
 // Candidate .env files; the first key that authenticates wins.
 const ENV_PATHS = [
@@ -25,7 +28,7 @@ async function findWorkingKey() {
 
 const KEY = await findWorkingKey();
 
-const OUT = '/Users/markdarby/projects/youth/scavenger/app/public/art';
+const OUT = ART_SRC;
 fs.mkdirSync(OUT, { recursive: true });
 
 const STYLE = `Die-cut sticker illustration, playful flat vector cartoon style, thick white die-cut sticker border around the subject, bold dark indigo (#2E2459) outlines, warm candy colors (amber yellow, coral red, leaf green, sky blue, violet), soft simple cel shading, clean shapes, subtle sparkle accents. Single centered subject, fully transparent background. Absolutely no text, letters, numbers or words.`;
@@ -89,3 +92,5 @@ const queue = [...JOBS];
 async function worker() { while (queue.length) await gen(queue.shift()); }
 await Promise.all([worker(), worker(), worker()]);
 console.log('ALL DONE');
+console.log('Masters are in art-src/ and are not published. Check them, then run:');
+console.log('  node scripts/optimize-art.mjs');

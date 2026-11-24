@@ -36,21 +36,32 @@ Loaded from Google Fonts in `index.html`.
 
 ## Components
 
-- `StickerArt` (`src/components/StickerArt.tsx`) — renders `/art/{name}.png`
-  with an emoji fallback when the PNG doesn't exist yet.
+- `StickerArt` (`src/components/StickerArt.tsx`) — renders `/art/{name}.webp`
+  with an emoji fallback when the WebP doesn't exist yet.
 - `ConfettiBurst` — one-shot confetti explosion; pass an incrementing
   `burstKey`. Fired on challenge completion and bonus unlock.
 
 ## AI-generated art
 
-`scripts/generate-art.mjs` generates the sticker illustrations (mascot,
-trophy, camera, 5 category icons, 4 bonus stamps) via the OpenAI image API
-into `public/art/`. It reads `OPEN_AI_API_KEY` from `../.env` (one level
-above the repo). Run:
+Stickers start as 1024 px PNG masters in `art-src/`, which is never published.
+`scripts/generate-art.mjs` writes them via the OpenAI image API (mascot,
+trophy, camera, 5 category icons, 4 bonus stamps; `generate-art-comfy.mjs` uses
+local ComfyUI instead). It reads `OPEN_AI_API_KEY` from `../.env` (one level
+above the repo). Publish the masters you want as 512 px WebP, the only sticker
+art the app downloads (20–50 KB each instead of 150–1000 KB):
 
 ```bash
 node scripts/generate-art.mjs
+node scripts/optimize-art.mjs   # or name specific masters; needs cwebp
 ```
 
-Until the PNGs exist, `StickerArt` falls back to emoji everywhere, so the app
-works fully without them.
+Until a sticker's WebP exists in `public/art/`, `StickerArt` falls back to its
+emoji, so the app works fully without it.
+
+## Install icons
+
+`scripts/build-icons.py` (needs Pillow) sets the camera sticker on the grape
+tile with its hard offset shadow. It writes the manifest icons, a maskable icon
+whose subject stays inside the 80% safe zone, an opaque 180 px Apple touch icon
+(iOS paints transparency black) and PNG favicons (Safari ignores SVG ones). The
+manifest's theme and background colors are `paper`, matching `index.html`.

@@ -398,7 +398,7 @@ function TeamPath({ teamName, pathLabel }: { teamName: string | null; pathLabel:
 
 /**
  * Mascot art with a fallback chain that never requests an empty URL:
- * PNG (if `mascotArt` is set and loads) → built-in SVG (matched by theme) →
+ * WebP (if `mascotArt` is set and loads) → built-in SVG (matched by theme) →
  * emoji → monogram.
  */
 function PackArt({ pack }: { pack: GamePack }) {
@@ -407,7 +407,7 @@ function PackArt({ pack }: { pack: GamePack }) {
   if (pack.mascotArt && !failed) {
     return (
       <img
-        src={`${import.meta.env.BASE_URL}art/${pack.mascotArt}.png`}
+        src={`${import.meta.env.BASE_URL}art/${pack.mascotArt}.webp`}
         alt=""
         draggable={false}
         decoding="async"

@@ -17,12 +17,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { ART_SRC } from './optimize-art.mjs';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const HOST = process.env.COMFY_GEN_HOST ?? 'http://100.127.43.102:8001';
 const SOURCE = process.env.COMFY_GEN_SOURCE ?? 'zimage'; // zimage (fast) | krea2 | sdxl | boogu
 const SIZE = 1024;
-const OUT = '/Users/markdarby/projects/youth/scavenger/app/public/art';
+const OUT = ART_SRC; // Masters only; node scripts/optimize-art.mjs publishes WebP to public/art.
 
 const ENV_PATHS = [
   '/Users/markdarby/projects/youth/scavenger/.env',
@@ -50,7 +51,7 @@ const STYLE = `Die-cut sticker illustration, playful flat vector cartoon style, 
 // [name, subject] — quality knob doesn't apply to ComfyUI, so it's dropped.
 // Includes the original 12 Scavenger Hunt pieces PLUS the Creation Quest set
 // (prefixed c-) so a single run can top up both packs. StickerArt falls back
-// to emoji for any name with no PNG, so generating is optional.
+// to emoji for any name with no WebP in public/art, so generating is optional.
 const JOBS = [
   // ── Scavenger Hunt (mirrors generate-art.mjs) ──
   ['mascot',        'A joyful cartoon shopping cart character with big friendly eyes and a huge smile, gleefully holding up a retro instant camera as if taking a photo, tiny sparkle stars around it'],
@@ -152,7 +153,8 @@ const queue = [...JOBS];
 async function worker() { while (queue.length) await gen(queue.shift()); }
 await Promise.all([worker(), worker(), worker()]);
 console.log('ALL DONE');
-console.log(`\nNote: ComfyUI does not produce a transparent background. To remove the`);
-console.log(`background from these PNGs, see StickerArt's emoji fallback or run a`);
-console.log(`matting pass (e.g. rembg). The app works fully without it — StickerArt`);
-console.log(`shows the PNG if present, else the emoji.`);
+console.log(`\nNote: ComfyUI does not produce a transparent background. Masters stay in`);
+console.log(`art-src/ and are not published. Run a matting pass (e.g. rembg) on the ones`);
+console.log(`you want, then publish them as WebP:`);
+console.log(`  node scripts/optimize-art.mjs <name> ...`);
+console.log(`Until a sticker's WebP is in public/art, StickerArt shows its emoji.`);

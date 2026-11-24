@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 interface StickerArtProps {
   /** File name (without extension) inside /public/art */
   name: string;
-  /** Emoji shown if the art PNG hasn't been generated yet */
+  /** Emoji shown if the art WebP hasn't been published yet */
   emoji: string;
   alt: string;
   className?: string;
@@ -13,7 +13,7 @@ interface StickerArtProps {
 }
 
 /**
- * Renders a generated sticker illustration from /art/{name}.png,
+ * Renders a generated sticker illustration from /art/{name}.webp,
  * gracefully falling back to a big emoji when the file is missing.
  */
 export function StickerArt({ name, emoji, alt, className, emojiSize = '3rem' }: StickerArtProps) {
@@ -35,7 +35,7 @@ export function StickerArt({ name, emoji, alt, className, emojiSize = '3rem' }: 
 
   return (
     <img
-      src={`${import.meta.env.BASE_URL}art/${name}.png`}
+      src={`${import.meta.env.BASE_URL}art/${name}.webp`}
       alt={alt}
       draggable={false}
       decoding="async"
