@@ -88,3 +88,135 @@ test('a failed sharing choice signals the closed menu and retry clears it withou
   await expect(page.getByRole('button', { name: 'Hunt menu', exact: true })).not.toHaveAttribute('aria-describedby');
   await capture(page); expect((await state(request, e.access)).photos.length).toBe(0);
 });
+
+test('a rejected photo stays on the phone while the next photo reaches the leader', async ({page, request, baseURL}) => {
+  const event = await make(request, baseURL!);
+  await join(page, event.invite);
+  await page.evaluate(() => {
+    const send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(body) {
+      if (body instanceof FormData && body.has('photo')) {
+        XMLHttpRequest.prototype.send = send;
+        body.set('photo', new Blob(['invalid JPEG'], {type:'image/jpeg'}), 'broken.jpg');
+      }
+      return send.call(this, body);
+    };
+  });
+  await capture(page);
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs'))[0]?.error).toContain('Clue 1');
+  await page.getByRole('button', {name:'Next clue', exact:true}).click();
+  await capture(page, 'pink');
+  await expect.poll(async () => (await state(request, event.access)).photos.map((photo: {challengeNumber:number}) => photo.challengeNumber)).toEqual([2]);
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs')).map(job => job.attempts)).toEqual([1]);
+  expect(await dbRows(page)).toHaveLength(2);
+});
+
+test('reconnecting retries a network failure immediately and preserves the original upload ID', async ({page, request, baseURL}) => {
+  const event = await make(request, baseURL!);
+  await join(page, event.invite);
+  // Lose the response after storage succeeds. A new request must reuse the same ID.
+  await page.evaluate(() => {
+    const send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(body) {
+      if (body instanceof FormData && body.has('photo')) {
+        XMLHttpRequest.prototype.send = send;
+        this.onload = () => this.onerror?.call(this, new ProgressEvent('error'));
+      }
+      return send.call(this, body);
+    };
+  });
+  await capture(page);
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs'))[0]?.attempts).toBe(1);
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs')).length, {timeout:8000}).toBe(0);
+  const photos = (await state(request, event.access)).photos;
+  expect(photos).toHaveLength(1);
+  expect(photos[0].localPhotoId).toBe((await dbRows(page))[0].id);
+});
+
+test('a new manual photo starts selected and an explicitly skipped one stays unchecked after reload', async ({page, request, baseURL}) => {
+  const event = await make(request, baseURL!);
+  await join(page, event.invite, true);
+  await capture(page);
+  await page.getByRole('button', {name:'Next clue', exact:true}).click();
+  await capture(page, 'pink');
+  const openPicker = async () => {
+    await openSharing(page);
+    await page.getByRole('button', {name:/Event & photos/}).click();
+  };
+  await openPicker();
+  await page.getByRole('button', {name:/^#1 .*selected$/}).click();
+  await page.getByRole('button', {name:'Send 1 photo', exact:true}).click();
+  await expect(page.getByText('0 of 1 unsent photo selected')).toBeVisible();
+  await page.getByRole('button', {name:'Open team hunt', exact:true}).click();
+  await page.getByRole('button', {name:'Next clue', exact:true}).click();
+  await capture(page, 'green');
+  await openPicker();
+  await page.reload();
+  await expect(page.getByText('1 of 2 unsent photos selected')).toBeVisible();
+  await expect(page.getByRole('button', {name:/^#1 /})).toHaveAttribute('aria-pressed','false');
+  await expect(page.getByRole('button', {name:/^#3 /})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button', {name:'Send 1 photo', exact:true}).click();
+  await expect.poll(async () => (await state(request, event.access)).photos.map((photo: {challengeNumber:number}) => photo.challengeNumber)).toEqual([2,3]);
+});
+
+test('closed uploads pause later photos together and still let the team delete a cloud copy', async ({page, request, baseURL}) => {
+  const event = await make(request, baseURL!);
+  const setClosed = async (closed: boolean) => {
+    const response = await request.patch(`${API}/events/${event.access.eventId}`, {
+      headers:{Authorization:`Bearer ${event.access.token}`}, data:{closed},
+    });
+    expect(response.ok()).toBe(true);
+  };
+  await join(page, event.invite);
+  await capture(page);
+  await expect.poll(async () => (await state(request, event.access)).photos.length).toBe(1);
+  await setClosed(true);
+  await page.getByRole('button', {name:'Next clue', exact:true}).click();
+  await capture(page, 'purple');
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs'))[0]?.error).toContain('closed');
+  await page.getByRole('button', {name:'Next clue', exact:true}).click();
+  await capture(page, 'blue');
+  await openGallery(page);
+  await page.getByRole('button', {name:'Delete photo #1', exact:true}).click();
+  await page.getByRole('button', {name:'Delete', exact:true}).click();
+  await expect.poll(async () => (await state(request, event.access)).photos.length).toBe(0);
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs')).map(job => job.attempts).sort()).toEqual([0,1]);
+  await setClosed(false);
+  await page.getByRole('button', {name:'Close photo gallery', exact:true}).click();
+  await openSharing(page);
+  await page.getByRole('button', {name:'Retry', exact:true}).click();
+  await expect.poll(async () => (await state(request, event.access)).photos.map((photo: {challengeNumber:number}) => photo.challengeNumber)).toEqual([2,3]);
+});
+
+test('a photo that cannot fit the remaining space can be retried after a smaller photo is sent', async ({page, request, baseURL}) => {
+  const event = await make(request, baseURL!);
+  await join(page, event.invite);
+  // The Worker suite exercises the byte boundary. Return its partial-capacity
+  // response once here so the following upload and manual retry use the real API.
+  await page.evaluate(() => {
+    const send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(body) {
+      if (body instanceof FormData && body.has('photo')) {
+        XMLHttpRequest.prototype.send = send;
+        Object.defineProperty(this, 'status', {value:409});
+        Object.defineProperty(this, 'responseText', {value:JSON.stringify({
+          code:'PHOTO_EXCEEDS_REMAINING_STORAGE', error:'This photo needs more space than the event has left. Smaller photos can still send. Ask the leader to free space before retrying.',
+        })});
+        this.dispatchEvent(new ProgressEvent('load'));
+        this.dispatchEvent(new ProgressEvent('loadend'));
+        return;
+      }
+      return send.call(this, body);
+    };
+  });
+  await capture(page, 'maroon');
+  await expect.poll(async () => (await dbRows(page, 'photoSyncJobs'))[0]?.error).toContain('Smaller photos can still send');
+  await page.getByRole('button', {name:'Next clue', exact:true}).click();
+  await capture(page, 'white');
+  await expect.poll(async () => (await state(request, event.access)).photos.map((photo: {challengeNumber:number}) => photo.challengeNumber)).toEqual([2]);
+  await openSharing(page);
+  await page.getByRole('button', {name:'Retry', exact:true}).click();
+  await expect.poll(async () => (await state(request, event.access)).photos.map((photo: {challengeNumber:number}) => photo.challengeNumber)).toEqual([1,2]);
+});

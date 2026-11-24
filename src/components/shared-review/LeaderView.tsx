@@ -26,7 +26,10 @@ interface LeaderViewProps {
 const POLL_MS = 20_000;
 
 export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing, refreshError, updatedAt }: LeaderViewProps) {
-  const { event } = snapshot;
+  const { event, capacity } = snapshot;
+  const freeMiB = capacity ? (capacity.maxBytes - capacity.usedBytes) / (1024 * 1024) : 0;
+  const freeSize = freeMiB > 0 && freeMiB < 1 ? 'Under 1' : Math.floor(freeMiB);
+  const nearlyFull = capacity && (capacity.usedPhotos >= capacity.maxPhotos * 0.9 || capacity.usedBytes >= capacity.maxBytes * 0.9);
   const pack = getPackById(event.packId);
   const joinLink = snapshot.joinToken ? reviewLink({ eventId: event.id, token: snapshot.joinToken, role: 'join' }) : null;
   const leaderLink = reviewLink(access);
@@ -126,7 +129,11 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
               <PackBadge pack={pack} size="sm" />
               <div className="min-w-0 text-sm font-semibold">
                 <p className="font-extrabold">{pack.title}</p>
-                <p className="text-ink/70">Ends {formatExpiry(event.expiresAt)}</p>
+                <p className="text-ink/70">Save shared photos before this event ends {formatExpiry(event.expiresAt)}.</p>
+                <button type="button" onClick={() => void downloadAll()} disabled={!snapshot.photos.length || Boolean(zipState)} className="btn-3d btn-white mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-extrabold text-ink">
+                  {zipState ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={3} aria-hidden="true" /> : <FolderDown className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}
+                  {zipState ? `Preparing ${zipState.done} of ${zipState.total}…` : `Download ZIP (${snapshot.photos.length})`}
+                </button>
               </div>
             </div>
           </div>
@@ -150,6 +157,17 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
               {refreshing ? 'Refreshing…' : `Updated ${relativeTime(updatedAt, now)}`}
             </button>
           </div>
+          {capacity && (
+            <div className="border-t-2 border-ink/10 px-3 py-2 text-sm font-semibold">
+              <div className="flex flex-wrap justify-between gap-x-3">
+                <span>Event storage</span>
+                <span>{freeSize} MiB free of {capacity.maxBytes / (1024 * 1024)}</span>
+              </div>
+              <progress className="block h-2 w-full accent-ink" aria-label="Event storage used" max={capacity.maxBytes} value={capacity.usedBytes} />
+              <p className="mt-1 text-xs text-ink/70">{capacity.maxPhotos - capacity.usedPhotos} of {capacity.maxPhotos} photo spaces available</p>
+              {nearlyFull && <p className="mt-2 rounded-xl bg-sun-soft p-2 text-sm font-bold">{capacity.usedPhotos >= capacity.maxPhotos || capacity.usedBytes >= capacity.maxBytes ? 'This event is full.' : 'This event is nearly full.'} Download the ZIP, then remove any shared photos you have saved to make room.</p>}
+            </div>
+          )}
           <div className="grid grid-cols-2 divide-x-2 divide-ink/10 border-t-2 border-ink/10 bg-go-soft lg:hidden">
             <button type="button" onClick={() => jumpTo('sr-progress')} className="min-h-12 px-3 font-extrabold text-ink">Team progress ↓</button>
             <button type="button" onClick={() => jumpTo('sr-compare')} className="min-h-12 px-3 font-extrabold text-ink">Compare photos ↓</button>
@@ -218,14 +236,6 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
                 Close uploads
               </button>
             </div>}
-            <div>
-              <h3 className="font-extrabold">Save every photo</h3>
-              <p className="mt-1 text-sm font-semibold text-ink/70">One ZIP with a folder per clue.</p>
-              <button type="button" onClick={() => void downloadAll()} disabled={!snapshot.photos.length || Boolean(zipState)} className="btn-3d btn-white mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-2xl px-4 text-sm font-extrabold text-ink">
-                {zipState ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={3} aria-hidden="true" /> : <FolderDown className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}
-                {zipState ? `Preparing ${zipState.done} of ${zipState.total}…` : `Download ZIP (${snapshot.photos.length})`}
-              </button>
-            </div>
             <DeleteEvent access={access} title={event.title} photoCount={snapshot.photos.length} teamCount={snapshot.teams.length} />
           </div>
         </details>

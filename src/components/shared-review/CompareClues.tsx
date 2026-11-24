@@ -221,7 +221,7 @@ function ClueHeader({ clue, total, showPrompt, onTogglePrompt, accent, soft, dar
 }
 
 function PhotoTile({ access, photo, label, onOpen, dark }: { access: EventAccess; photo: ReviewPhoto; label: string; onOpen: () => void; dark?: boolean }) {
-  const { url, failed, retry } = useReviewPhotoUrl(access, photo.id);
+  const { url, failed, retry } = useReviewPhotoUrl(access, photo.id, !dark);
   if (failed) {
     return (
       <button type="button" onClick={retry} className="flex aspect-[4/5] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-ink/40 text-sm font-extrabold">

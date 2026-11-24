@@ -95,7 +95,8 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
           );
         })}
       </ul>
-      <p className="mt-2 text-xs font-semibold text-ink/60">Removing an event here only forgets it on this device. The link still works.</p>
+      <p className="mt-2 text-xs font-semibold text-ink/60">Removing an event here forgets its link on this device. Keep your private leader link to reopen an event on another device.</p>
+
     </section>
   );
 
@@ -116,7 +117,7 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
           <strong>Pick your team name.</strong> Your game is set and your path is assigned automatically.
         </JoinStep>
         <JoinStep n={3} icon={<Send className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" />}>
-          <strong>Play, then send the photos you choose.</strong> Nothing uploads until you pick photos afterward.
+          <strong>Choose how to share.</strong> When you join, you can send new photos as you play or pick photos to send afterward.
         </JoinStep>
       </ol>
 
@@ -170,6 +171,10 @@ export function ReviewHome({ packId, intent, onBack }: ReviewHomeProps) {
         <button type="button" onClick={() => openReviewHome(packId, 'create')} className="btn-3d btn-white min-h-14 rounded-2xl px-5 font-display text-xl">Start an event</button>
       </div>}
       {savedSection}
+      <details className="my-4 text-sm text-ink/75">
+        <summary className="min-h-11 cursor-pointer py-3 font-bold">Using an iPhone for future activities?</summary>
+        <p>Before your next activity, open the app in Safari, tap Share, then Add to Home Screen. Open it from that icon when you play. Save photos from your current browser before switching.</p>
+      </details>
       {intent && <p className="text-center text-sm font-semibold text-ink/70">{intent === 'join' ? 'Organizing the hunt?' : 'Joining someone else’s hunt?'} <button type="button" onClick={() => openReviewHome(packId, intent === 'join' ? 'create' : 'join')} className="min-h-11 px-2 font-extrabold text-ink underline underline-offset-4">{intent === 'join' ? 'Start an event instead' : 'Join an event instead'}</button></p>}
       {scanning && <InviteScanner onClose={() => setScanning(false)} onReturnFocus={() => scanButton.current?.focus()} />}
     </ReviewShell>

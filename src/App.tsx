@@ -155,6 +155,9 @@ function App() {
     const next = makeEventHunt(access, snapshot);
     if (!next) return;
     const scope = eventHuntId(next.event.id, next.team.id);
+    const scanned = reviewRoute?.screen === 'event' ? reviewRoute.access : null;
+    next.joinToken = scanned?.role === 'join' && scanned.eventId === next.event.id
+      ? scanned.token : savedEventHunts[scope]?.joinToken;
     setEventHunt(next);
     setSavedEventHunts(previous => ({ ...previous, [scope]: next }));
     setActivePackId(next.event.packId);
@@ -271,7 +274,7 @@ function App() {
         </details>
       )}
       {appState === 'library' && <GameLibrary packs={PACKS} summaries={summaries} onSelect={handlePickPack} onResume={handleResumePack} onReset={setResetTarget} onOpenSharedReview={intent => openReviewHome(undefined, intent)} />}
-      {appState === 'game' && <Header pack={pack} onBack={handleBackToLanding} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />}
+      {appState === 'game' && <Header hunt={activeEvent} pack={pack} onBack={handleBackToLanding} onStart={handleStart} onContinue={canResume ? handleStartHunt : undefined} />}
 
       {/* Path Selection */}
       {appState === 'path-selection' && (
@@ -291,7 +294,7 @@ function App() {
       {/* Rules (shown at top during rules phase) */}
       {appState === 'rules' && (
         <div ref={rulesRef}>
-          <Rules isVisible={true} collapsed={false} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} onStart={handleStartHunt} rules={pack.rules} />
+          <Rules hunt={activeEvent} isVisible={true} collapsed={false} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} onStart={handleStartHunt} rules={pack.rules} />
         </div>
       )}
 
@@ -325,7 +328,7 @@ function App() {
           <BonusSection isVisible={true} isUnlocked={bonusUnlocked} total={progress.total} bonusItems={pack.bonusItems} />
           <Footer pack={pack} />
           {/* Collapsed rules at bottom during hunt */}
-          <Rules isVisible={false} collapsed={true} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} rules={pack.rules} />
+          <Rules hunt={activeEvent} isVisible={false} collapsed={true} onChangePath={activeEvent ? undefined : handleChangePath} currentPathId={selectedPathId || 'A'} onBack={activeEvent ? undefined : handleBackToPathSelection} rules={pack.rules} />
 
           </>}
 

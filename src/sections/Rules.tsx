@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Camera, ChevronDown, ChevronUp, Heart, Map, PersonStanding } from 'lucide-react';
 import type { Rule } from '@/types';
-import qrCode from '/qr.png';
+import { HuntInvite } from '@/components/HuntInvite';
+import type { EventHunt } from '@/lib/eventHunt';
 
 interface RulesProps {
   isVisible: boolean;
+  hunt?: EventHunt | null;
   collapsed?: boolean;
   onChangePath?: () => void;
   currentPathId?: string;
@@ -19,7 +21,7 @@ const ruleMeta: Record<string, { icon: React.ReactNode; color: string }> = {
   'rule-3': { icon: <Heart className="h-5 w-5" strokeWidth={2.5} />, color: '#FF6B6B' },
 };
 
-export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', onBack, onStart, rules }: RulesProps) {
+export function Rules({ hunt, collapsed = false, onChangePath, currentPathId = 'A', onBack, onStart, rules }: RulesProps) {
   const [isExpandedState, setIsExpandedState] = useState(!collapsed);
   const isExpanded = collapsed ? isExpandedState : true;
 
@@ -95,11 +97,8 @@ export function Rules({ collapsed = false, onChangePath, currentPathId = 'A', on
 
         {rules.some(rule => rule.id === 'rule-5') && (
           <details className="mt-6 rounded-2xl border-2 border-ink/20 bg-cream p-3 text-ink">
-            <summary className="cursor-pointer py-1 text-sm font-extrabold">Invite another team</summary>
-            <div className="mt-3 flex flex-col items-center gap-3 sm:flex-row">
-              <img src={qrCode} alt="QR code to open the hunt" className="h-28 w-28 rounded-xl border-2 border-ink bg-white p-2" />
-              <p className="max-w-sm text-center text-sm font-semibold text-ink/80 sm:text-left">Scan with another phone’s camera to join. Each team needs at least one phone running the hunt.</p>
-            </div>
+            <summary className="cursor-pointer py-1 text-sm font-extrabold">{hunt ? 'Invite another team' : 'Share the game library'}</summary>
+            <HuntInvite hunt={hunt} />
           </details>
         )}
       </div>

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, CheckCircle2, CloudUpload, Loader2, Lock, Play, RefreshCw, RotateCcw } from 'lucide-react';
 import { eventHuntId, makeEventHunt } from '@/lib/eventHunt';
 import { getPackById } from '@/data/packs';
-import { getAllPhotos, type StoredPhoto } from '@/lib/photoStorage';
+import { LocalPhotoImage } from '@/components/LocalPhotoImage';
+import { photoFailureScope } from '@/lib/photoUploadFailure';
+import { getPhotoSummaries, getStoredPhoto, type PhotoSummary } from '@/lib/photoStorage';
 import { deleteReviewPhoto, uploadReviewPhoto, type EventAccess, type ReviewPhoto, type ReviewSnapshot } from '@/lib/sharedReview';
-import { describeError, errorStatus, forgetReviewPhoto, formatExpiry, isFatalUploadError, notify } from './common';
+import { describeError, errorStatus, forgetReviewPhoto, formatExpiry, notify } from './common';
 import { Notice, PackBadge, PathPill } from './ui';
 import { DeleteUploadsDialog, TeamUploads } from './TeamUploads';
 
@@ -21,22 +23,33 @@ interface TeamViewProps {
   onPlay: () => void;
 }
 
-/** Selection survives reloads and dropped connections for this event. */
-function selectionKey(eventId: string) { return `reviewSelection:${eventId}`; }
-function readSelection(eventId: string): Set<string> | null {
+/** Keep explicit opt-outs so new photos are selected on the next visit. The old
+ * list stored inclusions only; preserve its choices for photos already here. */
+function readExclusions(huntId: string, eventId: string, local: PhotoSummary[]): Set<string> {
   try {
-    const raw = sessionStorage.getItem(selectionKey(eventId));
-    return raw ? new Set(JSON.parse(raw) as string[]) : null;
-  } catch { return null; }
+    const key = `reviewExcluded:${huntId}`;
+    const saved = sessionStorage.getItem(key);
+    if (saved) return new Set(JSON.parse(saved));
+    const legacy = sessionStorage.getItem(`reviewSelection:${eventId}`);
+    if (legacy) {
+      const included = new Set<string>(JSON.parse(legacy));
+      const excluded = local.filter(photo => !included.has(photo.id)).map(photo => photo.id);
+      try { sessionStorage.setItem(key, JSON.stringify(excluded)); } catch { /* Keep this session's choices in memory. */ }
+      return new Set(excluded);
+    }
+  } catch { /* No valid saved choices. */ }
+  return new Set();
 }
 
 export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   const { event, team } = snapshot;
   const pack = getPackById(event.packId);
   const hunt = useMemo(() => makeEventHunt(access, snapshot), [access, snapshot]);
-  const [local, setLocal] = useState<StoredPhoto[] | null>(null);
+  const huntId = eventHuntId(event.id, team!.id);
+  const [local, setLocal] = useState<PhotoSummary[] | null>(null);
   const [localError, setLocalError] = useState(false);
-  const [selection, setSelectionState] = useState<Set<string> | null>(() => readSelection(event.id));
+  const [excluded, setExcludedState] = useState<Set<string>>(new Set());
+  const choicesLoaded = useRef(false);
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [sentNow, setSentNow] = useState<Record<string, ReviewPhoto>>({});
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -64,15 +77,21 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   const [localAttempt, setLocalAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    getAllPhotos(event.packId)
+    getPhotoSummaries(event.packId)
       .then(photos => {
         if (cancelled) return;
-        setLocal(photos.filter(photo => !photo.huntId || photo.huntId === eventHuntId(event.id, team!.id)).sort((a, b) => a.challengeNumber - b.challengeNumber || a.timestamp - b.timestamp));
+        const scoped = photos.filter(photo => !photo.huntId || photo.huntId === huntId)
+          .sort((a, b) => a.challengeNumber - b.challengeNumber || a.timestamp - b.timestamp);
+        if (!choicesLoaded.current) {
+          setExcludedState(readExclusions(huntId, event.id, scoped));
+          choicesLoaded.current = true;
+        }
+        setLocal(scoped);
         setLocalError(false);
       })
       .catch(() => { if (!cancelled) setLocalError(true); });
     return () => { cancelled = true; };
-  }, [event.packId, event.id, team, localAttempt]);
+  }, [event.packId, event.id, huntId, team, localAttempt]);
   const loadLocal = () => setLocalAttempt(n => n + 1);
 
   // localPhotoId → server copy (from the snapshot, plus anything sent this visit).
@@ -85,18 +104,23 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
   }, [snapshot.photos, team, sentNow, removed]);
 
   const pending = (local ?? []).filter(photo => !uploaded.has(photo.id));
-  // Until the user changes it, everything not yet sent is selected.
-  const selected = selection ?? new Set(pending.map(photo => photo.id));
-  const toSend = pending.filter(photo => selected.has(photo.id));
+  const toSend = pending.filter(photo => !excluded.has(photo.id));
 
-  const setSelection = (next: Set<string>) => {
-    setSelectionState(next);
-    try { sessionStorage.setItem(selectionKey(event.id), JSON.stringify([...next])); } catch { /* in-memory selection still works */ }
+  const setExcluded = (next: Set<string>) => {
+    setExcludedState(next);
+    try { sessionStorage.setItem(`reviewExcluded:${huntId}`, JSON.stringify([...next])); } catch { /* in-memory selection still works */ }
   };
   const toggle = (id: string) => {
-    const next = new Set(selected);
+    const next = new Set(excluded);
     if (next.has(id)) next.delete(id); else next.add(id);
-    setSelection(next);
+    setExcluded(next);
+  };
+  const selectPending = (select: boolean) => {
+    const next = new Set(excluded);
+    for (const photo of pending) {
+      if (select) next.delete(photo.id); else next.add(photo.id);
+    }
+    setExcluded(next);
   };
 
   // Warn before leaving mid-upload.
@@ -116,14 +140,15 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
     let ok = 0;
     let failed = 0;
     let stopped: string | undefined;
-    const remaining = new Set(selected);
+    const nextExcluded = new Set(excluded);
     for (const [index, photo] of queue.entries()) {
       setStatus(prev => ({ ...prev, [photo.id]: { state: 'uploading', percent: 0 } }));
       try {
-        const result = await uploadReviewPhoto(access, photo, percent => setStatus(prev => ({ ...prev, [photo.id]: { state: 'uploading', percent } })));
+        const original = await getStoredPhoto(photo.id);
+        const result = await uploadReviewPhoto(access, original, percent => setStatus(prev => ({ ...prev, [photo.id]: { state: 'uploading', percent } })));
         await cancelPhotoUpload(eventHuntId(event.id, team!.id), photo.id);
         ok += 1;
-        remaining.delete(photo.id);
+        nextExcluded.add(photo.id);
         setSentNow(prev => ({ ...prev, [photo.id]: result }));
         setRemoved(prev => { if (!prev.has(photo.id)) return prev; const next = new Set(prev); next.delete(photo.id); return next; });
         setStatus(prev => { const next = { ...prev }; delete next[photo.id]; return next; });
@@ -131,7 +156,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
         failed += 1;
         const message = describeError(error);
         setStatus(prev => ({ ...prev, [photo.id]: { state: 'error', message } }));
-        if (isFatalUploadError(error)) {
+        if (photoFailureScope(error) !== 'photo') {
           stopped = message;
           // Anything not attempted goes back to "selected", ready for Retry.
           setStatus(prev => {
@@ -143,7 +168,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
         }
       }
     }
-    setSelection(remaining);
+    setExcluded(nextExcluded);
     setSummary({ ok, failed, stopped });
     setRunning(false);
     // The sticky bar announces the result (aria-live); no toast over the controls.
@@ -156,7 +181,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
     setDeleting(true);
     setDeleteError(null);
     let deleted = 0;
-    const remainingSelection = new Set(selected);
+    const nextExcluded = new Set(excluded);
     try {
       for (const remote of confirmRemove) {
         await cancelPhotoUpload(eventHuntId(event.id, team!.id), remote.localPhotoId);
@@ -168,8 +193,8 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
         setRemoved(prev => new Set(prev).add(localId));
         setSentNow(prev => { const next = { ...prev }; delete next[localId]; return next; });
         setStatus(prev => { const next = { ...prev }; delete next[localId]; return next; });
-        remainingSelection.delete(localId);
-        setSelection(new Set(remainingSelection));
+        nextExcluded.add(localId);
+        setExcluded(new Set(nextExcluded));
       }
       setConfirmRemove(null);
       notify.success(`Deleted ${deleted} cloud ${deleted === 1 ? 'photo' : 'photos'}. Device originals are unchanged.`);
@@ -223,7 +248,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
 
       <h2 className="font-display text-2xl">Choose photos to send</h2>
       <p className="mt-1 text-sm font-semibold text-ink/70">
-        You can send older photos or choose individual photos here. Auto-send handles new captures when it’s on. Originals stay on this phone too. The leader sees them under “{team?.name ?? 'your team'}”. Each photo keeps the label it was taken with.
+        New unsent photos start selected. Tap one to leave it out of this send. Your leader sees the photos you send under “{team?.name ?? 'your team'}”. Use Save in the gallery to keep a copy after the hunt.
       </p>
 
       {localError ? (
@@ -239,8 +264,8 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button type="button" disabled={running || !pending.length} onClick={() => setSelection(new Set(pending.map(p => p.id)))} className="btn-3d btn-white min-h-10 rounded-full px-4 text-sm font-extrabold text-ink">Select all</button>
-            <button type="button" disabled={running || !selected.size} onClick={() => setSelection(new Set())} className="btn-3d btn-white min-h-10 rounded-full px-4 text-sm font-extrabold text-ink">Clear</button>
+            <button type="button" disabled={busy || !pending.length} onClick={() => selectPending(true)} className="btn-3d btn-white min-h-10 rounded-full px-4 text-sm font-extrabold text-ink">Select all</button>
+            <button type="button" disabled={busy || !toSend.length} onClick={() => selectPending(false)} className="btn-3d btn-white min-h-10 rounded-full px-4 text-sm font-extrabold text-ink">Clear</button>
             <button type="button" onClick={onPlay} className="ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-extrabold text-ink/70 underline-offset-4 hover:underline">
               <Play className="h-4 w-4" strokeWidth={2.75} aria-hidden="true" /> Keep playing
             </button>
@@ -250,7 +275,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
             {local.map(photo => {
               const remote = uploaded.get(photo.id);
               const state = status[photo.id];
-              const isSelected = !remote && selected.has(photo.id);
+              const isSelected = !remote && !excluded.has(photo.id);
               return (
                 <li key={photo.id} className="relative">
                   <button
@@ -262,7 +287,7 @@ export function TeamView({ access, snapshot, refresh, onPlay }: TeamViewProps) {
                     className={`sr-pick block w-full overflow-hidden rounded-2xl border-2 border-ink bg-cream text-left ${isSelected ? 'sr-pick--on' : ''} ${remote ? 'sr-pick--sent' : ''}`}
                   >
                     <span className="paper-dots block aspect-[4/5] p-2">
-                      <img src={photo.imageData} alt="" loading="lazy" className="h-full w-full object-contain" />
+                      <LocalPhotoImage photoId={photo.id} alt="" loading="lazy" className="h-full w-full object-contain" />
                     </span>
                     <span className="block border-t-2 border-ink/15 px-2.5 py-2 text-xs font-extrabold leading-tight">
                       #{photo.challengeNumber} {photo.challengeTitle}

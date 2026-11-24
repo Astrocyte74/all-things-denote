@@ -8,8 +8,8 @@ export function OfflineNotice({ sharedReview = false }: { sharedReview?: boolean
   return (
     <>
       <p role="status" className="px-4 py-2 text-center text-xs font-bold text-ink/70">
-        {sharedReview ? 'Cloud photos expire 7 days after event creation · originals stay on team devices'
-          : status.ready ? 'Ready for offline hunting · originals stay on this device'
+        {sharedReview ? 'Shared photos expire 7 days after event creation. Download a copy to keep them.'
+          : status.ready ? 'Ready for offline hunting'
           : status.error ? 'Offline setup could not finish. Reconnect and reopen the app to retry.'
           : 'Preparing this device for offline hunting…'}
       </p>

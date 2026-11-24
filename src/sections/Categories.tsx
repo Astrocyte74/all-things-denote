@@ -15,7 +15,8 @@ import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ScriptureClue } from '@/components/ScriptureClue';
 import { FinishScreen } from '@/components/FinishScreen';
 import { getCategoryTheme, readableTextOn } from '@/lib/theme';
-import { getPhotoCount, getPhotosByChallenge, type StoredPhoto } from '@/lib/photoStorage';
+import { LocalPhotoImage } from '@/components/LocalPhotoImage';
+import { getPhotoSummaries, type PhotoSummary } from '@/lib/photoStorage';
 
 function TeamStoryIdeas({ ideas }: { ideas: string[] }) {
   return (
@@ -69,10 +70,14 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
   const [isAnimated, setIsAnimated] = useState(false);
   const [displayModeChallenge, setDisplayModeChallenge] = useState<{category: CategoryType; challengeIndex: number; allChallenges: Challenge[]; flatIndex: number} | null>(null);
   const { value: showAnalogiesEarly, toggle: toggleAnalogiesEarly } = useToggle(`showAnalogiesEarly:${huntId ?? packId}`, false);
-  const [challengePhotoCounts, setChallengePhotoCounts] = useState<Record<string, number>>(() => ({}));
-  const [challengePhotos, setChallengePhotos] = useState<Record<string, StoredPhoto[]>>(() => ({}));
+  const [photos, setPhotos] = useState<PhotoSummary[]>([]);
+  const photoRequest = useRef(0);
+  const challengePhotos = useMemo(() => {
+    const groups: Record<string, PhotoSummary[]> = {};
+    for (const photo of photos) (groups[photo.challengeId] ??= []).push(photo);
+    return groups;
+  }, [photos]);
   const [galleryFilterChallengeId, setGalleryFilterChallengeId] = useState<string | null>(null);
-  const [photoCount, onPhotoCountChange] = useState(0);
   const checklistHeading = useRef<HTMLHeadingElement>(null);
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const [burstKey, setBurstKey] = useState(0);
@@ -133,55 +138,14 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     }
   }, [isVisible]);
 
-  // Load photo count on mount
-  useEffect(() => {
-    getPhotoCount(packId, huntId ?? null).then(onPhotoCountChange);
-  }, [onPhotoCountChange, packId, huntId]);
-
-  // Load photo counts per challenge
-  useEffect(() => {
-    const loadChallengePhotos = async () => {
-      const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
-      const photoCountMap: Record<string, number> = {};
-      const photosMap: Record<string, StoredPhoto[]> = {};
-
-      for (const challenge of allChallenges) {
-        const photos = await getPhotosByChallenge(challenge.id, huntId ?? null);
-        photoCountMap[challenge.id] = photos.length;
-        photosMap[challenge.id] = photos;
-      }
-
-      setChallengePhotoCounts(photoCountMap);
-      setChallengePhotos(photosMap);
-    };
-
-    loadChallengePhotos();
-  }, [orderedCategoryData, huntId]);
-
-  // Handle photo saved callback
   const handlePhotoSaved = useCallback(async () => {
-    const count = await getPhotoCount(packId, huntId ?? null);
-    onPhotoCountChange(count);
-
-    // Update challenge photo counts and photos
-    const photoCountMap: Record<string, number> = {};
-    const photosMap: Record<string, StoredPhoto[]> = {};
-    const allChallenges = orderedCategoryData.flatMap(cat => cat.challenges);
-
-    for (const challenge of allChallenges) {
-      const photos = await getPhotosByChallenge(challenge.id, huntId ?? null);
-      photoCountMap[challenge.id] = photos.length;
-      photosMap[challenge.id] = photos;
-    }
-
-    setChallengePhotoCounts(photoCountMap);
-    setChallengePhotos(photosMap);
-  }, [orderedCategoryData, onPhotoCountChange, packId, huntId]);
-
-  // Handle gallery photo count change
-  const handleGalleryPhotoCountChange = useCallback((count: number) => {
-    onPhotoCountChange(count);
-  }, [onPhotoCountChange]);
+    const request = ++photoRequest.current;
+    const next = await getPhotoSummaries(packId, huntId ?? null);
+    if (photoRequest.current === request) setPhotos(next);
+  }, [packId, huntId]);
+  useEffect(() => {
+    void handlePhotoSaved().catch(() => {});
+  }, [handlePhotoSaved]);
 
   // Check if all challenges are complete
   useEffect(() => {
@@ -286,7 +250,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
     if (!isVisible) return;
     if (autoOpenedForPath.current === selectedPathId) return;
     autoOpenedForPath.current = selectedPathId;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional one-time open on hunt start / path change
     openNextIncomplete(true);
   }, [isVisible, selectedPathId, openNextIncomplete]);
 
@@ -344,7 +307,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
 
   useLayoutEffect(() => { onFocusModeChange?.(Boolean(displayModeChallenge) && (!allComplete || reviewingCompleted)); }, [displayModeChallenge, allComplete, reviewingCompleted, onFocusModeChange]);
   const huntMenu = <HuntMenu triggerRef={menuTrigger}
-    photoCount={photoCount}
+    photoCount={photos.length}
     onGallery={() => { setGalleryFilterChallengeId(null); setGalleryOpen(true); }}
     onChecklist={displayModeChallenge || allComplete ? () => { if (allComplete) setReviewingCompleted(true); exitDisplayMode(); } : undefined} eventHunt={eventHunt} onEvent={onShareWithEvent}
     onEditTeam={eventHunt ? undefined : onEditTeam} onStartOver={() => onReset(menuTrigger.current)} onHome={onHome} />;
@@ -490,7 +453,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                       className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 border-ink shadow-sticker-sm transition-transform hover:-translate-y-0.5"
                       title={`View photo ${idx + 1}`}
                     >
-                      <img src={photo.imageData} alt={`Photo ${idx + 1}`} className="h-full w-full object-cover" />
+                      <LocalPhotoImage photoId={photo.id} alt={`Photo ${idx + 1}`} className="h-full w-full object-cover" />
                     </button>
                   ))}
                   {shots.length > 4 && (
@@ -543,7 +506,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
         isOpen={galleryOpen}
         onClose={closeGallery}
         returnLabel="Back to current clue"
-        onPhotoCountChange={handleGalleryPhotoCountChange}
+        onPhotoDeleted={handlePhotoSaved}
         filterChallengeId={galleryFilterChallengeId}
         packId={packId} huntId={huntId}
       />
@@ -695,17 +658,17 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                       {challenge.title}
                                     </span>
                                   </button>
-                                  {(challengePhotoCounts[challenge.id] ?? 0) > 0 && (
+                                  {(challengePhotos[challenge.id]?.length ?? 0) > 0 && (
                                     <button
                                       onClick={() => {
                                         setGalleryFilterChallengeId(challenge.id);
                                         setGalleryOpen(true);
                                       }}
                                       className="mt-1.5 inline-flex items-center gap-1 rounded-full border-2 border-ink/20 bg-sky-soft px-2 py-0.5 text-xs font-extrabold text-ink transition-colors hover:border-ink/50"
-                                      title={`View ${challengePhotoCounts[challenge.id] ?? 0} photo${(challengePhotoCounts[challenge.id] ?? 0) !== 1 ? 's' : ''} in gallery`}
+                                      title={`View ${challengePhotos[challenge.id]?.length ?? 0} photo${(challengePhotos[challenge.id]?.length ?? 0) !== 1 ? 's' : ''} in gallery`}
                                     >
                                       <Camera className="h-3 w-3" strokeWidth={3} />
-                                      <span>{challengePhotoCounts[challenge.id] ?? 0}</span>
+                                      <span>{challengePhotos[challenge.id]?.length ?? 0}</span>
                                     </button>
                                   )}
 
@@ -755,7 +718,7 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
                                           className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border-2 border-ink/60 transition-transform hover:-translate-y-0.5"
                                           title={`View ${challenge.title} photo ${idx + 1}`}
                                         >
-                                          <img src={photo.imageData} alt={`Photo ${idx + 1}`} className="h-full w-full object-cover" />
+                                          <LocalPhotoImage photoId={photo.id} alt={`Photo ${idx + 1}`} className="h-full w-full object-cover" />
                                         </button>
                                       ))}
                                       {(challengePhotos[challenge.id] ?? []).length > 4 && (
@@ -813,7 +776,6 @@ export function Categories({ isVisible, selectedPathId, pathOrder, onAllComplete
       isOpen={galleryOpen}
       onClose={closeGallery}
       returnLabel="Back to checklist"
-      onPhotoCountChange={handleGalleryPhotoCountChange}
       onPhotoDeleted={handlePhotoSaved}
       filterChallengeId={galleryFilterChallengeId}
       packId={packId} huntId={huntId}

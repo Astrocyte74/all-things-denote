@@ -4,7 +4,10 @@ import { ShareModal } from '@/components/ShareModal';
 import { StickerArt } from '@/components/StickerArt';
 import type { GamePack } from '@/types';
 
+import type { EventHunt } from '@/lib/eventHunt';
+
 interface HeaderProps {
+  hunt?: EventHunt | null;
   pack: GamePack;
   onStart: () => void;
   onContinue?: () => void;
@@ -28,7 +31,7 @@ const decorSlots = [
   { position: 'bottom-[16%] left-[9%]', tilt: '6deg', anim: 'animate-bob' },
 ];
 
-export function Header({ pack, onStart, onContinue, onBack }: HeaderProps) {
+export function Header({ hunt, pack, onStart, onContinue, onBack }: HeaderProps) {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [titleLine1, titleLine2] = splitTitle(pack.title);
 
@@ -125,11 +128,11 @@ export function Header({ pack, onStart, onContinue, onBack }: HeaderProps) {
           className="btn-3d btn-white mt-8 inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2 text-sm font-extrabold text-ink"
         >
           <Share2 className="h-4 w-4" strokeWidth={2.5} />
-          Share this hunt
+          {hunt ? 'Invite another team' : 'Share game library'}
         </button>
       </div>
 
-      <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
+      <ShareModal hunt={hunt} isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} />
     </section>
   );
 }

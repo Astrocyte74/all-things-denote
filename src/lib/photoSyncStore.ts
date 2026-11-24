@@ -1,5 +1,6 @@
 import { openPhotoDB, PHOTO_STORE, SETTINGS_STORE, JOB_STORE, SYNC_STORES } from './photoDB';
 import { eventHuntId, type EventHunt } from './eventHunt';
+import type { PhotoFailureScope } from './photoUploadFailure';
 import type { EventAccess } from './sharedReview';
 import type { StoredPhoto } from './photoStorage';
 
@@ -10,7 +11,7 @@ export interface PhotoSyncSettings {
 }
 export interface PhotoSyncJob {
   id: string; huntId: string; photoId: string; operation: 'upload' | 'delete';
-  version: string; createdAt: number; nextAttempt: number; attempts: number; error?: string; blocked?: boolean;
+  version: string; createdAt: number; nextAttempt: number; attempts: number; error?: string; blocked?: boolean; failureScope?: PhotoFailureScope;
 }
 export function notifyPhotoSync() {
   window.dispatchEvent(new Event(PHOTO_SYNC_CHANGED));
@@ -31,7 +32,7 @@ function transaction<T>(mode: IDBTransactionMode, action: (tx: IDBTransaction, r
 
 /** Photo and queue mutation commit together: even a reload immediately after a
  * save/deletion cannot lose the pending cloud operation. No image bytes duplicated. */
-export function queuePhotoMutation(tx: IDBTransaction, photo: StoredPhoto, operation: PhotoSyncJob['operation']) {
+export function queuePhotoMutation(tx: IDBTransaction, photo: Pick<StoredPhoto, 'id' | 'huntId' | 'packId'>, operation: PhotoSyncJob['operation']) {
   if (!photo.huntId) return;
   const huntId = photo.huntId, jobs = tx.objectStore(JOB_STORE);
   const id = photoJobId(huntId, photo.id);
@@ -86,7 +87,7 @@ export function readPhotoSync(huntId?: string) {
 export function readSyncPhoto(id: string) {
   return transaction<StoredPhoto | undefined>('readonly', (tx, result) => { const r=tx.objectStore(PHOTO_STORE).get(id); r.onsuccess=()=>result(r.result); });
 }
-export async function finishPhotoJob(job: PhotoSyncJob, failure?: Pick<PhotoSyncJob, 'error'|'nextAttempt'|'attempts'|'blocked'>) {
+export async function finishPhotoJob(job: PhotoSyncJob, failure?: Pick<PhotoSyncJob, 'error'|'nextAttempt'|'attempts'|'blocked'|'failureScope'>) {
   await transaction<void>('readwrite', tx => {
     const store=tx.objectStore(JOB_STORE), request=store.get(job.id);
     request.onsuccess=()=>{ if (request.result?.version !== job.version) return; if(failure)store.put({...request.result,...failure});else store.delete(job.id); };
@@ -102,10 +103,22 @@ export async function cancelPhotoUpload(huntId: string, photoId: string) {
   });
   notifyPhotoSync();
 }
-export async function retryPhotoSync(huntId: string) {
+/** Manual Retry resets this hunt. Reconnection resets only network failures,
+ * including the message written by clients predating failureScope. */
+export async function retryPhotoSync(huntId?: string) {
   await transaction<void>('readwrite', tx => {
-    const r=tx.objectStore(JOB_STORE).openCursor();
-    r.onsuccess=()=>{const c=r.result;if(!c)return;if(c.value.huntId===huntId)c.update({...c.value,nextAttempt:0,blocked:false,error:undefined});c.continue();};
+    const request = tx.objectStore(JOB_STORE).openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      const job: PhotoSyncJob = cursor.value;
+      const networkError = job.failureScope === 'connection' ||
+        (!job.failureScope && job.error === 'Waiting for a connection. Keep the app open to send queued changes.');
+      if (huntId ? job.huntId === huntId : networkError) {
+        cursor.update({ ...job, attempts: 0, nextAttempt: 0, blocked: false, error: undefined, failureScope: undefined });
+      }
+      cursor.continue();
+    };
   });
   notifyPhotoSync();
 }

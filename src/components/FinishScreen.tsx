@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getAllPhotos, type StoredPhoto } from '@/lib/photoStorage';
+import { getPhotoSummaries, type PhotoSummary } from '@/lib/photoStorage';
 import { getPackById } from '@/data/packs';
 import { PhotoGallery } from './PhotoGallery';
+import { LocalPhotoImage } from './LocalPhotoImage';
 import { SaveAllPhotos } from './SaveAllPhotos';
 import { StickerArt } from './StickerArt';
 import { ConfettiBurst } from './ConfettiBurst';
@@ -26,7 +27,7 @@ interface FinishScreenProps {
 
 export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotosChanged, galleryOpen, setGalleryOpen, onReset, teamName, onShareWithEvent }: FinishScreenProps) {
   const team = teamName?.trim();
-  const [photos, setPhotos] = useState<StoredPhoto[]>([]);
+  const [photos, setPhotos] = useState<PhotoSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -34,7 +35,7 @@ export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotos
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPhotos((await getAllPhotos(packId, huntId ?? null)).sort((a, b) => a.challengeNumber - b.challengeNumber));
+      setPhotos((await getPhotoSummaries(packId, huntId ?? null)).sort((a, b) => a.challengeNumber - b.challengeNumber));
       setError(false);
     } catch {
       setError(true);
@@ -69,12 +70,12 @@ export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotos
           <h2 className="font-display text-2xl">Your team’s photos {loading ? '' : `(${photos.length})`}</h2>
           <SaveAllPhotos photos={photos} packId={packId} />
         </div>
-        <p className="mt-2 text-sm font-semibold text-ink/70">Save one ZIP containing this hunt’s labeled photos. Photos stay on this device until you save or share them.</p>
+        <p className="mt-2 text-sm font-semibold text-ink/70">Save the ZIP to keep your photos outside this browser, or open the gallery to save a favorite. Clearing browser storage can erase local photos.</p>
         {loading ? <p role="status" className="py-8 text-center">Loading your photos…</p>
           : error ? <div role="alert" className="py-8 text-center">Could not load your photos. <button onClick={() => void load()} className="min-h-11 px-3 font-bold underline">Retry</button></div>
           : photos.length ? <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {photos.map(photo => <button key={photo.id} onClick={() => setGalleryOpen(true)} className="overflow-hidden rounded-2xl border-2 border-ink bg-white text-left shadow-sticker-sm" aria-label={`View photo for ${photo.challengeTitle}`}>
-              <img src={photo.imageData} alt={photo.challengeTitle} loading="lazy" className="aspect-square w-full object-cover" />
+              <LocalPhotoImage photoId={photo.id} alt={photo.challengeTitle} loading="lazy" className="aspect-square w-full object-cover" />
               <span className="block p-3 text-sm font-extrabold">#{photo.challengeNumber} {photo.challengeTitle}</span>
             </button>)}
           </div> : <p className="my-6 rounded-2xl border-2 border-dashed border-ink/30 p-6 text-center font-semibold">You completed the hunt without photos. You can still revisit a clue and capture a favorite discovery.</p>}
@@ -86,7 +87,7 @@ export function FinishScreen({ packId, huntId, pathId, total, onReview, onPhotos
           <span aria-hidden="true" className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl border-2 border-ink bg-sky shadow-sticker-sm"><Users className="h-6 w-6" strokeWidth={2.5} /></span>
           <div className="min-w-0 flex-1">
             <h2 className="font-display text-2xl">Compare with other teams</h2>
-            <p className="text-sm font-semibold text-ink/75">Send the photos you choose to your leader’s private event, or start one, and see every team’s discovery clue by clue.</p>
+            <p className="text-sm font-semibold text-ink/75">Open the event to check which photos reached your leader and choose any others to send.</p>
           </div>
           <button onClick={onShareWithEvent} className="btn-3d btn-sky inline-flex min-h-12 flex-shrink-0 items-center gap-2 rounded-full px-5 font-extrabold text-ink">{huntId ? "Back to event & send photos" : "Share with an event"}</button>
         </div>}

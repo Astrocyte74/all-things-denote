@@ -1,3 +1,4 @@
+import { sharePhotoPreview } from './sharePhotoPreview';
 import type { StoredPhoto } from './photoStorage';
 import type { TeamNamingSettings } from './teamNaming';
 
@@ -44,6 +45,7 @@ export interface ReviewSnapshot {
   team?: ReviewTeam;
   teams: ReviewTeam[];
   photos: ReviewPhoto[];
+  capacity?: { usedBytes: number; maxBytes: number; usedPhotos: number; maxPhotos: number };
   /** Only returned with leader access. Never put this in a leader link. */
   joinToken?: string;
   /** Available choices only. Invite holders never receive team records or photos. */
@@ -167,7 +169,10 @@ export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto,
   const body = new FormData();
   const bytes = atob(photo.imageData.split(',')[1] || '');
   if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new ReviewError('This photo is too large to upload (5 MB maximum).', 413);
-  body.set('photo', new Blob([Uint8Array.from(bytes, char => char.charCodeAt(0))], { type: 'image/jpeg' }), 'photo.jpg');
+  const original = new Blob([Uint8Array.from(bytes, char => char.charCodeAt(0))], { type: 'image/jpeg' });
+  body.set('photo', original, 'photo.jpg');
+  const preview = await sharePhotoPreview(original);
+  if (preview) body.set('preview', preview, 'preview.jpg');
   body.set('metadata', JSON.stringify({ localPhotoId: photo.id, packId: photo.packId || 'scavenger', challengeId: photo.challengeId, teamName: photo.teamName, pathId: photo.pathId, capturedAt: photo.timestamp, automatic: options.automatic === true }));
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -192,9 +197,9 @@ export async function uploadReviewPhoto(access: EventAccess, photo: StoredPhoto,
 }
 
 /** Caller owns the returned Blob and should revoke object URLs when no longer needed. */
-export async function fetchReviewPhoto(access: EventAccess, photoId: string): Promise<Blob> {
+export async function fetchReviewPhoto(access: EventAccess, photoId: string, preview = false): Promise<Blob> {
   if (!API_BASE) throw new ReviewError('Group events are not connected yet.', 503);
-  const response = await fetch(`${API_BASE}/events/${access.eventId}/photos/${photoId}`, { headers: { Authorization: `Bearer ${access.token}` }, signal: AbortSignal.timeout(30000), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
+  const response = await fetch(`${API_BASE}/events/${access.eventId}/photos/${photoId}${preview ? '?size=preview' : ''}`, { headers: { Authorization: `Bearer ${access.token}` }, signal: AbortSignal.timeout(30000), cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
   if (!response.ok) throw new ReviewError('Could not load this photo. Refresh and retry.', response.status);
   return response.blob();
 }

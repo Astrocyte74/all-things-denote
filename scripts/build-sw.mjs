@@ -12,11 +12,13 @@ async function list(dir) {
 }
 const files = (await list(directory)).filter(file => !file.endsWith('/sw.js')).sort();
 const template = await readFile('scripts/service-worker.js', 'utf8');
-const hash = createHash('sha256').update(template);
+const digests = {};
 for (const file of files) {
-  hash.update(path.relative(directory, file)).update(await readFile(file));
+  const name = path.relative(directory, file).split(path.sep).join('/');
+  digests[name] = createHash('sha256').update(await readFile(file)).digest('hex');
 }
-const assets = files.map(file => path.relative(directory, file).split(path.sep).join('/'));
-const source = `const VERSION = ${JSON.stringify(hash.digest('hex').slice(0, 16))};\nconst ASSETS = ${JSON.stringify(assets)};\n${template}`;
+const manifest = JSON.stringify(digests);
+const version = createHash('sha256').update(template).update(manifest).digest('hex').slice(0, 16);
+const source = `const VERSION = ${JSON.stringify(version)};\nconst DIGESTS = ${manifest};\n${template}`;
 await writeFile(path.join(directory, 'sw.js'), source);
-console.log(`Offline cache includes ${assets.length} app files.`);
+console.log(`Offline cache includes ${files.length} app files.`);

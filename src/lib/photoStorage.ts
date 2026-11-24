@@ -1,6 +1,6 @@
 // IndexedDB storage for scavenger hunt photos
 
-import { openPhotoDB as openDB, PHOTO_STORE as STORE_NAME, SYNC_STORES } from './photoDB';
+import { openPhotoDB as openDB, PHOTO_STORE as STORE_NAME, PHOTO_SUMMARY_STORE, photoSummaryRow, SYNC_STORES } from './photoDB';
 import { queuePhotoMutation, notifyPhotoSync } from './photoSyncStore';
 
 export interface StoredPhoto {
@@ -20,16 +20,24 @@ export interface StoredPhoto {
   timestamp: number;
 }
 
+export type PhotoSummary = Omit<StoredPhoto, 'imageData'>;
+
 // Save a photo to IndexedDB
 export async function savePhoto(photo: StoredPhoto, replaceId?: string): Promise<void> {
   return writePhotos((store, transaction) => {
-    const existing = store.get(photo.id);
+    const summaries = transaction.objectStore(PHOTO_SUMMARY_STORE);
+    const existing = store.getKey(photo.id);
     existing.onsuccess = () => { if (!existing.result) queuePhotoMutation(transaction, photo, 'upload'); };
     if (replaceId && replaceId !== photo.id) {
-      const old = store.get(replaceId);
-      old.onsuccess = () => { if (old.result) { queuePhotoMutation(transaction, old.result, 'delete'); store.delete(replaceId); } };
+      const old = summaries.get(replaceId);
+      old.onsuccess = () => {
+        if (old.result) queuePhotoMutation(transaction, old.result, 'delete');
+        store.delete(replaceId);
+        summaries.delete(replaceId);
+      };
     }
-    store.put(photo);
+    summaries.put(photoSummaryRow(photo));
+    store.put(photo.packId ? photo : { ...photo, packId: 'scavenger' });
   });
 }
 
@@ -39,10 +47,15 @@ async function writePhotos(write: (store: IDBObjectStore, transaction: IDBTransa
   const db = await openDB();
   try {
     await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(SYNC_STORES, 'readwrite');
+      const transaction = db.transaction([...SYNC_STORES, PHOTO_SUMMARY_STORE], 'readwrite');
       transaction.oncomplete = () => resolve();
       transaction.onabort = () => reject(transaction.error ?? new Error('Photo storage was interrupted.'));
-      write(transaction.objectStore(STORE_NAME), transaction);
+      try {
+        write(transaction.objectStore(STORE_NAME), transaction);
+      } catch (error) {
+        transaction.abort();
+        reject(error);
+      }
     });
     notifyPhotoSync();
   } finally {
@@ -50,81 +63,74 @@ async function writePhotos(write: (store: IDBObjectStore, transaction: IDBTransa
   }
 }
 
-// Scope: undefined includes all hunts; null selects device-only photos; a string selects one event team.
-// Get all photos from IndexedDB (optionally limited to one pack)
-export async function getAllPhotos(packId?: string, huntId?: string | null): Promise<StoredPhoto[]> {
+/** Read through an index without deserializing unrelated image records. */
+async function read<T>(storeName: string, query: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const db = await openDB();
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const tx = db.transaction(storeName);
+      const req = query(tx.objectStore(storeName));
+      tx.onabort = () => reject(tx.error ?? new Error('Photo read interrupted.'));
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => resolve(req.result);
+    });
+  } finally { db.close(); }
+}
 
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    transaction.oncomplete = () => db.close();
-    transaction.onabort = () => db.close();
-    const store = transaction.objectStore(STORE_NAME);
-    const request = packId ? store.index('packId').getAll(packId) : store.getAll();
+function summaryScope(store: IDBObjectStore, packId?: string, huntId?: string | null) {
+  if (huntId === undefined) return packId ? { source: store.index('packId'), key: packId } : { source: store, key: undefined };
+  const scope = huntId ?? '';
+  return packId
+    ? { source: store.index('packHunt'), key: [packId, scope] }
+    : { source: store.index('huntScope'), key: scope };
+}
 
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result.filter((photo: StoredPhoto) => huntId === undefined || (photo.huntId ?? null) === huntId));
+// undefined includes all hunts, null selects device-only photos, a string selects one event team.
+export function getPhotoSummaries(packId?: string, huntId?: string | null): Promise<PhotoSummary[]> {
+  return read(PHOTO_SUMMARY_STORE, store => {
+    const { source, key } = summaryScope(store, packId, huntId);
+    return source.getAll(key);
   });
 }
 
-// Get photos for a specific challenge
-export async function getPhotosByChallenge(challengeId: string, huntId?: string | null): Promise<StoredPhoto[]> {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    transaction.oncomplete = () => db.close();
-    transaction.onabort = () => db.close();
-    const store = transaction.objectStore(STORE_NAME);
-    const index = store.index('challengeId');
-    const request = index.getAll(challengeId);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result.filter((photo: StoredPhoto) => huntId === undefined || (photo.huntId ?? null) === huntId));
+export function getPhotoCount(packId?: string, huntId?: string | null): Promise<number> {
+  return read(PHOTO_SUMMARY_STORE, store => {
+    const { source, key } = summaryScope(store, packId, huntId);
+    return source.count(key);
   });
+}
+
+export async function getStoredPhoto(id: string): Promise<StoredPhoto> {
+  const photo: StoredPhoto | undefined = await read(STORE_NAME, store => store.get(id));
+  if (!photo) throw new Error('This photo is no longer on the device.');
+  return photo;
 }
 
 // Delete a specific photo
 export async function deletePhoto(photoId: string): Promise<void> {
   return writePhotos((store, transaction) => {
-    const request = store.get(photoId);
-    request.onsuccess = () => { if (request.result) queuePhotoMutation(transaction, request.result, 'delete'); store.delete(photoId); };
-  });
-}
-
-// Clear all photos (optionally only those for one pack)
-export async function clearAllPhotos(packId?: string, huntId?: string | null): Promise<void> {
-  return writePhotos((store, transaction) => {
-    const request = packId ? store.index('packId').openCursor(IDBKeyRange.only(packId)) : store.openCursor();
-    request.onsuccess = function () {
-      const cursor = this.result;
-      if (cursor) {
-        if (huntId === undefined || (cursor.value.huntId ?? null) === huntId) { queuePhotoMutation(transaction, cursor.value, 'delete'); cursor.delete(); }
-        cursor.continue();
-      }
+    const summaries = transaction.objectStore(PHOTO_SUMMARY_STORE);
+    const request = summaries.get(photoId);
+    request.onsuccess = () => {
+      if (request.result) queuePhotoMutation(transaction, request.result, 'delete');
+      store.delete(photoId);
+      summaries.delete(photoId);
     };
   });
 }
 
-// Get photo count (optionally only for one pack)
-export async function getPhotoCount(packId?: string, huntId?: string | null): Promise<number> {
-  if (huntId !== undefined) return (await getAllPhotos(packId, huntId)).length;
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    transaction.oncomplete = () => db.close();
-    transaction.onabort = () => db.close();
-    const store = transaction.objectStore(STORE_NAME);
-    const request = packId ? store.index('packId').count(packId) : store.count();
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+export async function clearAllPhotos(packId?: string, huntId?: string | null): Promise<void> {
+  return writePhotos((store, transaction) => {
+    const summaries = transaction.objectStore(PHOTO_SUMMARY_STORE);
+    const { source, key } = summaryScope(summaries, packId, huntId);
+    const request = source.openCursor(key);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      queuePhotoMutation(transaction, cursor.value, 'delete');
+      store.delete(cursor.primaryKey);
+      cursor.delete();
+      cursor.continue();
+    };
   });
-}
-
-// Check if a challenge has a photo
-export async function hasPhotoForChallenge(challengeId: string): Promise<boolean> {
-  const photos = await getPhotosByChallenge(challengeId);
-  return photos.length > 0;
 }

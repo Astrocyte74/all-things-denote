@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Download, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { downloadPhotoArchive } from '@/lib/photoExport';
-import type { StoredPhoto } from '@/lib/photoStorage';
+import type { PhotoSummary } from '@/lib/photoStorage';
 
-export function SaveAllPhotos({ photos, packId }: { photos: StoredPhoto[]; packId: string }) {
+export function SaveAllPhotos({ photos, packId }: { photos: PhotoSummary[]; packId: string }) {
   const [saving, setSaving] = useState(false);
   return <button
     className="btn-3d btn-go inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 font-extrabold text-ink"

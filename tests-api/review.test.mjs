@@ -23,9 +23,10 @@ async function join(event, name = 'Lost Sheep', credential = randomToken()) {
   assert.equal(response.status, 200, await response.clone().text());
   return response.json();
 }
-async function upload(access, overrides = {}, bytes = jpeg, type = 'image/jpeg') {
+async function upload(access, overrides = {}, bytes = jpeg, type = 'image/jpeg', preview) {
   const form = new FormData();
   form.set('metadata', JSON.stringify({ localPhotoId: 'local-photo-1', packId: 'christmas', challengeId: 'christmas:star', capturedAt: Date.now(), teamName: 'Captured name', pathId: 'B', ...overrides }));
+  if (preview) form.set('preview', new Blob([preview], { type: 'image/jpeg' }), 'preview.jpg');
   form.set('photo', new Blob([bytes], { type }), 'photo.jpg');
   return call(`/events/${access.eventId}/photos`, access, 'POST', form);
 }
@@ -100,11 +101,63 @@ test('type, size, paths, and metadata are checked before reserving storage', asy
 
 test('event and team capacities are enforced in the reservation transaction', async () => {
   const event = await create(), team = await join(event);
-  await db.prepare('UPDATE events SET photo_bytes = ? WHERE id = ?').bind(100 * 1024 * 1024 - jpeg.length, event.access.eventId).run();
+  await db.prepare('UPDATE events SET photo_bytes = ? WHERE id = ?').bind(event.snapshot.capacity.maxBytes - jpeg.length, event.access.eventId).run();
   const [a, b] = await Promise.all([upload(team.access, { localPhotoId:'limit-a' }), upload(team.access, { localPhotoId:'limit-b' })]);
   assert.deepEqual([a.status, b.status].sort(), [201,409]);
+  assert.equal((await [a, b].find(response => response.status === 409).json()).code, 'EVENT_STORAGE_LIMIT');
+  await db.prepare('UPDATE events SET photo_bytes = ? WHERE id = ?').bind(event.snapshot.capacity.maxBytes - 8, event.access.eventId).run();
+  assert.equal((await (await upload(team.access, { localPhotoId: 'cannot-fit' })).json()).code, 'PHOTO_EXCEEDS_REMAINING_STORAGE');
+  assert.equal((await upload(team.access, { localPhotoId: 'small-fits' }, new Uint8Array([255,216,255,1,255,217]))).status, 201);
   for (let i = 1; i < 20; i++) await join(event, `Team ${i}`);
   assert.equal((await call(`/events/${event.access.eventId}/teams`, event.invite, 'POST', { name:'One too many',token:randomToken() })).status, 409);
+});
+
+test('only authorized thumbnail requests receive the preview; originals, accounting and deletion stay consistent', async () => {
+  const event = await create(), team = await join(event), other = await join(event, 'Another team');
+  const preview = new Uint8Array([255,216,255,225,1,255,217]);
+  const uploaded = await upload(team.access, {}, jpeg, 'image/jpeg', preview);
+  assert.equal(uploaded.status, 201, await uploaded.clone().text());
+  const photo = (await uploaded.json()).photo;
+  const url = `/events/${event.access.eventId}/photos/${photo.id}`;
+  const bytes = async response => new Uint8Array(await response.arrayBuffer());
+  assert.deepEqual(await bytes(await call(url, event.access)), jpeg);
+  assert.deepEqual(await bytes(await call(url + '?size=preview', event.access)), preview);
+  assert.equal((await call(url + '?size=preview', event.invite)).status, 403);
+  assert.equal((await call(url + '?size=preview', other.access)).status, 404);
+  assert.equal((await upload(team.access, {}, jpeg, 'image/jpeg', preview)).status, 200);
+  const state = async access => (await call(`/events/${event.access.eventId}`, access)).json();
+  const { capacity } = await state(event.access);
+  assert.deepEqual(capacity, { usedPhotos: 1, maxPhotos: 300, usedBytes: jpeg.length + preview.length, maxBytes: 256 * 1024 * 1024 });
+  assert.equal((await state(event.invite)).capacity, undefined);
+  assert.equal((await call(url, event.access, 'DELETE')).status, 200);
+  const bucket = await mf.getR2Bucket('PHOTOS');
+  assert.equal((await bucket.list({prefix: `events/${event.access.eventId}/`})).objects.length, 0);
+  assert.equal((await state(event.access)).capacity.usedBytes, 0);
+  const old = (await (await upload(team.access, { localPhotoId: 'legacy' })).json()).photo;
+  assert.deepEqual(await bytes(await call(`/events/${event.access.eventId}/photos/${old.id}?size=preview`, event.access)), jpeg);
+  assert.equal((await upload(team.access, { localPhotoId: 'bad' }, jpeg, 'image/jpeg', new Uint8Array(65537))).status, 400);
+});
+
+test('photo limits report which scope is full', async () => {
+  const event = await create(), team = await join(event);
+  const id = event.access.eventId;
+  await db.prepare('UPDATE events SET photo_count = 300 WHERE id = ?').bind(id).run();
+  assert.equal((await (await upload(team.access)).json()).code, 'EVENT_PHOTO_LIMIT');
+  await db.prepare('UPDATE events SET photo_count = 0 WHERE id = ?').bind(id).run();
+  // Fill one team's allowance without sending dozens of R2 fixtures.
+  await db.prepare(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i < 60)
+    INSERT INTO photos (id,event_id,team_id,local_photo_id,challenge_id,challenge_number,challenge_title,captured_at,uploaded_at,bytes,digest,ready)
+    SELECT 'cap-'||i, ?, ?, 'stub-'||i, 'christmas:star', 1, 'Star', 0, 0, 0, 'stub', 1 FROM n`).bind(id, team.snapshot.team.id).run();
+  assert.equal((await (await upload(team.access)).json()).code, 'TEAM_PHOTO_LIMIT');
+  const another = await join(event, 'More room');
+  assert.equal((await upload(another.access)).status, 201);
+});
+
+test('health advertises compatibility without event access', async () => {
+  const health = await (await call('/health')).json();
+  assert.equal(health.photoProtocol, 2);
+  assert.deepEqual(health.packs['scripture-freeze-frames'].length, 6);
+  assert.ok(health.packs.christmas.includes('christmas:star'));
 });
 
 test('expiry revokes every role and scheduled cleanup removes stored objects', async () => {
@@ -158,6 +211,78 @@ test('creation rate limits and CORS reject unrelated sites without disclosing cr
   assert.equal(denied.status, 403); assert.equal(denied.headers.get('Access-Control-Allow-Origin'), null);
   const allowed = await call('/events', null, 'OPTIONS', undefined, {Origin:'https://astrocyte74.github.io'});
   assert.equal(allowed.status, 204); assert.equal(allowed.headers.get('Access-Control-Allow-Origin'), 'https://astrocyte74.github.io');
+});
+
+test('a shared network cannot take all active slots; it regains capacity on deletion and expiry across a week boundary', async () => {
+  const now = Date.now(), ip = 'same-venue';
+  const createHere = () => call('/events', null, 'POST', { title: 'Network fixture', packId: 'scavenger' }, { 'CF-Connecting-IP': ip });
+  const first = await (await createHere()).json();
+  const salt = await db.prepare('SELECT value FROM event_network_salt').first('value');
+  const previousKey = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${Math.floor(now / (7 * 86400000)) - 1}:${ip}`))).toString('hex');
+  const stubs = Array.from({length: 28}, () => crypto.randomUUID());
+  await db.batch(stubs.map(id => db.prepare(`INSERT INTO events(id,title,pack_id,leader_hash,join_token,created_at,expires_at,creator_network)
+    VALUES(?,?,?,?,?,?,?,?)`).bind(id, 'Capacity', 'scavenger', 'stub', 'stub', now - 86400000, now + 100000, previousKey)));
+  try {
+    const attempts = await Promise.all([createHere(), createHere()]);
+    assert.deepEqual(attempts.map(r => r.status).sort(), [201, 429]);
+    assert.equal((await attempts.find(r => r.status === 429).json()).code, 'NETWORK_EVENT_LIMIT');
+    assert.equal((await call(`/events/${first.access.eventId}`, first.access, 'DELETE')).status, 200);
+    assert.equal(await db.prepare('SELECT creator_network FROM events WHERE id = ?').bind(first.access.eventId).first('creator_network'), null);
+    assert.equal((await createHere()).status, 201);
+    await db.prepare('UPDATE events SET expires_at = ? WHERE id = ?').bind(now - 1, stubs[0]).run();
+    assert.equal((await createHere()).status, 201);
+    assert.equal((await call('/events', null, 'POST', {title: 'Other venue', packId: 'christmas'}, {'CF-Connecting-IP': 'other-venue'})).status, 201);
+  } finally {
+    await db.batch(stubs.map(id => db.prepare('DELETE FROM events WHERE id = ?').bind(id)));
+  }
+});
+
+test('failed preview writes and cleanup retry keep both objects and counters consistent', async () => {
+  const {default: worker} = await import('../.wrangler/review-build/index.js');
+  const event = await create(), team = await join(event), id = event.access.eventId;
+  const bucket = await mf.getR2Bucket('PHOTOS');
+  const prefix = `events/${id}/`;
+  const form = new FormData();
+  form.set('metadata', JSON.stringify({localPhotoId: 'interrupted-preview', packId: 'christmas', challengeId: 'christmas:star', capturedAt: Date.now()}));
+  form.set('photo', new Blob([jpeg], {type: 'image/jpeg'}), 'photo.jpg');
+  form.set('preview', new Blob([jpeg], {type: 'image/jpeg'}), 'preview.jpg');
+  const send = photos => worker.fetch(new Request('https://review.test/events/' + id + '/photos', {
+    method: 'POST', headers: {Authorization: 'Bearer ' + team.access.token}, body: form,
+  }), {DB: db, PHOTOS: photos, ALLOWED_ORIGINS: ''});
+  const interrupted = await send({
+    put: (key, ...args) => { if (key.endsWith('.preview.jpg')) throw new Error('R2 temporarily unavailable'); return bucket.put(key, ...args); },
+    delete: async () => { throw new Error('R2 temporarily unavailable'); },
+  });
+  assert.equal(interrupted.status, 500);
+  assert.equal((await bucket.list({prefix})).objects.length, 1);
+  await db.prepare('UPDATE photos SET uploaded_at = ? WHERE event_id = ?').bind(Date.now()-121000, id).run();
+  const retry = await send({ delete: async () => { throw new Error('R2 still unavailable'); } });
+  assert.equal(retry.status, 500);
+  assert.equal((await db.prepare('SELECT ready FROM photos WHERE event_id = ?').bind(id).first()).ready, -1);
+  assert.equal((await db.prepare('SELECT photo_bytes FROM events WHERE id = ?').bind(id).first()).photo_bytes, 2 * jpeg.length);
+  assert.equal((await send(bucket)).status, 201);
+  assert.equal((await bucket.list({prefix})).objects.length, 2);
+  assert.equal((await db.prepare('SELECT photo_bytes FROM events WHERE id = ?').bind(id).first()).photo_bytes, 2 * jpeg.length);
+});
+
+test('64 unexpired events share the deployment; deleting or expiring one immediately frees a slot', async () => {
+  const now = Date.now();
+  const baseline = await db.prepare('SELECT COUNT(*) AS total FROM events WHERE deleted = 0 AND expires_at > ?').bind(now).first('total');
+  const fixtures = Array.from({ length: 64 - baseline }, () => crypto.randomUUID());
+  const insert = id => db.prepare('INSERT INTO events(id,title,pack_id,leader_hash,join_token,created_at,expires_at) VALUES(?,?,?,?,?,?,?)')
+    .bind(id, 'Capacity fixture', 'christmas', 'hash', 'join', now, now + 100000);
+  await db.batch(fixtures.map(insert));
+  try {
+    const response = await call('/events', null, 'POST', { title: 'Full', packId: 'christmas' });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).code, 'ACTIVE_EVENT_LIMIT');
+    await db.prepare('UPDATE events SET expires_at = ? WHERE id = ?').bind(now - 1, fixtures[0]).run();
+    const available = await create();
+    assert.equal((await call(`/events/${available.access.eventId}`, available.access, 'DELETE')).status, 200);
+    await create();
+  } finally {
+    await db.batch(fixtures.map(id => db.prepare('DELETE FROM events WHERE id = ?').bind(id)));
+  }
 });
 
 test('a full expiry batch and interrupted uploads clean up within the D1 Free request budget', async () => {

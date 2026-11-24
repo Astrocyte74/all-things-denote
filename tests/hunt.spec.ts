@@ -87,6 +87,75 @@ test('invalid photos offer recovery without completing a challenge', async ({ pa
   expect(await photoCount(page)).toBe(1);
 });
 
+test('retaking and deleting a gallery photo updates the current clue without navigating', async ({ page }) => {
+  await start(page);
+  await page.getByLabel('Take photo', { exact: true }).setInputFiles(image);
+  const shot = page.getByTitle('View photo 1', { exact: true });
+  await expect(shot.locator('img')).toHaveAttribute('src', /^data:image/);
+  const original = await shot.locator('img').getAttribute('src');
+  await shot.click();
+  await page.getByRole('button', { name: /View photo for .* full screen/ }).click();
+  await page.getByRole('button', { name: 'Retake photo', exact: true }).click();
+  await page.getByLabel('Retake photo file', { exact: true }).setInputFiles({
+    ...image, buffer: Buffer.from(image.buffer.toString().replace('gold', 'blue')),
+  });
+  await expect(page.getByText('Photo replaced on this device.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Close photo gallery' }).click();
+  await expect(shot.locator('img')).toHaveAttribute('src', /^data:image/);
+  await expect(shot.locator('img')).not.toHaveAttribute('src', original!);
+  await shot.click();
+  await page.getByRole('button', { name: 'Delete photo #1', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /^📸 Photo Gallery/ })).toHaveCount(0);
+  await expect(shot).toHaveCount(0);
+  await expect(page.getByText('Your shots', { exact: true })).toHaveCount(0);
+});
+
+test('upgrading saved photos keeps games and teams separate and reads originals only for visible clues', async ({ page }) => {
+  await page.goto('./manifest.json');
+  await page.evaluate(({ ids }) => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('ScavengerHuntPhotos', 2);
+    request.onupgradeneeded = () => {
+      const store = request.result.createObjectStore('photos', { keyPath: 'id' });
+      for (const key of ['challengeId', 'timestamp']) store.createIndex(key, key);
+      const row = { challengeId: ids[0], timestamp: 0, imageData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQYV2NgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=' };
+      store.put({ ...row, id: 'my-first' });
+      store.put({ ...row, id: 'other-team', huntId: 'event:one:team' });
+      store.put({ ...row, id: 'other-game', packId: 'creation' });
+      for (let n = 0; n < 80; n++) store.put({ ...row, id: 'later-' + n, challengeId: ids[1] });
+    };
+    request.onsuccess = () => { request.result.close(); resolve(); };
+    request.onerror = () => reject(request.error);
+  }), { ids });
+  await page.addInitScript(() => {
+    const keys: unknown[] = [];
+    Object.assign(window, { originalPhotoReads: keys });
+    const get = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function (key) {
+      if (this.name === 'photos') keys.push(key);
+      return get.call(this, key);
+    };
+    for (const source of [IDBObjectStore.prototype, IDBIndex.prototype]) {
+      const all = source.getAll;
+      source.getAll = function (...args: Parameters<IDBObjectStore['getAll']>) {
+        if (('objectStore' in this ? this.objectStore.name : this.name) === 'photos') keys.push('bulk');
+        return all.apply(this, args);
+      };
+    }
+  });
+  await start(page);
+  await expect(page.getByTitle('View photo 1', { exact: true }).locator('img')).toHaveAttribute('src', /^data:image/);
+  await expect(page.getByTitle('View photo 2', { exact: true })).toHaveCount(0);
+  const reads = () => page.evaluate(() => (window as unknown as { originalPhotoReads: string[] }).originalPhotoReads);
+  expect(Array.from(new Set(await reads()))).toEqual(['my-first']);
+  await page.getByRole('button', { name: 'Next clue', exact: true }).click();
+  await expect(page.getByRole('button', { name: '+76', exact: true })).toBeVisible();
+  await page.getByTitle('View photo 4', { exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByTitle('View photo 4', { exact: true }).locator('img')).toHaveAttribute('src', /^data:image/);
+  expect(new Set(await reads()).size).toBeLessThanOrEqual(5);
+  expect(await reads()).not.toContain('bulk');
+});
+
 test('a transaction abort never marks a challenge complete; retry saves once', async ({ page }) => {
   await start(page);
   await page.evaluate(() => {
@@ -114,19 +183,23 @@ test('finish screen exports every photo for this pack, with unique labeled JPEGs
   await page.locator('input[type=file]').setInputFiles(image);
   await expect(page.getByRole('heading', { name: 'Hunt complete!' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your team’s photos (1)' })).toBeVisible();
-  // A second photo of the same challenge must not overwrite the first in a ZIP.
-  await page.evaluate(() => new Promise<void>(resolve => {
+  // Seed an additional keepsake of the same clue and a separate game.
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const request = indexedDB.open('ScavengerHuntPhotos');
     request.onsuccess = () => {
       const db = request.result;
-      const tx = db.transaction('photos', 'readwrite');
-      const store = tx.objectStore('photos');
-      store.getAll().onsuccess = event => {
-        const photo = (event.target as IDBRequest).result[0];
-        store.put({ ...photo, id: 'duplicate', timestamp: photo.timestamp + 1 });
-        store.put({ ...photo, id: 'other-pack', packId: 'creation' });
-      };
+      const tx = db.transaction(['photos', 'photoSummaries'], 'readwrite');
+      for (const name of ['photos', 'photoSummaries']) {
+        const store = tx.objectStore(name);
+        const rows = store.getAll();
+        rows.onsuccess = () => {
+          const photo = rows.result[0];
+          store.put({ ...photo, id: 'duplicate', timestamp: photo.timestamp + 1 });
+          store.put({ ...photo, id: 'other-pack', packId: 'creation' });
+        };
+      }
       tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onabort = () => { db.close(); reject(tx.error); };
     };
   }));
   await page.reload();
@@ -172,7 +245,8 @@ test('unvisited pack works offline, including photos, fonts, and artwork', async
   await page.locator('input[type=file]').setInputFiles(image);
   await expect(page.getByText('Nailed it!', { exact: true })).toBeVisible();
   expect(await photoCount(page, 'creation')).toBe(1);
-  expect(await page.evaluate(() => [...document.images].every(img => img.complete && img.naturalWidth > 0))).toBe(true);
+  await page.getByTitle('View photo 1', { exact: true }).scrollIntoViewIfNeeded();
+  await expect.poll(() => page.evaluate(() => [...document.images].every(img => img.complete && img.naturalWidth > 0))).toBe(true);
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.fonts.check('16px "Lilita One"'))).toBe(true);
 });

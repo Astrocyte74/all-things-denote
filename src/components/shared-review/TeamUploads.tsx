@@ -18,7 +18,7 @@ export function TeamUploads({ access, photos, busy, onRemove, refresh }: {
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
-      <p className="mt-2 text-sm font-semibold text-ink/70">Delete cloud copies whenever you want, even after uploads close. Originals stay on your devices. Copies someone already downloaded cannot be removed.</p>
+      <p className="mt-2 text-sm font-semibold text-ink/70">You can remove shared photos even after uploads close. Your hunt gallery and any copies people have downloaded keep their photos.</p>
       {photos.length > 0 ? <>
         <button type="button" disabled={busy} onClick={() => onRemove(photos)} className="btn-3d btn-coral mt-3 inline-flex min-h-11 items-center gap-2 rounded-2xl px-4 text-sm font-extrabold text-ink">
           <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete all my uploads
@@ -35,7 +35,7 @@ export function TeamUploads({ access, photos, busy, onRemove, refresh }: {
 }
 
 function UploadedPhoto({ access, photo, busy, onRemove }: { access: EventAccess; photo: ReviewPhoto; busy: boolean; onRemove: () => void }) {
-  const { url, failed } = useReviewPhotoUrl(access, photo.id);
+  const { url, failed } = useReviewPhotoUrl(access, photo.id, true);
   return <li className="overflow-hidden rounded-2xl border-2 border-ink bg-cream">
     <div className="paper-dots flex aspect-[4/5] items-center justify-center p-2">
       {url ? <img src={url} alt={`Uploaded clue ${photo.challengeNumber}`} className="h-full w-full object-contain" />
@@ -57,7 +57,7 @@ export function DeleteUploadsDialog({ photos, busy, error, onClose, onDelete }: 
       <div className="pointer-events-none fixed inset-0 z-[76] flex items-center justify-center p-4">
         <AlertDialog.Content onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} className="sticker-card pointer-events-auto w-full max-w-md p-5 text-ink sm:p-6">
           <AlertDialog.Title className="font-display text-2xl">{count === 1 ? 'Delete this cloud photo?' : `Delete your ${count} cloud photos?`}</AlertDialog.Title>
-          <AlertDialog.Description className="mt-2 text-sm font-bold leading-snug text-ink/75">Removes these uploads from the event and leader’s review immediately. Originals on your devices stay saved. Copies already downloaded by others cannot be removed.</AlertDialog.Description>
+          <AlertDialog.Description className="mt-2 text-sm font-bold leading-snug text-ink/75">The selected photos will disappear from the event and the leader’s review. Deleting a shared copy leaves the photo in your hunt gallery and in any downloads people have already made.</AlertDialog.Description>
           {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
           <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
             <button type="button" disabled={busy} onClick={onDelete} className="btn-3d btn-coral min-h-12 flex-1 rounded-2xl px-4 font-display text-lg text-ink">{busy ? 'Deleting…' : count === 1 ? 'Delete cloud photo' : 'Delete cloud photos'}</button>

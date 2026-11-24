@@ -4,6 +4,8 @@ import type { EventAccess, ReviewEvent, ReviewSnapshot, ReviewTeam } from './sha
 /** An event hunt has its own progress and photos; local games are left intact. */
 export interface EventHunt {
   access: EventAccess;
+  /** The join-only token originally scanned by this team. */
+  joinToken?: string;
   event: ReviewEvent;
   team: ReviewTeam;
   pathId: string;

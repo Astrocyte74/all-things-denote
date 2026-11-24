@@ -16,7 +16,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [e2e, review]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run lint && npm run test:review-api
+        if: matrix.suite == 'review'
+      - run: npm run test:${{ matrix.suite }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failure-${{ matrix.suite }}
+          path: test-results
+          retention-days: 3
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +50,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Apply migrations and deploy Worker when a release token is configured
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then npm run release:worker; fi
+      - name: Verify live Worker matches these game packs and this release
+        run: npm run verify:worker
       - run: npm run build
       - uses: actions/configure-pages@v5
         with:

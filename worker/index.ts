@@ -1,7 +1,7 @@
 import { PACKS } from '../src/data/packs';
 import { availableTeamNames, DEFAULT_TEAM_NAMING, MAX_NAME_POOL, teamNameKey, type TeamNamingSettings } from '../src/lib/teamNaming';
 
-interface Env { DB: D1Database; PHOTOS: R2Bucket; ALLOWED_ORIGINS: string }
+interface Env { DB: D1Database; PHOTOS: R2Bucket; ALLOWED_ORIGINS: string; WORKER_BUILD?: string }
 interface EventRow {
   id: string; title: string; pack_id: string; leader_hash: string; join_token: string;
   created_at: number; expires_at: number; closed: number; deleted: number;
@@ -14,16 +14,19 @@ interface PhotoRow {
   id: string; event_id: string; team_id: string; local_photo_id: string;
   challenge_id: string; challenge_number: number; challenge_title: string;
   team_name: string | null; path_id: string | null; captured_at: number; uploaded_at: number;
-  bytes: number; digest: string; ready: number;
+  bytes: number; preview_bytes: number; digest: string; ready: number;
 }
 interface Auth { event: EventRow; role: 'leader' | 'join' | 'team'; team?: TeamRow }
 class HttpError extends Error { constructor(public status: number, message: string, public code?: string) { super(message); } }
 const DAY = 86_400_000;
 const MAX_FILE = 5 * 1024 * 1024;
-const MAX_EVENT_BYTES = 100 * 1024 * 1024;
+const MAX_PREVIEW = 64 * 1024;
+const MAX_EVENT_BYTES = 256 * 1024 * 1024;
 const MAX_TEAMS = 20;
 const MAX_PHOTOS = 300;
-const MAX_ACTIVE_EVENTS = 20;
+const MAX_ACTIVE_EVENTS = 64;
+const MAX_NETWORK_EVENTS = 30;
+const MAX_TEAM_PHOTOS = 60;
 const MAX_EVENTS_PER_IP_PER_HOUR = 30;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const ID = /^[a-f0-9-]{36}$/;
@@ -116,7 +119,7 @@ async function authorize(request: Request, env: Env, id: string): Promise<Auth> 
   }
   if (!auth) throw new HttpError(401, 'This private link is not valid. Ask your leader for a new link.');
   const retryLeaderDelete = auth.role === 'leader' && request.method === 'DELETE' && new URL(request.url).pathname === `/events/${id}`;
-  if ((event.deleted || event.expires_at <= Date.now()) && !retryLeaderDelete) throw new HttpError(410, 'This event has ended or expired. Photos saved on your device are still there.');
+  if ((event.deleted || event.expires_at <= Date.now()) && !retryLeaderDelete) throw new HttpError(410, 'This event has ended or expired.', 'EVENT_EXPIRED');
   return auth;
 }
 function leader(auth: Auth) { if (auth.role !== 'leader') throw new HttpError(403, 'Only the leader can do that.'); }
@@ -129,13 +132,17 @@ async function snapshot(env: Env, auth: Auth) {
     return { ...result, joinOptions: { names: auth.event.closed || !spotsRemaining ? [] : availableTeamNames(result.event.teamNaming, used.map(team => team.name)), spotsRemaining } };
   }
   const all = auth.role === 'leader';
-  const [teams, photos] = await env.DB.batch([
+  const [teams, photos, counters] = await env.DB.batch([
     env.DB.prepare(`SELECT * FROM teams WHERE event_id = ?${all ? '' : ' AND id = ?'} ORDER BY joined_at, id`).bind(...(all ? [auth.event.id] : [auth.event.id, auth.team!.id])),
     env.DB.prepare(`SELECT * FROM photos WHERE event_id = ? AND ready = 1${all ? '' : ' AND team_id = ?'} ORDER BY challenge_number, uploaded_at, id`).bind(...(all ? [auth.event.id] : [auth.event.id, auth.team!.id])),
+    ...(all ? [env.DB.prepare('SELECT photo_bytes, photo_count FROM events WHERE id = ?').bind(auth.event.id)] : []),
   ]);
   result.teams = (teams.results as unknown as TeamRow[]).map(teamView);
   result.photos = (photos.results as unknown as PhotoRow[]).map(photoView);
-  return result;
+  const usage = counters?.results[0] as Pick<EventRow, 'photo_bytes' | 'photo_count'> | undefined;
+  return usage ? {
+    ...result, capacity: { usedBytes: usage.photo_bytes, maxBytes: MAX_EVENT_BYTES, usedPhotos: usage.photo_count, maxPhotos: MAX_PHOTOS },
+  } : result;
 }
 
 async function createEvent(request: Request, env: Env) {
@@ -146,15 +153,33 @@ async function createEvent(request: Request, env: Env) {
   const settings = namingSettings(input.teamNaming);
   if (input.autoUploadDefault !== undefined && typeof input.autoUploadDefault !== 'boolean') throw new HttpError(400, 'Choose whether photos send automatically by default.');
   const now = Date.now();
-  const rateKey = await hash(`${request.headers.get('CF-Connecting-IP') || 'local'}:${Math.floor(now / 3_600_000)}`);
+  const address = request.headers.get('CF-Connecting-IP') || 'local';
+  const rateKey = await hash(`${address}:${Math.floor(now / 3_600_000)}`);
   const rate = await env.DB.prepare('INSERT INTO rate_limits(key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 WHERE count < ? RETURNING count').bind(rateKey, now + 2 * 3_600_000, MAX_EVENTS_PER_IP_PER_HOUR).first();
   if (!rate) throw new HttpError(429, 'This network has reached its hourly event creation limit. Try again at the start of the next hour.');
   const id = crypto.randomUUID();
   const leaderToken = token();
   const joinToken = token();
-  const created = await env.DB.prepare('INSERT INTO events(id, title, pack_id, leader_hash, join_token, created_at, expires_at, team_naming, auto_upload_default) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM events WHERE deleted = 0 AND expires_at > ?) < ?')
-    .bind(id, title, pack.id, await hash(leaderToken), joinToken, now, now + 7 * DAY, JSON.stringify(settings), input.autoUploadDefault === true ? 1 : 0, now, MAX_ACTIVE_EVENTS).run();
-  if (!created.meta.changes) throw new HttpError(503, 'Shared review is at capacity. Please try again later.');
+  // Events live for a week; count both possible creation weeks without
+  // retaining an IP address or a stable cross-week network identifier.
+  const salt = await env.DB.prepare('SELECT value FROM event_network_salt').first<string>('value');
+  if (!salt) throw new Error('Missing network key salt');
+  const week = Math.floor(now / (7 * DAY));
+  const networkKey = (period: number) => hash(`${salt}:${period}:${address}`);
+  const [network, previous] = await Promise.all([networkKey(week), networkKey(week - 1)]);
+  const [created, usage] = await env.DB.batch<{ active: number }>([
+    env.DB.prepare(`INSERT INTO events(id, title, pack_id, leader_hash, join_token, created_at, expires_at, team_naming, auto_upload_default, creator_network)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE (SELECT COUNT(*) FROM events WHERE deleted = 0 AND expires_at > ?) < ?
+        AND (SELECT COUNT(*) FROM events WHERE creator_network IN (?, ?) AND deleted = 0 AND expires_at > ?) < ?`)
+      .bind(id, title, pack.id, await hash(leaderToken), joinToken, now, now + 7 * DAY, JSON.stringify(settings), input.autoUploadDefault === true ? 1 : 0, network,
+        now, MAX_ACTIVE_EVENTS, network, previous, now, MAX_NETWORK_EVENTS),
+    env.DB.prepare('SELECT COUNT(*) AS active FROM events WHERE creator_network IN (?, ?) AND deleted = 0 AND expires_at > ?').bind(network, previous, now),
+  ]);
+  if (!created.meta.changes) {
+    if (usage.results[0].active >= MAX_NETWORK_EVENTS) throw new HttpError(429, 'This network has 30 active events. Delete a finished event using its private leader link, or wait for one to expire.', 'NETWORK_EVENT_LIMIT');
+    throw new HttpError(503, 'All 64 event spaces are in use. A leader can delete a finished event to free a space immediately.', 'ACTIVE_EVENT_LIMIT');
+  }
   const event = (await env.DB.prepare('SELECT * FROM events WHERE id = ?').bind(id).first<EventRow>())!;
   return json({ access: { eventId: id, role: 'leader', token: leaderToken }, snapshot: await snapshot(env, { event, role: 'leader' }) }, 201);
 }
@@ -278,12 +303,19 @@ async function updatePhotoStatus(request: Request, env: Env, auth: Auth) {
 
 function objectKey(photo: Pick<PhotoRow, 'id' | 'event_id'>) { return `events/${photo.event_id}/${photo.id}.jpg`; }
 
+function previewKey(photo: Pick<PhotoRow, 'id' | 'event_id'>) { return `events/${photo.event_id}/${photo.id}.preview.jpg`; }
+function photoKeys(photo: PhotoRow) { return photo.preview_bytes > 0 ? [objectKey(photo), previewKey(photo)] : [objectKey(photo)]; }
+function validJpeg(bytes: ArrayBuffer) {
+  const image = new Uint8Array(bytes);
+  return image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff && image[image.length - 2] === 0xff && image[image.length - 1] === 0xd9;
+}
+
 async function uploadPhoto(request: Request, env: Env, auth: Auth) {
   if (auth.role !== 'team') throw new HttpError(403, 'Join a team before uploading photos.');
   if (auth.event.closed) throw new HttpError(409, 'Uploads are closed for this event. Ask your leader to reopen them.', 'UPLOADS_CLOSED');
   const contentType = request.headers.get('Content-Type') || '';
   if (!contentType.startsWith('multipart/form-data;')) throw new HttpError(415, 'Send a JPEG photo with its clue details.');
-  const data = await boundedBody(request, MAX_FILE + 16384);
+  const data = await boundedBody(request, MAX_FILE + MAX_PREVIEW + 16384);
   let form: FormData;
   try { form = await new Request('https://upload.invalid', { method: 'POST', headers: { 'Content-Type': contentType }, body: data }).formData(); }
   catch { throw new HttpError(400, 'Could not read this photo.'); }
@@ -307,8 +339,15 @@ async function uploadPhoto(request: Request, env: Env, auth: Auth) {
   const captured = input.capturedAt;
   if (typeof captured !== 'number' || !Number.isSafeInteger(captured) || captured < 0 || captured > Date.now() + DAY) throw new HttpError(400, 'Invalid photo date.');
   const bytes = await file.arrayBuffer();
-  const prefix = new Uint8Array(bytes);
-  if (prefix[0] !== 0xff || prefix[1] !== 0xd8 || prefix[2] !== 0xff || prefix[prefix.length - 2] !== 0xff || prefix[prefix.length - 1] !== 0xd9) throw new HttpError(415, 'This file is not a JPEG photo.');
+  if (!validJpeg(bytes)) throw new HttpError(415, 'This file is not a JPEG photo.');
+  const previewFile = form.get('preview');
+  let preview: ArrayBuffer | null = null;
+  if (previewFile !== null) {
+    if (typeof previewFile === 'string' || previewFile.type !== 'image/jpeg' || !previewFile.size || previewFile.size > MAX_PREVIEW) throw new HttpError(400, 'Invalid photo preview.');
+    preview = await previewFile.arrayBuffer();
+    if (!validJpeg(preview)) throw new HttpError(415, 'This preview is not a JPEG photo.');
+  }
+  const uploadBytes = bytes.byteLength + (preview?.byteLength ?? 0);
   const digest = await hash(bytes);
   const now = Date.now();
   if (automatic) {
@@ -321,31 +360,60 @@ async function uploadPhoto(request: Request, env: Env, auth: Auth) {
   // Release an interrupted reservation only after the old upload's lease expires.
   const existing = await env.DB.prepare('SELECT * FROM photos WHERE event_id = ? AND team_id = ? AND local_photo_id = ?').bind(auth.event.id, auth.team!.id, localId).first<PhotoRow>();
   if (existing) {
-    if (existing.digest !== digest || existing.challenge_id !== challenge.id) throw new HttpError(409, 'A different photo already uses this identifier.');
-    if (existing.ready) return json({ photo: photoView(existing) });
-    if (existing.uploaded_at > now - 120000) throw new HttpError(409, 'This upload is still finishing. Wait a moment, refresh, then retry.');
-    const released = await env.DB.prepare('DELETE FROM photos WHERE id = ? AND ready = 0 AND uploaded_at <= ? RETURNING id').bind(existing.id, now - 120000).first();
-    if (released) await env.PHOTOS.delete(objectKey(existing));
-    else throw new HttpError(409, 'This photo just finished uploading. Refresh to see it.');
+    if (existing.digest !== digest || existing.challenge_id !== challenge.id) throw new HttpError(409, 'A different photo already uses this identifier.', 'PHOTO_ID_CONFLICT');
+    if (existing.ready === 1) return json({ photo: photoView(existing) });
+    if (existing.uploaded_at > now - 120000) throw new HttpError(409, 'This upload is still finishing. Wait a moment, refresh, then retry.', 'UPLOAD_IN_PROGRESS');
+    const stale = await env.DB.prepare('UPDATE photos SET ready = -1 WHERE id = ? AND ready != 1 AND uploaded_at <= ? RETURNING *')
+      .bind(existing.id, now - 120000).all<PhotoRow>();
+    if (!stale.results.length) throw new HttpError(409, 'This photo just finished uploading. Refresh to see it.', 'UPLOAD_IN_PROGRESS');
+    await purgeReservations(env, stale.results);
   }
   const id = crypto.randomUUID();
-  const reserved = await env.DB.prepare(`INSERT INTO photos(id, event_id, team_id, local_photo_id, challenge_id, challenge_number, challenge_title, team_name, path_id, captured_at, uploaded_at, bytes, digest)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-    WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ? AND photo_count < ? AND photo_bytes + ? <= ?)
-    AND (SELECT COUNT(*) FROM photos WHERE team_id = ?) < 60
-    AND NOT EXISTS (SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?)
-    ON CONFLICT(event_id, team_id, local_photo_id) DO NOTHING`)
-    .bind(id, auth.event.id, auth.team!.id, localId, challenge.id, challenge.number, challenge.title, teamName || null, pathId, captured, now, bytes.byteLength, digest,
-      auth.event.id, now, MAX_PHOTOS, bytes.byteLength, MAX_EVENT_BYTES, auth.team!.id, auth.event.id, auth.team!.id, localId).run();
-  if (!reserved.meta.changes) throw new HttpError(409, 'This event is closed, an upload is already finishing, or the photo limit has been reached (60 per team, 300 photos / 100 MB per event).');
-  const key = objectKey({ id, event_id: auth.event.id });
+  // The snapshot and reservation share one D1 transaction. Rejections therefore
+  // report the limit that actually prevented this upload, even if teams race.
+  const [reserved, observed] = await env.DB.batch<Record<string, number>>([
+    env.DB.prepare(`INSERT INTO photos(id, event_id, team_id, local_photo_id, challenge_id, challenge_number, challenge_title, team_name, path_id, captured_at, uploaded_at, bytes, digest, preview_bytes)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND closed = 0 AND expires_at > ? AND photo_count < ? AND photo_bytes + ? <= ?)
+      AND (SELECT COUNT(*) FROM photos WHERE team_id = ?) < ?
+      AND NOT EXISTS (SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?)
+      ON CONFLICT(event_id, team_id, local_photo_id) DO NOTHING`)
+      .bind(id, auth.event.id, auth.team!.id, localId, challenge.id, challenge.number, challenge.title, teamName || null, pathId, captured, now, bytes.byteLength, digest, preview?.byteLength ?? 0,
+        auth.event.id, now, MAX_PHOTOS, uploadBytes, MAX_EVENT_BYTES, auth.team!.id, MAX_TEAM_PHOTOS, auth.event.id, auth.team!.id, localId),
+    env.DB.prepare(`SELECT deleted, closed, expires_at, photo_count, photo_bytes,
+      (SELECT COUNT(*) FROM photos WHERE team_id = ?) AS team_count,
+      EXISTS(SELECT 1 FROM photo_removals WHERE team_id = ? AND local_photo_id = ?) AS removed,
+      EXISTS(SELECT 1 FROM photos WHERE team_id = ? AND local_photo_id = ?) AS duplicate
+      FROM events WHERE id = ?`).bind(auth.team!.id, auth.team!.id, localId, auth.team!.id, localId, auth.event.id),
+  ]);
+  if (!reserved.meta.changes) {
+    const state = observed.results[0];
+    if (!state || state.deleted || Number(state.expires_at) <= now) throw new HttpError(410, 'This event has ended.', 'EVENT_EXPIRED');
+    if (state.removed) throw new HttpError(409, 'This cloud photo was removed.', 'PHOTO_REMOVED');
+    if (state.duplicate) throw new HttpError(409, 'This photo is already uploading. Retry in a moment.', 'UPLOAD_IN_PROGRESS');
+    if (state.closed) throw new HttpError(409, 'Uploads are closed. Ask the leader to reopen them.', 'UPLOADS_CLOSED');
+    if (Number(state.team_count) >= MAX_TEAM_PHOTOS) throw new HttpError(409, 'Your team has shared 60 photos. Remove a shared photo to make room.', 'TEAM_PHOTO_LIMIT');
+    if (Number(state.photo_count) >= MAX_PHOTOS) throw new HttpError(409, 'This event has 300 photos. Ask the leader to download and remove shared photos to make room.', 'EVENT_PHOTO_LIMIT');
+    if (Number(state.photo_bytes) >= MAX_EVENT_BYTES) throw new HttpError(409, 'Event storage is full. Ask the leader to download and remove shared photos to make room.', 'EVENT_STORAGE_LIMIT');
+    throw new HttpError(409, 'This photo needs more space than the event has left. Smaller photos can still send. Ask the leader to free space before retrying.', 'PHOTO_EXCEEDS_REMAINING_STORAGE');
+  }
+  const stored = { id, event_id: auth.event.id };
+  const key = objectKey(stored);
+  const options = { httpMetadata: { contentType: 'image/jpeg', cacheControl: 'private, no-store' } };
   try {
-    await env.PHOTOS.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg', cacheControl: 'private, no-store' } });
-    const committed = await env.DB.prepare('UPDATE photos SET ready = 1 WHERE id = ? AND EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND expires_at > ?) AND NOT EXISTS (SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?)')
+    await env.PHOTOS.put(key, bytes, options);
+    if (preview) await env.PHOTOS.put(previewKey(stored), preview, options);
+    const committed = await env.DB.prepare('UPDATE photos SET ready = 1 WHERE id = ? AND ready = 0 AND EXISTS (SELECT 1 FROM events WHERE id = ? AND deleted = 0 AND expires_at > ?) AND NOT EXISTS (SELECT 1 FROM photo_removals WHERE event_id = ? AND team_id = ? AND local_photo_id = ?)')
       .bind(id, auth.event.id, Date.now(), auth.event.id, auth.team!.id, localId).run();
-    if (!committed.meta.changes) throw new HttpError(409, 'This photo was removed or the event ended before sending finished.', 'PHOTO_REMOVED');
+    if (!committed.meta.changes) {
+      const event = await env.DB.prepare('SELECT deleted, expires_at FROM events WHERE id = ?').bind(auth.event.id).first<EventRow>();
+      if (!event || event.deleted || event.expires_at <= Date.now()) throw new HttpError(410, 'This event has ended.', 'EVENT_EXPIRED');
+      const removed = await env.DB.prepare('SELECT 1 FROM photo_removals WHERE team_id = ? AND local_photo_id = ?').bind(auth.team!.id, localId).first();
+      if (removed) throw new HttpError(409, 'This shared photo was removed.', 'PHOTO_REMOVED');
+      throw new HttpError(409, 'The upload reservation expired. Retry this photo.', 'UPLOAD_IN_PROGRESS');
+    }
   } catch (error) {
-    await env.PHOTOS.delete(key);
+    await env.PHOTOS.delete(preview ? [key, previewKey(stored)] : key);
     await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id).run();
     throw error;
   }
@@ -360,7 +428,7 @@ async function removeLocalPhoto(env: Env, eventId: string, teamId: string, local
   await env.DB.prepare('INSERT OR IGNORE INTO photo_removals(event_id, team_id, local_photo_id) VALUES (?, ?, ?)').bind(eventId, teamId, localId).run();
   const photo = await env.DB.prepare('SELECT * FROM photos WHERE event_id = ? AND team_id = ? AND local_photo_id = ?').bind(eventId, teamId, localId).first<PhotoRow>();
   if (photo) {
-    await env.PHOTOS.delete(objectKey(photo));
+    await env.PHOTOS.delete(photoKeys(photo));
     await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(photo.id).run();
   }
   return json({ ok: true });
@@ -383,8 +451,16 @@ async function purgeEvent(env: Env, id: string) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM photos WHERE event_id = ?').bind(id),
     env.DB.prepare('DELETE FROM teams WHERE event_id = ?').bind(id),
-    env.DB.prepare("UPDATE events SET last_purged_at = ?, title = 'Deleted event', team_naming = NULL WHERE id = ?").bind(Date.now(), id),
+    env.DB.prepare("UPDATE events SET last_purged_at = ?, title = 'Deleted event', team_naming = NULL, creator_network = NULL WHERE id = ?").bind(Date.now(), id),
   ]);
+}
+/** Keep the object keys and byte reservation through transient R2 errors.
+ * The -1 state blocks a late upload commit; repeated deletion is safe. */
+async function purgeReservations(env: Env, stale: PhotoRow[]) {
+  if (!stale.length) return;
+  await env.PHOTOS.delete(stale.flatMap(photoKeys));
+  const placeholders = stale.map(() => '?').join(', ');
+  await env.DB.prepare(`DELETE FROM photos WHERE ready = -1 AND id IN (${placeholders})`).bind(...stale.map(photo => photo.id)).run();
 }
 async function cleanup(env: Env) {
   const now = Date.now();
@@ -397,19 +473,18 @@ async function cleanup(env: Env) {
     await purgeEvent(env, event.id);
   }
   await env.DB.prepare('DELETE FROM events WHERE expires_at < ? AND last_purged_at >= ?').bind(now - DAY, now).run();
-  const stale = await env.DB.prepare('SELECT * FROM photos WHERE ready = 0 AND uploaded_at < ? LIMIT 100').bind(now - 120000).all<PhotoRow>();
-  if (stale.results.length) {
-    const released = await env.DB.batch<{ id: string }>(stale.results.map(photo =>
-      env.DB.prepare('DELETE FROM photos WHERE id = ? AND ready = 0 RETURNING id').bind(photo.id)));
-    const keys = stale.results.filter((_, index) => released[index].results.length > 0).map(objectKey);
-    if (keys.length) await env.PHOTOS.delete(keys);
-  }
+  const stale = await env.DB.prepare(`UPDATE photos SET ready = -1 WHERE id IN
+    (SELECT id FROM photos WHERE ready != 1 AND uploaded_at < ? LIMIT 100) RETURNING *`).bind(now - 120000).all<PhotoRow>();
+  await purgeReservations(env, stale.results);
   await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?').bind(now).run();
 }
 async function route(request: Request, env: Env) {
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean);
-  if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true });
+  if (request.method === 'GET' && url.pathname === '/health') {
+    const packs = Object.fromEntries(PACKS.map(pack => [pack.id, pack.categories.flatMap(category => category.challenges.map(clue => clue.id))]));
+    return json({ ok: true, workerBuild: env.WORKER_BUILD, photoProtocol: 2, packs });
+  }
   if (url.pathname === '/events' && request.method === 'POST') return createEvent(request, env);
   if (parts[0] !== 'events' || !parts[1] || parts.length > 4) throw new HttpError(404, 'Not found.');
   const auth = await authorize(request, env, parts[1]);
@@ -439,7 +514,8 @@ async function route(request: Request, env: Env) {
       if (request.method === 'DELETE') {
         return removeLocalPhoto(env, auth.event.id, photo.team_id, photo.local_photo_id);
       }
-      const object = await env.PHOTOS.get(objectKey(photo));
+      const small = url.searchParams.get('size') === 'preview' && photo.preview_bytes > 0;
+      const object = await env.PHOTOS.get(small ? previewKey(photo) : objectKey(photo));
       if (!object) throw new HttpError(404, 'Photo not found. Please refresh.');
       return new Response(object.body, { headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(object.size), 'Content-Disposition': `inline; filename="clue-${photo.challenge_number}-${photo.id}.jpg"` } });
     }

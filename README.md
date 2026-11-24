@@ -188,7 +188,7 @@ npm run dev
 npm run build
 ```
 
-The build generates `dist/sw.js` from every emitted app asset. Deploy the entire
+The build generates `dist/sw.js` and per-file hashes. After the first version with hashes, updates reuse unchanged files from the previous offline cache. Deploy the entire
 `dist/` directory together. The offline worker runs in production previews and
 deployments, not the development server. A waiting update is applied only when
 the user chooses **Update now** or all old app tabs have closed.
@@ -217,3 +217,14 @@ in Chromium and WebKit. Run browser suites
 sequentially: both use `dist/`, and the offline-update tests modify its service
 worker temporarily. `test:review` builds with a localhost API URL; rebuild with
 the production API URL before publishing.
+
+
+## Publishing a release
+
+The Pages workflow runs lint, Worker API checks, and both browser suites before publishing. Its release check compares the live Worker’s source fingerprint, photo protocol, and ordered clue IDs for every game with the frontend being shipped.
+
+To publish a tested commit from this checkout, run `npm run release:pages` with Wrangler authenticated. It updates the Worker only if its fingerprint changed, checks its health, and pushes the commit to the Pages branch. To release just the Worker, run `npm run release:worker`. Both deployment paths apply pending database migrations first. Repositories configured with a scoped `CLOUDFLARE_API_TOKEN` secret run that step in the workflow automatically. `npm run verify:worker` performs the same read-only check independently.
+
+After Pages finishes deploying, `npm run test:live-photo` runs a camera-sized capture, retake, deletion, and leader presentation on the public app in Chromium and WebKit, and removes its test events.
+
+For a capacity rehearsal, run `npm run build:review && node scripts/rehearse-event.mjs`. It uses a camera-sized photograph, seven teams and 105 uploads against local D1 and R2, compares preview and export bytes, then deletes the rehearsal event.

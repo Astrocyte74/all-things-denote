@@ -13,7 +13,7 @@ export const PATH_COLORS: Record<string, string> = {
 export function describeError(error: unknown): string {
   if (error instanceof ReviewError) {
     switch (error.status) {
-      case 0: return 'You seem to be offline. Your photos are safe on this device. Reconnect and try again.';
+      case 0: return 'You seem to be offline. Reconnect and try again.';
       case 401: return 'This link isn’t valid. Ask the leader to send it again, and copy the whole link.';
       case 404:
       case 410: return 'This event has ended or was deleted.';
@@ -26,12 +26,6 @@ export function describeError(error: unknown): string {
 
 export function errorStatus(error: unknown): number | null {
   return error instanceof ReviewError ? error.status : null;
-}
-
-/** Network-level or link-level failures stop an upload queue; per-photo ones don't. */
-export function isFatalUploadError(error: unknown): boolean {
-  const status = errorStatus(error);
-  return status === null || [0, 401, 403, 404, 409, 410, 503].includes(status);
 }
 
 const expiryFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -96,15 +90,15 @@ export async function copyText(text: string, label: string) {
 const CACHE_LIMIT = 12;
 const blobCache = new Map<string, Promise<Blob>>();
 
-export function loadReviewPhoto(access: EventAccess, photoId: string): Promise<Blob> {
-  const key = `${access.eventId}:${photoId}:${access.token}`;
+export function loadReviewPhoto(access: EventAccess, photoId: string, preview = false): Promise<Blob> {
+  const key = `${access.eventId}:${photoId}:${preview ? 'preview' : 'full'}:${access.token}`;
   const cached = blobCache.get(key);
   if (cached) {
     blobCache.delete(key);
     blobCache.set(key, cached); // refresh LRU position
     return cached;
   }
-  const pending = fetchReviewPhoto(access, photoId);
+  const pending = fetchReviewPhoto(access, photoId, preview);
   pending.catch(() => blobCache.delete(key));
   blobCache.set(key, pending);
   while (blobCache.size > CACHE_LIMIT) blobCache.delete(blobCache.keys().next().value!);
@@ -118,13 +112,13 @@ export function forgetReviewPhoto(eventId: string, photoId: string) {
 }
 
 /** Object URL for one shared photo. Key the calling component by photo id. */
-export function useReviewPhotoUrl(access: EventAccess, photoId: string) {
+export function useReviewPhotoUrl(access: EventAccess, photoId: string, preview = false) {
   const [result, setResult] = useState<{ url?: string; failed?: boolean }>({});
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let url: string | undefined;
     let cancelled = false;
-    loadReviewPhoto(access, photoId)
+    loadReviewPhoto(access, photoId, preview)
       .then(blob => {
         if (cancelled) return;
         url = URL.createObjectURL(blob);
@@ -135,7 +129,7 @@ export function useReviewPhotoUrl(access: EventAccess, photoId: string) {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [access, photoId, attempt]);
+  }, [access, photoId, preview, attempt]);
   return { ...result, retry: () => { setResult({}); setAttempt(n => n + 1); } };
 }
 

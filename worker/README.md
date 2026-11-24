@@ -13,8 +13,7 @@ domain, object access keys, or user accounts are required.
 - D1: `scavenger-review`, region WNAM; binding ID is in `wrangler.jsonc`.
 - R2: `scavenger-review-photos`, Standard storage, public access disabled.
 - Retention: hourly cron `17 * * * *`, with seven-day event expiry.
-- Worker version: `9f8725c0-d138-40af-a308-c7f96fdf4c92` (2026-11-19 UTC),
-  with migration `0005_team_photo_status.sql`.
+- Worker version: `fd24a7e5-dc42-4d37-9e5d-c582036c198a` with migration `0006_event_capacity.sql`.
 - The public API URL is committed in `.env.production`; local review tests
   override it with their isolated Miniflare endpoint.
 
@@ -114,14 +113,7 @@ and plan; do not enable public bucket access or change DNS.
 
 3. Replace the placeholder `database_id` in `wrangler.jsonc` with the returned ID.
    Record the verified `account_id` there if more than one account is available.
-4. Apply the migration and deploy (run Wrangler from this directory so it resolves
-   the Worker-specific TypeScript config):
-
-   ```sh
-   npx wrangler d1 migrations apply scavenger-review --remote
-   npx wrangler deploy
-   ```
-
+4. From the app root, run `npm run release:worker` to apply outstanding migrations, deploy the Worker with its source fingerprint, and verify the public health response against the local game packs.
 5. Check `/health` on the returned HTTPS Worker URL. Set the frontend's public
    `VITE_REVIEW_API_URL` build variable to that URL, then build and deploy the
    frontend through its existing GitHub Pages workflow. This URL is not a secret.
@@ -164,11 +156,20 @@ and plan; do not enable public bucket access or change DNS.
   tokens, titles, team names and photo bytes are not application log fields.
   Worker observability is disabled. Existing downloaded copies cannot be revoked.
 
+For a local seven-team rehearsal with 105 realistic JPEGs, run
+`npm run build:review` and then `node scripts/rehearse-event.mjs chromium`
+or `node scripts/rehearse-event.mjs webkit` from the app directory. The script
+uses the browser capture encoder, an isolated D1/R2 test server, and actual
+uploads and downloads. It checks preview and original byte totals and deletes
+the temporary event before exiting.
+
 ## Limits and retries
 
-- 20 active events for this deployment, 30 creations per public IP per clock hour. The allowance resets at the top of the hour.
-- 20 teams per event, 60 photos per team, 300 photos or 100 MiB per event.
-- Only JPEGs, up to 5 MiB each. No video or arbitrary file uploads.
+- 64 unexpired, undeleted events for this deployment and up to 30 active events created by the same network. Deletion and expiry immediately release active slots. Pre-migration events still count toward the global limit. The Worker keeps only a weekly salted network hash until purge.
+- The separate creation allowance remains 30 per public IP per clock hour, resetting at the top of the hour.
+- 20 teams per event, 60 photos per team, 300 photos or 256 MiB per event. The leader sees remaining photo slots and storage, including reservations and previews.
+- Each upload accepts a JPEG up to 5 MiB and an optional JPEG preview up to 64 KiB. Previews use the same private access, expiry, and deletion as the full photo. Older photos use the full photo for previews.
+- Apply migration `0006_event_capacity.sql` before publishing photo protocol 2. The public health check reports this protocol version and canonical game/clue IDs for the frontend deployment check.
 - A database reservation enforces limits before R2 storage. Retrying the same
   local photo for the same team returns its existing result, without duplication.
   Interrupted reservations can be reclaimed after two minutes.

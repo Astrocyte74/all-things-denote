@@ -3,6 +3,30 @@ import { PACKS } from '@/data/packs';
 import { getCategoryTheme } from '@/lib/theme';
 import { drawPhotoCard, loadCardFonts } from './photoCard';
 
+// Leave room for a preview under the event's 300-photo storage budget.
+const CARD_BYTE_TARGET = 800 * 1024;
+
+async function encodeCard(source: HTMLCanvasElement): Promise<Blob> {
+  let canvas = source;
+  for (;;) {
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(result => result ? resolve(result) : reject(new Error('Could not process this photo.')), 'image/jpeg', 0.84);
+    });
+    if (blob.size <= CARD_BYTE_TARGET) return blob;
+    // JPEG encoders differ across browsers. Downsample from the original card
+    // using the measured size, preserving its aspect ratio and caption.
+    const scale = Math.sqrt(CARD_BYTE_TARGET / blob.size) * 0.94;
+    const smaller = document.createElement('canvas');
+    smaller.width = Math.max(1, Math.floor(canvas.width * scale));
+    smaller.height = Math.max(1, Math.floor(canvas.height * scale));
+    const ctx = smaller.getContext('2d');
+    if (!ctx) throw new Error('Could not resize the photo.');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source, 0, 0, smaller.width, smaller.height);
+    canvas = smaller;
+  }
+}
+
 /**
  * Turn a captured photo into a keepsake card JPEG (data URL): the whole photo
  * on paper with the clue, scripture, team and path baked in below it, so the
@@ -32,9 +56,7 @@ export async function processPhoto(file: File, challenge: Challenge, category: C
       date: new Date(),
     });
 
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(result => result ? resolve(result) : reject(new Error('Could not process this photo.')), 'image/jpeg', 0.92);
-    });
+    const blob = await encodeCard(canvas);
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);

@@ -2,37 +2,37 @@ import { photoFilename } from '@/lib/photoExport';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Download, Trash2, Image as ImageIcon, Share, Calendar, Camera, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import { getAllPhotos, deletePhoto, getPhotoCount, savePhoto, type StoredPhoto } from '@/lib/photoStorage';
+import { getPhotoSummaries, getStoredPhoto, deletePhoto, savePhoto, type PhotoSummary } from '@/lib/photoStorage';
 import { Button } from '@/components/ui/button';
 import { useSwipe } from '@/hooks/useSwipe';
 import { getPackById } from '@/data/packs';
 import { processPhoto } from '@/lib/processPhoto';
 import { readPhotoSync, PHOTO_SYNC_CHANGED } from '@/lib/photoSyncStore';
 import { beginPhotoSave } from '@/lib/pwa';
+import { LocalPhotoImage } from './LocalPhotoImage';
 import { SaveAllPhotos } from './SaveAllPhotos';
 
 interface PhotoGalleryProps {
   isOpen: boolean;
   onClose: () => void;
   returnLabel?: string;
-  onPhotoCountChange?: (count: number) => void;
   onPhotoDeleted?: () => void; // Callback when a photo is deleted
   filterChallengeId?: string | null; // If provided, only show photos for this challenge
   huntId?: string;
   packId?: string; // Scope the gallery to the active game pack
 }
 
-export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDeleted, filterChallengeId, packId, huntId, returnLabel }: PhotoGalleryProps) {
-  const [photos, setPhotos] = useState<StoredPhoto[]>([]);
-  const [allPhotosForFilter, setAllPhotosForFilter] = useState<StoredPhoto[]>([]); // All photos for filter dropdown
+export function PhotoGallery({ isOpen, onClose, onPhotoDeleted, filterChallengeId, packId, huntId, returnLabel }: PhotoGalleryProps) {
+  const [photos, setPhotos] = useState<PhotoSummary[]>([]);
+  const [allPhotosForFilter, setAllPhotosForFilter] = useState<PhotoSummary[]>([]); // All photos for filter dropdown
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<string | null>(filterChallengeId || null);
-  const [photoToDelete, setPhotoToDelete] = useState<StoredPhoto | null>(null); // For delete confirmation
+  const [photoToDelete, setPhotoToDelete] = useState<PhotoSummary | null>(null); // For delete confirmation
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [retaking, setRetaking] = useState(false);
   const retakeInput = useRef<HTMLInputElement>(null);
-  const retakeTarget = useRef<StoredPhoto | null>(null);
+  const retakeTarget = useRef<PhotoSummary | null>(null);
   useEffect(() => {
     let stopped = false;
     const load = () => { if (huntId) void readPhotoSync(huntId).then(({settings}) => { if (!stopped) setSyncEnabled(Boolean(settings[0]?.enabled)); }).catch(() => {}); };
@@ -89,7 +89,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     setLoading(true);
     try {
       // Get all photos first (for filter options), scoped to the active pack.
-      const allPhotos = (packId ? (await getAllPhotos(packId, huntId ?? null)) : (await getAllPhotos(undefined, huntId ?? null)));
+      const allPhotos = await getPhotoSummaries(packId, huntId ?? null);
       setAllPhotosForFilter(allPhotos.sort((a, b) => b.timestamp - a.timestamp));
 
       // Filter by challenge if a filter is set
@@ -105,14 +105,13 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
         // Sort by challenge number (ascending)
         setPhotos(filteredPhotos.sort((a, b) => a.challengeNumber - b.challengeNumber));
       }
-      onPhotoCountChange?.(allPhotos.length);
     } catch (error) {
       console.error('Failed to load photos:', error);
       toast.error('Failed to load photos');
     } finally {
       setLoading(false);
     }
-  }, [currentFilter, sortBy, onPhotoCountChange, packId, huntId]);
+  }, [currentFilter, sortBy, packId, huntId]);
 
   // Load photos when gallery opens, filter changes, or sort changes
   useEffect(() => {
@@ -149,7 +148,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     finally { endSave(); setRetaking(false); if (retakeInput.current) retakeInput.current.value = ''; }
   };
 
-  const handleDelete = (photo: StoredPhoto) => {
+  const handleDelete = (photo: PhotoSummary) => {
     // Show confirmation dialog
     setPhotoToDelete(photo);
   };
@@ -174,10 +173,6 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
       }
 
       toast.success('Photo deleted', { style: { pointerEvents: 'none' } });
-
-      // Update photo count
-      const newCount = await getPhotoCount(packId, huntId ?? null);
-      onPhotoCountChange?.(newCount);
 
       // Notify parent component
       onPhotoDeleted?.();
@@ -207,53 +202,48 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
     }
   };
 
-  const getSelectedPhoto = (): StoredPhoto | null => {
+  const getSelectedPhoto = (): PhotoSummary | null => {
     if (selectedPhotoIndex === null || selectedPhotoIndex >= photos.length) return null;
     return photos[selectedPhotoIndex];
   };
 
-  const handleDownload = (photo: StoredPhoto) => {
+  // Use the visible image immediately when sharing so Web Share can open in
+  // the original tap gesture. Reading IndexedDB is only needed before it loads.
+  const renderedImageData = (id: string) => {
+    const panel = viewerOpen ? swipeRef.current : galleryPanel.current;
+    return panel?.querySelector<HTMLImageElement>(`img[data-photo-id="${CSS.escape(id)}"]`)?.getAttribute('src');
+  };
+
+  const imageFile = (photo: PhotoSummary, data: string) => {
+    const bytes = Uint8Array.from(atob(data.split(',')[1]), char => char.charCodeAt(0));
+    return new File([bytes], photoFilename(photo), { type: 'image/jpeg' });
+  };
+
+  const downloadFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    toast.success('Photo downloaded', { style: { pointerEvents: 'none' } });
+  };
+
+  const handleDownload = async (photo: PhotoSummary) => {
     try {
-      // Convert base64 to blob
-      const byteCharacters = atob(photo.imageData.split(',')[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = photoFilename(photo);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success('Photo downloaded', { style: { pointerEvents: 'none' } });
-    } catch (error) {
-      console.error('Failed to download photo:', error);
+      const data = renderedImageData(photo.id) ?? (await getStoredPhoto(photo.id)).imageData;
+      downloadFile(imageFile(photo, data));
+    } catch {
       toast.error('Failed to download photo');
     }
   };
 
-  const handleShare = async (photo: StoredPhoto) => {
+  const handleShare = async (photo: PhotoSummary) => {
     try {
-      // Convert base64 to blob
-      const byteCharacters = atob(photo.imageData.split(',')[1]);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-      const filename = photoFilename(photo);
-      const file = new File([blob], filename, { type: 'image/jpeg' });
-
+      const data = renderedImageData(photo.id) ?? (await getStoredPhoto(photo.id)).imageData;
+      const file = imageFile(photo, data);
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -263,7 +253,7 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
         toast.success('Photo shared!', { style: { pointerEvents: 'none' } });
       } else {
         // Fallback to download
-        handleDownload(photo);
+        downloadFile(file);
       }
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
@@ -357,8 +347,8 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
                       onClick={() => setSelectedPhotoIndex(index)}
                       aria-label={`View photo for #${photo.challengeNumber} ${photo.challengeTitle} full screen`}
                     >
-                      <img
-                        src={photo.imageData}
+                      <LocalPhotoImage
+                        photoId={photo.id} data-photo-id={photo.id}
                         alt=""
                         loading="lazy"
                         className="h-full w-full object-contain"
@@ -468,9 +458,9 @@ export function PhotoGallery({ isOpen, onClose, onPhotoCountChange, onPhotoDelet
             {retaking && <p role="status" className="px-4 text-center text-sm font-bold text-cream">Saving retake… your previous photo stays until this succeeds.</p>}
             {/* Card */}
             <div className="relative flex min-h-0 flex-1 items-center justify-center px-3 py-3 sm:px-24 [@media(max-height:500px)]:py-2">
-              <img
+              <LocalPhotoImage eager
                 key={photo.id}
-                src={photo.imageData}
+                photoId={photo.id} data-photo-id={photo.id}
                 alt={`Photo for #${photo.challengeNumber} ${photo.challengeTitle}`}
                 draggable={false}
                 className="animate-pop-in max-h-full max-w-full select-none rounded-xl object-contain shadow-[0_0_0_2px_rgba(253,246,236,0.85),6px_6px_0_2px_rgba(0,0,0,0.4)]"

@@ -1,11 +1,21 @@
 import type { StoredPhoto } from './photoStorage';
 const DB_NAME = 'ScavengerHuntPhotos';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 export const PHOTO_STORE = 'photos';
+export const PHOTO_SUMMARY_STORE = 'photoSummaries';
 export const SETTINGS_STORE = 'photoSyncSettings';
 export const JOB_STORE = 'photoSyncJobs';
 export const SYNC_STORES = [PHOTO_STORE, SETTINGS_STORE, JOB_STORE];
-const STORE_NAME = PHOTO_STORE;
+// The empty scope is the on-device hunt. IndexedDB does not index null or undefined.
+export function photoSummaryRow(photo: StoredPhoto) {
+  return {
+    id: photo.id, challengeId: photo.challengeId, challengeNumber: photo.challengeNumber,
+    challengeTitle: photo.challengeTitle, categoryId: photo.categoryId, categoryTitle: photo.categoryTitle,
+    categoryIcon: photo.categoryIcon, categoryColor: photo.categoryColor, pathId: photo.pathId,
+    teamName: photo.teamName, timestamp: photo.timestamp, packId: photo.packId ?? 'scavenger',
+    huntId: photo.huntId, huntScope: photo.huntId ?? '',
+  };
+}
 
 // Open the database
 export function openPhotoDB(): Promise<IDBDatabase> {
@@ -29,33 +39,27 @@ export function openPhotoDB(): Promise<IDBDatabase> {
       for (const name of [SETTINGS_STORE, JOB_STORE]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: name === SETTINGS_STORE ? 'huntId' : 'id' });
       }
-      const transaction = (event.target as IDBOpenDBRequest).transaction;
-
-      // Create object store for photos
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('challengeId', 'challengeId', { unique: false });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
-        store.createIndex('packId', 'packId', { unique: false });
+      const store = db.objectStoreNames.contains(PHOTO_STORE)
+        ? request.transaction!.objectStore(PHOTO_STORE)
+        : db.createObjectStore(PHOTO_STORE, { keyPath: 'id' });
+      for (const name of ['challengeId', 'timestamp', 'packId']) {
+        if (!store.indexNames.contains(name)) store.createIndex(name, name);
       }
 
-      // v3 upgrade: add a packId index and backfill any pre-existing rows so
-      // they belong to the original scavenger pack (no orphaned photos).
-      const store = transaction?.objectStore(STORE_NAME);
-      if (store && !store.indexNames.contains('packId')) {
-        store.createIndex('packId', 'packId', { unique: false });
-        store.openCursor().onsuccess = function () {
-          const cursor = this.result;
-          if (cursor) {
-            const row = cursor.value as StoredPhoto;
-            if (row.packId === undefined) {
-              cursor.update({ ...row, packId: 'scavenger' });
-            }
-            cursor.continue();
-          }
-        };
-      }
+      // Backfill pre-v5 photos one at a time in the upgrade transaction. Only
+      // pre-v3 rows lacking a pack need the original image record rewritten.
+      const summaries = db.createObjectStore(PHOTO_SUMMARY_STORE, { keyPath: 'id' });
+      summaries.createIndex('packId', 'packId');
+      summaries.createIndex('huntScope', 'huntScope');
+      summaries.createIndex('packHunt', ['packId', 'huntScope']);
+      store.openCursor().onsuccess = function () {
+        const cursor = this.result;
+        if (!cursor) return;
+        const photo: StoredPhoto = cursor.value;
+        if (!photo.packId) cursor.update({ ...photo, packId: 'scavenger' });
+        summaries.put(photoSummaryRow(photo));
+        cursor.continue();
+      };
     };
   });
 }
-

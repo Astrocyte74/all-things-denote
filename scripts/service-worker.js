@@ -1,14 +1,24 @@
-/* VERSION and ASSETS are injected by build-sw.mjs. */
+/* VERSION and DIGESTS are injected by build-sw.mjs. */
 const PREFIX = `hunt-offline:${self.registration.scope}:`;
 const CACHE = PREFIX + VERSION;
-const assetUrls = new Set(ASSETS.map(file => new URL(file, self.registration.scope).href));
+const manifestUrl = new URL('__offline_manifest__', self.registration.scope).href;
 const shellUrl = new URL('index.html', self.registration.scope).href;
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    // Installation fails as a unit if any required file cannot be cached.
-    await cache.addAll([...assetUrls].map(url => new Request(url, { cache: 'reload' })));
+    const previousName = (await caches.keys()).filter(name => name.startsWith(PREFIX) && name !== CACHE).at(-1);
+    const previous = previousName && await caches.open(previousName);
+    const savedManifest = previous && await previous.match(manifestUrl);
+    const previousDigests = savedManifest ? await savedManifest.json() : {};
+    await Promise.all(Object.entries(DIGESTS).map(async ([name, digest]) => {
+      const url = new URL(name, self.registration.scope).href;
+      const unchanged = previousDigests[name] === digest && await previous.match(url, { ignoreVary: true });
+      if (unchanged) await cache.put(url, unchanged);
+      else await cache.add(new Request(url, { cache: 'reload' }));
+    }));
+    // Publish the manifest only after every response is present.
+    await cache.put(manifestUrl, new Response(JSON.stringify(DIGESTS)));
   })());
   // Updates wait until the user chooses Update (or all old tabs are closed).
 });

@@ -1,0 +1,78 @@
+import { test, expect } from '@playwright/test';
+import { join } from 'node:path';
+import { openGallery } from '../tests/hunt-controls';
+import { stat } from 'node:fs/promises';
+
+const fixture = join(process.cwd(), 'tests/fixtures/apollo-surface.jpg');
+
+test('team invite, camera-sized capture, preview and full download work together', async ({ page, browser, request, baseURL }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Start an event', exact: true }).click();
+  await page.getByRole('radio', { name: /Scripture Freeze Frames/ }).locator('..').click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Event name', exact: true }).fill('Photo release rehearsal');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  const creating = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/events');
+  await page.getByRole('button', { name: 'Create event & show QR', exact: true }).click();
+  const response = await creating;
+  expect(response.status()).toBe(201);
+  const { access } = await response.json();
+  const endpoint = response.url() + '/' + access.eventId;
+  const headers = { Authorization: 'Bearer ' + access.token };
+  const team = await browser.newPage({ baseURL });
+  try {
+    await page.getByText('View invite link', { exact: true }).click();
+    const invite = await page.getByRole('textbox', { name: 'Team invite link' }).inputValue();
+    await team.goto(invite);
+    await team.getByRole('button', { name: 'Use my own name', exact: true }).click();
+    await team.getByRole('textbox', { name: /Your own name/ }).fill('Camera team');
+    await team.getByRole('button', { name: 'Join & start hunt', exact: true }).click();
+    await team.getByText('Invite another team', { exact: true }).click();
+    await expect(team.getByRole('img', { name: 'QR code to join this event' })).toBeVisible();
+    await expect(team.getByRole('link', { name: 'Open team invite link' })).toHaveAttribute('href', invite);
+    await team.getByRole('button', { name: 'Start the hunt on Path A', exact: true }).click();
+    await team.getByLabel('Take photo', { exact: true }).setInputFiles(fixture);
+    const snapshot = async () => (await request.get(endpoint, { headers })).json();
+    await expect.poll(async () => (await snapshot()).photos.length, { timeout: 30000 }).toBe(1);
+    const state = await snapshot();
+    const photo = state.photos[0];
+    const url = endpoint + '/photos/' + photo.id;
+    const preview = await request.get(url + '?size=preview', { headers });
+    const original = await request.get(url, { headers });
+    expect(preview.status()).toBe(200);
+    expect(original.status()).toBe(200);
+    const bytes = (await original.body()).length;
+    const previewBytes = (await preview.body()).length;
+    expect(bytes).toBe(photo.bytes);
+    expect(bytes).toBeLessThanOrEqual(800 * 1024);
+    expect(previewBytes).toBeLessThan(bytes / 4);
+    expect(state.capacity.usedBytes).toBe(bytes + previewBytes);
+    expect(state.capacity.usedPhotos).toBe(1);
+    expect((await stat(fixture)).size).toBeGreaterThan(1_000_000);
+    console.log('Detailed JPEG: ' + bytes + ' bytes full size, ' + previewBytes + ' bytes in leader grid.');
+    const tile = page.waitForResponse(r => r.url() === url + '?size=preview' && r.ok());
+    await page.reload();
+    await tile;
+    await page.getByRole('button', { name: 'Present', exact: true }).click();
+    const stage = page.getByRole('dialog', { name: 'Presenting clue 1', exact: true });
+    await expect.poll(() => stage.locator('img').evaluateAll(imgs => imgs.some(img => img.naturalWidth > 512))).toBe(true);
+    await expect(stage.getByRole('heading', { name: 'The moment someone noticed' })).toBeVisible();
+    await openGallery(team);
+    await team.getByRole('button', { name: /View photo for .*full screen/ }).first().click();
+    await team.getByRole('button', { name: 'Retake photo', exact: true }).click();
+    await team.getByLabel('Retake photo file', { exact: true }).setInputFiles(fixture);
+    await expect.poll(async () => {
+      const photos = (await snapshot()).photos;
+      return photos.length === 1 && photos[0].id !== photo.id;
+    }).toBe(true);
+    await team.getByRole('button', { name: 'Delete photo #1', exact: true }).click();
+    await team.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect.poll(async () => (await snapshot()).capacity.usedBytes).toBe(0);
+    await expect(team.getByRole('heading', { name: /^📸 Photo Gallery/ })).toHaveCount(0);
+    await expect(team.getByText('Your shots', { exact: true })).toHaveCount(0);
+  } finally {
+    await team.close();
+    expect((await request.delete(endpoint, { headers })).ok()).toBe(true);
+    expect([404, 410]).toContain((await request.get(endpoint, { headers })).status());
+  }
+});
