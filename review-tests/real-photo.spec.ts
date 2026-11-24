@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { join } from 'node:path';
-import { openGallery } from '../tests/hunt-controls';
+import { openGallery, openSharingMenu } from '../tests/hunt-controls';
 import { stat } from 'node:fs/promises';
 
 const fixture = join(process.cwd(), 'tests/fixtures/apollo-surface.jpg');
@@ -31,8 +31,17 @@ test('team invite, camera-sized capture, preview and full download work together
     await expect(team.getByRole('img', { name: 'QR code to join this event' })).toBeVisible();
     await expect(team.getByRole('link', { name: 'Open team invite link' })).toHaveAttribute('href', invite);
     await team.getByRole('button', { name: 'Start the hunt on Path A', exact: true }).click();
-    await team.getByLabel('Take photo', { exact: true }).setInputFiles(fixture);
     const snapshot = async () => (await request.get(endpoint, { headers })).json();
+    expect((await request.patch(endpoint, { headers, data: { closed: true } })).ok()).toBe(true);
+    await team.getByLabel('Take photo', { exact: true }).setInputFiles(fixture);
+    await expect.poll(async () => (await snapshot()).teams[0].photoStatus?.hasError).toBe(true);
+    expect((await snapshot()).photos).toHaveLength(0);
+    await page.reload();
+    await page.getByRole('button', { name: 'Reopen uploads', exact: true }).click();
+    await expect(page.getByText('Open for uploads', { exact: true })).toBeVisible();
+    await openSharingMenu(team);
+    await team.getByRole('button', { name: 'Retry', exact: true }).click();
+    await team.getByRole('button', { name: 'Close photo sharing', exact: true }).click();
     await expect.poll(async () => (await snapshot()).photos.length, { timeout: 30000 }).toBe(1);
     const state = await snapshot();
     const photo = state.photos[0];

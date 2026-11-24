@@ -18,6 +18,11 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Match @playwright/test in package-lock.json. The image includes both browser
+    # binaries and their Linux dependencies for the release checks.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
+      options: --ipc=host
     strategy:
       fail-fast: false
       matrix:
@@ -29,7 +34,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
       - run: npm run lint && npm run test:review-api
         if: matrix.suite == 'review'
       - run: npm run test:${{ matrix.suite }}
