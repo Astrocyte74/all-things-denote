@@ -1,6 +1,16 @@
-import { ReviewError, deleteReviewLocalPhoto, uploadReviewPhoto } from './sharedReview';
+import { ReviewError, fetchUploadStatus, deleteReviewLocalPhoto, uploadReviewPhoto } from './sharedReview';
 import { photoFailureScope } from './photoUploadFailure';
 import { retryPhotoSync, finishPhotoJob, PHOTO_SYNC_CHANGED, PHOTO_SYNC_SENT, readPhotoSync, readSyncPhoto, pendingPhotoChoice, type PhotoSyncJob } from './photoSyncStore';
+
+const CLOSED_CHECK_MS = 8_000;
+
+function reopenCheckAt(job: PhotoSyncJob): number | undefined {
+  if (job.failureScope === 'closed') return job.nextAttempt;
+  // Previous releases stored closed uploads with capacity errors and waited two minutes.
+  if (job.failureScope === 'uploads' && job.error?.startsWith('Uploads are closed')) {
+    return job.nextAttempt - 120_000 + CLOSED_CHECK_MS;
+  }
+}
 
 let active: { job: PhotoSyncJob; controller: AbortController } | null = null;
 let paused = 0;
@@ -17,6 +27,17 @@ export function startPhotoSync() {
   let stopped = false, running = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const canRun = () => !stopped && !paused && navigator.onLine && document.visibilityState === 'visible';
+  let reopenTimer: ReturnType<typeof setTimeout> | undefined;
+  let reopenDeadline = Infinity;
+  function scheduleReopenCheck(deadline: number) {
+    if (stopped || deadline >= reopenDeadline) return;
+    clearTimeout(reopenTimer);
+    reopenDeadline = deadline;
+    reopenTimer = setTimeout(() => {
+      reopenDeadline = Infinity;
+      void flush();
+    }, Math.max(0, deadline - Date.now()));
+  }
   let connectionGeneration = 0;
   const run = async () => {
     const initial = await readPhotoSync();
@@ -27,11 +48,16 @@ export function startPhotoSync() {
       if (!current || current.version !== job.version) continue;
       const settings = fresh.settings[0];
       if (!settings || settings.expiresAt <= Date.now() || ((!settings.enabled || pendingPhotoChoice(job.huntId)===false) && job.operation === 'upload')) { await finishPhotoJob(job); continue; }
-      if (current.blocked || current.nextAttempt > Date.now()) continue;
+      if (current.blocked) continue;
+      const reopenAt = reopenCheckAt(current);
+      if ((reopenAt ?? current.nextAttempt) > Date.now()) {
+        if (reopenAt !== undefined) scheduleReopenCheck(reopenAt);
+        continue;
+      }
       const pausedByAnotherJob = fresh.jobs.some(item =>
-        (item.blocked || item.nextAttempt > Date.now()) && (
+        (item.blocked || (reopenCheckAt(item) ?? item.nextAttempt) > Date.now()) && (
           item.failureScope === 'event' || item.failureScope === 'connection' ||
-          (item.failureScope === 'uploads' && job.operation === 'upload')
+          ((item.failureScope === 'closed' || item.failureScope === 'uploads') && job.operation === 'upload')
         ));
       if (pausedByAnotherJob) continue;
       const connectionAtStart = connectionGeneration;
@@ -41,6 +67,11 @@ export function startPhotoSync() {
         if (job.operation === 'delete') {
           await deleteReviewLocalPhoto(settings.access, job.photoId);
         } else {
+          // Check the event flag before spending mobile data on another JPEG.
+          if (reopenAt !== undefined && (await fetchUploadStatus(settings.access, controller.signal)).closed) {
+            await finishPhotoJob(job, { failureScope: 'closed', error: current.error, attempts: current.attempts, nextAttempt: Date.now() + CLOSED_CHECK_MS });
+            continue;
+          }
           const photo = await readSyncPhoto(job.photoId);
           if (!photo || photo.huntId !== settings.huntId || photo.packId !== settings.packId) { await finishPhotoJob(job); continue; }
           if (!canRun() || controller.signal.aborted) continue;
@@ -51,16 +82,18 @@ export function startPhotoSync() {
         window.dispatchEvent(new CustomEvent(PHOTO_SYNC_SENT, {detail:{huntId:job.huntId}}));
       } catch (error) {
         if (error instanceof ReviewError && error.code === 'PHOTO_REMOVED') { await finishPhotoJob(job); continue; }
-        if (error instanceof ReviewError && error.code === 'ABORTED') continue;
+        if (controller.signal.aborted || (error instanceof ReviewError && error.code === 'ABORTED')) continue;
         const scope = photoFailureScope(error);
         const status = error instanceof ReviewError ? error.status : undefined;
         const code = error instanceof ReviewError ? error.code : undefined;
         const attempts = current.attempts + 1;
         // Older Workers send an uncoded conflict for a pending reservation.
         const pendingConflict = status === 409 && (!code || code === 'UPLOAD_IN_PROGRESS');
-        const retryable = scope === 'connection' || scope === 'uploads' || status === 429 ||
+        const retryable = scope === 'connection' || scope === 'closed' || scope === 'uploads' || status === 429 ||
           (status !== undefined && status >= 500) || (pendingConflict && attempts < 4);
-        const delay = scope === 'uploads' || pendingConflict ? 120_000 : Math.min(300_000, 10_000 * 2 ** Math.min(attempts, 5));
+        let delay = Math.min(300_000, 10_000 * 2 ** Math.min(attempts, 5));
+        if (scope === 'uploads' || pendingConflict) delay = 120_000;
+        if (scope === 'closed') delay = CLOSED_CHECK_MS;
         const message = scope === 'connection' ? 'Waiting for a connection. Keep the app open to send queued changes.' :
           error instanceof Error ? error.message : 'Photo sending was interrupted. Retry when ready.';
         let explanation = message;
@@ -104,5 +137,5 @@ export function startPhotoSync() {
   window.addEventListener('offline',changed); window.addEventListener('storage',storage);
   document.addEventListener('visibilitychange',changed);
   const interval=setInterval(()=>void flush(),30_000); changed();
-  return()=>{stopped=true;clearTimeout(timer);clearInterval(interval);active?.controller.abort();window.removeEventListener(PHOTO_SYNC_CHANGED,changed);window.removeEventListener('online',reconnected);window.removeEventListener('offline',changed);window.removeEventListener('storage',storage);document.removeEventListener('visibilitychange',changed);};
+  return()=>{stopped=true;clearTimeout(timer);clearTimeout(reopenTimer);clearInterval(interval);active?.controller.abort();window.removeEventListener(PHOTO_SYNC_CHANGED,changed);window.removeEventListener('online',reconnected);window.removeEventListener('offline',changed);window.removeEventListener('storage',storage);document.removeEventListener('visibilitychange',changed);};
 }

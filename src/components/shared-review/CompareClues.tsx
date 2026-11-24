@@ -58,7 +58,11 @@ export function CompareClues({ access, snapshot, pack, onPhotoDeleted }: Compare
 
   // Keep the active clue chip in view in the strip.
   useEffect(() => {
-    stripRef.current?.querySelector<HTMLElement>('[aria-current="step"]')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    const strip = stripRef.current;
+    const chip = strip?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!strip || !chip) return;
+    const offset = chip.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+    strip.scrollTo({ left: strip.scrollLeft + offset + (chip.offsetWidth - strip.clientWidth) / 2, behavior: 'smooth' });
   }, [index]);
 
   const go = (delta: number) => { setIndex(i => Math.max(0, Math.min(clues.length - 1, i + delta))); setShowPrompt(false); };

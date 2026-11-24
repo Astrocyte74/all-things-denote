@@ -98,7 +98,7 @@ export function CreateEventWizard({ packId }: { packId?: string }) {
     setCreateError(null);
     try {
       const { access } = await createReview(cleanTitle, gameId, normalizedTeamNaming(naming), autoUpload);
-      openReview(access);
+      openReview(access, 'invite');
     } catch (error) {
       // Keep every choice so the leader can just retry.
       setCreateError(describeError(error));

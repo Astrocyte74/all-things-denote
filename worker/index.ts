@@ -498,6 +498,7 @@ async function route(request: Request, env: Env) {
       return json({ ok: true });
     }
   }
+  if (parts.length === 3 && parts[2] === 'upload-status' && request.method === 'GET') return json({ closed: Boolean(auth.event.closed) });
   if (parts[2] === 'teams' && parts.length === 3 && request.method === 'POST') return joinEvent(request, env, auth);
   if (parts[2] === 'photo-status' && parts.length === 3 && request.method === 'POST') return updatePhotoStatus(request, env, auth);
   if (parts[2] === 'progress' && parts.length === 3 && request.method === 'POST') return updateProgress(request, env, auth);

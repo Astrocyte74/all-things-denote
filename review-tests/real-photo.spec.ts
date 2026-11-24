@@ -1,11 +1,13 @@
-import { test, expect } from '@playwright/test';
+import jsQR from 'jsqr';
+import { PNG } from 'pngjs';
+import { test, expect, devices } from '@playwright/test';
 import { join } from 'node:path';
-import { openGallery, openSharingMenu } from '../tests/hunt-controls';
+import { openGallery } from '../tests/hunt-controls';
 import { stat } from 'node:fs/promises';
 
 const fixture = join(process.cwd(), 'tests/fixtures/apollo-surface.jpg');
 
-test('team invite, camera-sized capture, preview and full download work together', async ({ page, browser, request, baseURL }) => {
+test('creation shows a scannable invite and queued photos reach the leader automatically within 30 seconds of reopening', async ({ page, browser, browserName, request, baseURL }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Start an event', exact: true }).click();
   await page.getByRole('radio', { name: /Scripture Freeze Frames/ }).locator('..').click();
@@ -15,14 +17,25 @@ test('team invite, camera-sized capture, preview and full download work together
   const creating = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === '/events');
   await page.getByRole('button', { name: 'Create event & show QR', exact: true }).click();
   const response = await creating;
+  const createdAt = Date.now();
   expect(response.status()).toBe(201);
   const { access } = await response.json();
   const endpoint = response.url() + '/' + access.eventId;
   const headers = { Authorization: 'Bearer ' + access.token };
-  const team = await browser.newPage({ baseURL });
+  const team = await browser.newPage({ ...devices[browserName === 'webkit' ? 'iPhone 13' : 'Pixel 7'], baseURL });
   try {
+    const qrDialog = page.getByRole('dialog', { name: 'Invite QR code' });
+    const qr = qrDialog.getByRole('img', { name: 'QR code to join Photo release rehearsal' });
+    await expect(qr).toBeInViewport({ ratio: 1, timeout: 5_000 });
+    const screen = PNG.sync.read(await page.screenshot({ scale: 'css' }));
+    const code = jsQR(new Uint8ClampedArray(screen.data), screen.width, screen.height);
+    expect(Boolean(code)).toBe(true);
+    console.log('Full QR decoded from the first viewport ' + (Date.now() - createdAt) + ' ms after event creation.');
+    await qrDialog.getByRole('button', { name: 'Close QR code' }).click();
+    await expect(page.getByRole('heading', { name: 'Photo release rehearsal', exact: true })).toBeInViewport();
     await page.getByText('View invite link', { exact: true }).click();
     const invite = await page.getByRole('textbox', { name: 'Team invite link' }).inputValue();
+    expect(code?.data === invite && new URL(invite).hash.includes('&join=')).toBe(true);
     await team.goto(invite);
     await team.getByRole('button', { name: 'Use my own name', exact: true }).click();
     await team.getByRole('textbox', { name: /Your own name/ }).fill('Camera team');
@@ -35,14 +48,29 @@ test('team invite, camera-sized capture, preview and full download work together
     expect((await request.patch(endpoint, { headers, data: { closed: true } })).ok()).toBe(true);
     await team.getByLabel('Take photo', { exact: true }).setInputFiles(fixture);
     await expect.poll(async () => (await snapshot()).teams[0].photoStatus?.hasError).toBe(true);
+    await team.getByLabel('Take photo', { exact: true }).setInputFiles(fixture);
+    await expect.poll(async () => (await snapshot()).teams[0].photoStatus?.queuedUploads).toBe(2);
     expect((await snapshot()).photos).toHaveLength(0);
     await page.reload();
-    await page.getByRole('button', { name: 'Reopen uploads', exact: true }).click();
+    const reopen = page.getByRole('button', { name: 'Reopen uploads', exact: true });
+    await expect(reopen).toBeVisible();
+    const reopeningAt = Date.now();
+    await reopen.click();
     await expect(page.getByText('Open for uploads', { exact: true })).toBeVisible();
-    await openSharingMenu(team);
-    await team.getByRole('button', { name: 'Retry', exact: true }).click();
-    await team.getByRole('button', { name: 'Close photo sharing', exact: true }).click();
-    await expect.poll(async () => (await snapshot()).photos.length, { timeout: 30000 }).toBe(1);
+    // No interaction with the team until both queued photos have reached the leader.
+    await expect.poll(async () => (await snapshot()).photos.length, { timeout: 30_000, intervals: [500] }).toBe(2);
+    const sentMs = Date.now() - reopeningAt;
+    expect(sentMs).toBeLessThan(30_000);
+    await expect(page.getByRole('button', { name: 'Download ZIP (2)', exact: true }).first())
+      .toBeVisible({ timeout: Math.max(1, 30_000 - sentMs) });
+    const dashboardMs = Date.now() - reopeningAt;
+    expect(dashboardMs).toBeLessThan(30_000);
+    console.log(`Two queued photos received in ${sentMs} ms and shown on the leader dashboard in ${dashboardMs} ms without Retry.`);
+    await openGallery(team);
+    await team.getByRole('button', { name: 'Delete photo #1', exact: true }).nth(1).click();
+    await team.getByRole('button', { name: 'Delete', exact: true }).click();
+    await team.getByRole('button', { name: 'Close photo gallery', exact: true }).click();
+    await expect.poll(async () => (await snapshot()).photos.length).toBe(1);
     const state = await snapshot();
     const photo = state.photos[0];
     const url = endpoint + '/photos/' + photo.id;

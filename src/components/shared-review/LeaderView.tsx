@@ -14,6 +14,7 @@ import { DEFAULT_TEAM_NAMING } from '@/lib/teamNaming';
 import { Notice, PackBadge, QrImage } from './ui';
 
 interface LeaderViewProps {
+  showInvite: boolean;
   access: EventAccess;
   snapshot: ReviewSnapshot;
   setSnapshot: (snapshot: ReviewSnapshot) => void;
@@ -25,7 +26,7 @@ interface LeaderViewProps {
 
 const POLL_MS = 20_000;
 
-export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing, refreshError, updatedAt }: LeaderViewProps) {
+export function LeaderView({ access, showInvite, snapshot, setSnapshot, refresh, refreshing, refreshError, updatedAt }: LeaderViewProps) {
   const { event, capacity } = snapshot;
   const freeMiB = capacity ? (capacity.maxBytes - capacity.usedBytes) / (1024 * 1024) : 0;
   const freeSize = freeMiB > 0 && freeMiB < 1 ? 'Under 1' : Math.floor(freeMiB);
@@ -33,7 +34,11 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
   const pack = getPackById(event.packId);
   const joinLink = snapshot.joinToken ? reviewLink({ eventId: event.id, token: snapshot.joinToken, role: 'join' }) : null;
   const leaderLink = reviewLink(access);
-  const [bigQr, setBigQr] = useState(false);
+  const [bigQr, setBigQr] = useState(showInvite);
+  useEffect(() => {
+    // Opening the invite is a one-time action in the creation wizard.
+    if (showInvite) history.replaceState(history.state, '', leaderLink);
+  }, [showInvite, leaderLink]);
   const [toggling, setToggling] = useState(false);
   const [zipState, setZipState] = useState<{ done: number; total: number } | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -262,23 +267,29 @@ export function LeaderView({ access, snapshot, setSnapshot, refresh, refreshing,
 }
 
 function BigQr({ link, title, gameTitle, onClose }: { link: string; title: string; gameTitle: string; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Invite QR code" className="paper-dots fixed inset-0 z-[64] flex flex-col items-center justify-center gap-4 overflow-y-auto p-5 text-center text-ink">
-      <button type="button" onClick={onClose} autoFocus aria-label="Close QR code" className="btn-3d btn-white absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-ink">
-        <X className="h-5 w-5" strokeWidth={3} />
-      </button>
-      <p className="text-sm font-extrabold uppercase tracking-wider text-ink/65">Scan to join · {gameTitle}</p>
-      <h2 className="font-display text-3xl leading-tight sm:text-5xl">{title}</h2>
-      <div className="sticker-card p-3 sm:p-4">
-        <QrImage value={link} label={`QR code to join ${title}`} className="aspect-square w-[min(78vw,62vh)]" />
+    <dialog ref={dialogRef} aria-label="Invite QR code" onCancel={e => { e.preventDefault(); onClose(); }}
+      className="paper-dots fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none flex-col items-center gap-2 border-0 p-4 text-center text-ink open:flex sm:gap-4">
+      <div className="grid w-full grid-cols-[2.75rem_1fr_2.75rem] items-center">
+        <p className="col-start-2 text-sm font-extrabold uppercase tracking-wider text-ink/65">Scan to join · {gameTitle}</p>
+        <button type="button" onClick={onClose} autoFocus aria-label="Close QR code" className="btn-3d btn-white flex h-11 w-11 items-center justify-center rounded-full text-ink">
+          <X className="h-5 w-5" strokeWidth={3} />
+        </button>
+      </div>
+      <h2 className="line-clamp-2 max-w-full break-words font-display text-3xl leading-tight sm:text-5xl">{title}</h2>
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center [container-type:size]">
+        <div className="sticker-card p-3">
+          <QrImage value={link} label={`QR code to join ${title}`} className="aspect-square w-[min(78vw,62dvh,calc(100cqh-2rem))]" />
+        </div>
       </div>
       <p className="max-w-md text-sm font-bold text-ink/70">Open your phone camera and point it at the code. One phone per team is enough.</p>
-    </div>
+    </dialog>
   );
 }
 

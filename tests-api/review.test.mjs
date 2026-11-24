@@ -79,12 +79,17 @@ test('team and event isolation apply to downloads, deletes, and canonical clues'
 
 test('closed events stop joining and uploading, and reopen without losing photos', async () => {
   const event = await create(), team = await join(event);
+  const statusPath = `/events/${event.access.eventId}/upload-status`;
+  assert.equal((await call(statusPath)).status, 401);
+  assert.deepEqual(await (await call(statusPath, team.access)).json(), { closed: false });
   assert.equal((await upload(team.access)).status, 201);
   assert.equal((await call(`/events/${event.access.eventId}`, event.access, 'PATCH', { closed: true })).status, 200);
+  assert.deepEqual(await (await call(statusPath, team.access)).json(), { closed: true });
   assert.equal((await upload(team.access, { localPhotoId: 'new' })).status, 409);
   assert.equal((await call(`/events/${event.access.eventId}/teams`, event.invite, 'POST', { name:'Late team', token:randomToken() })).status, 409);
   assert.equal((await (await call(`/events/${event.access.eventId}`, event.access)).json()).photos.length, 1);
   await call(`/events/${event.access.eventId}`, event.access, 'PATCH', { closed: false });
+  assert.deepEqual(await (await call(statusPath, team.access)).json(), { closed: false });
   assert.equal((await upload(team.access, { localPhotoId: 'new' })).status, 201);
 });
 

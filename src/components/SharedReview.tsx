@@ -28,10 +28,10 @@ export function SharedReview({ route, onBack, onPlay, onJoined }: SharedReviewPr
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [routeKey]);
 
   if (route.screen === 'home') return <ReviewHome key={routeKey} packId={route.packId} intent={route.intent} onBack={onBack} />;
-  return <ReviewEvent key={routeKey} access={route.access} onBack={onBack} onPlay={onPlay} onJoined={onJoined} />;
+  return <ReviewEvent key={routeKey} access={route.access} showInvite={route.showInvite} onBack={onBack} onPlay={onPlay} onJoined={onJoined} />;
 }
 
-function ReviewEvent({ access, onBack, onPlay, onJoined }: { access: EventAccess } & Pick<SharedReviewProps, 'onBack' | 'onPlay' | 'onJoined'>) {
+function ReviewEvent({ access, showInvite, onBack, onPlay, onJoined }: { access: EventAccess; showInvite: boolean } & Pick<SharedReviewProps, 'onBack' | 'onPlay' | 'onJoined'>) {
   const [snapshot, setSnapshot] = useState<ReviewSnapshot | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -107,7 +107,7 @@ function ReviewEvent({ access, onBack, onPlay, onJoined }: { access: EventAccess
   if (snapshot.role === 'leader') {
     return (
       <ReviewShell {...shellBack} wide>
-        <LeaderView access={access} snapshot={snapshot} setSnapshot={applySnapshot} refresh={refresh} refreshing={refreshing} refreshError={refreshError} updatedAt={updatedAt} />
+        <LeaderView showInvite={showInvite} access={access} snapshot={snapshot} setSnapshot={applySnapshot} refresh={refresh} refreshing={refreshing} refreshError={refreshError} updatedAt={updatedAt} />
       </ReviewShell>
     );
   }

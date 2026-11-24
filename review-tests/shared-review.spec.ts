@@ -42,6 +42,7 @@ async function makeLeader(browser: Browser, baseURL: string, title: string, game
   await page.getByRole('button',{name:'Next',exact:true}).click();
   await page.getByRole('switch',{name:'Send photos as we go',exact:true}).click(); // Explicit manual-send fixture.
   await page.getByRole('button',{name:'Create event & show QR',exact:true}).click();
+  await page.getByRole('button',{name:'Close QR code',exact:true}).click();
   await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
   await page.getByText('View invite link',{exact:true}).click();
   const invite = await page.getByRole('textbox',{name:'Team invite link'}).inputValue();

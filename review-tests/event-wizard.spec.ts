@@ -82,6 +82,9 @@ test('wizard preserves choices, previews games, refreshes ideas, and creates the
   const event=await response.json();created.push(event);
   expect(event.snapshot.event.packId).toBe('christmas');
   expect(event.snapshot.event.teamNaming).toEqual({pool:'selected',names:['Bright Sparks','Our Explorers'],assignment:'random',allowCustom:false});
+  const inviteDialog = page.getByRole('dialog', {name: 'Invite QR code'});
+  await expect(inviteDialog.getByRole('img', {name:/QR code to join/})).toBeInViewport({ratio:1});
+  await inviteDialog.getByRole('button', {name:'Close QR code'}).click();
   await expect(page.getByRole('heading',{name:'Our own November adventure',exact:true})).toBeVisible();
   await expect(page.getByRole('img',{name:/QR code to join/})).toBeVisible();
   expect(creations).toBe(1);

@@ -79,7 +79,7 @@ menu is available from the checklist and finish screen.
 1. The leader taps **Start an event**: choose a game and preview a clue, pick or
    edit an event name, then keep **Allow all** team names or customize the options.
    **More ideas** refreshes name suggestions without changing the chosen name.
-   **Create event & show QR** creates the event after those three steps.
+   **Create event & show QR** opens the full-screen team invite. Close the QR to see the leader dashboard.
 2. Teams tap **Join an event → Scan QR code**, allow camera access, and point
    at the leader’s code. They can also paste an invite link or use their phone’s
    Camera app. Teams tap a suggested name, type their own if allowed, or receive
@@ -225,6 +225,6 @@ The Pages workflow runs lint, Worker API checks, and both browser suites before 
 
 To publish a tested commit from this checkout, run `npm run release:pages` with Wrangler authenticated. It updates the Worker only if its fingerprint changed, checks its health, and pushes the commit to the Pages branch. To release just the Worker, run `npm run release:worker`. Both deployment paths apply pending database migrations first. Repositories configured with a scoped `CLOUDFLARE_API_TOKEN` secret run that step in the workflow automatically. `npm run verify:worker` performs the same read-only check independently.
 
-After Pages finishes deploying, `npm run test:live-photo` runs a camera-sized capture, retake, deletion, and leader presentation on the public app in Chromium and WebKit, and removes its test events.
+After Pages deploys, `npm run test:live-photo` decodes the invite QR from the first screen and checks that two queued photos reach the leader within 30 seconds of reopening uploads. It also checks presentation, retaking and deleting a photo in Chromium and WebKit, then removes its test events.
 
 For a capacity rehearsal, run `npm run build:review && node scripts/rehearse-event.mjs`. It uses a camera-sized photograph, seven teams and 105 uploads against local D1 and R2, compares preview and export bytes, then deletes the rehearsal event.

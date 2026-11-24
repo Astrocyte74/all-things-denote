@@ -52,7 +52,7 @@ export interface ReviewSnapshot {
   joinOptions?: { names: string[]; spotsRemaining: number };
 }
 export interface SavedReview { access: EventAccess; title: string; packId: string; expiresAt: number }
-export type ReviewRoute = { screen: 'home'; packId?: string; intent?: 'create' | 'join' } | { screen: 'event'; access: EventAccess };
+export type ReviewRoute = { screen: 'home'; packId?: string; intent?: 'create' | 'join' } | { screen: 'event'; access: EventAccess; showInvite: boolean };
 const STORAGE_KEY = 'sharedReviews:v1';
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const EVENT_ID = /^[a-f0-9-]{36}$/;
@@ -109,7 +109,7 @@ export function readReviewRoute(): ReviewRoute | null {
   const hash = new URLSearchParams(location.hash.slice(1));
   if (hash.get('review') === 'home') return { screen: 'home', packId: hash.get('game') || undefined, intent: hash.get('action') === 'create' ? 'create' : hash.get('action') === 'join' ? 'join' : undefined };
   const access = parseReviewLink(location.href);
-  return access ? { screen: 'event', access } : null;
+  return access ? { screen: 'event', access, showInvite: access.role === 'leader' && hash.get('show') === 'invite' } : null;
 }
 
 export function parseReviewLink(value: string): EventAccess | null {
@@ -137,14 +137,20 @@ export function openReviewHome(packId?: string, intent?: 'create' | 'join') {
   location.hash = new URLSearchParams({ review: 'home', ...(intent ? { action: intent } : {}), ...(packId ? { game: packId } : {}) }).toString();
 }
 
-export function openReview(access: EventAccess) {
-  location.hash = new URL(reviewLink(access)).hash;
+export function openReview(access: EventAccess, show?: 'invite') {
+  const hash = new URLSearchParams(new URL(reviewLink(access)).hash.slice(1));
+  if (show) hash.set('show', show);
+  location.hash = hash.toString();
 }
 
 export async function createReview(title: string, packId: string, teamNaming?: TeamNamingSettings, autoUploadDefault = true): Promise<{ access: EventAccess; snapshot: ReviewSnapshot }> {
   const result = await request<{ access: EventAccess; snapshot: ReviewSnapshot }>('/events', undefined, { method: 'POST', body: JSON.stringify({ title, packId, teamNaming, autoUploadDefault }) });
   rememberReview(result.access, result.snapshot.event);
   return result;
+}
+
+export function fetchUploadStatus(access: EventAccess, signal: AbortSignal) {
+  return request<{ closed: boolean }>(`/events/${access.eventId}/upload-status`, access, { signal });
 }
 
 export async function fetchReview(access: EventAccess): Promise<ReviewSnapshot> {
