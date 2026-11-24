@@ -275,7 +275,7 @@ function BigQr({ link, title, gameTitle, onClose }: { link: string; title: strin
   }, []);
   return (
     <dialog ref={dialogRef} aria-label="Invite QR code" onCancel={e => { e.preventDefault(); onClose(); }}
-      className="paper-dots fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none flex-col items-center gap-2 border-0 p-4 text-center text-ink open:flex sm:gap-4">
+      className="sr-invite-dialog paper-dots fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none flex-col items-center gap-2 border-0 p-4 text-center text-ink open:flex sm:gap-4">
       <div className="grid w-full grid-cols-[2.75rem_1fr_2.75rem] items-center">
         <p className="col-start-2 text-sm font-extrabold uppercase tracking-wider text-ink/65">Scan to join · {gameTitle}</p>
         <button type="button" onClick={onClose} autoFocus aria-label="Close QR code" className="btn-3d btn-white flex h-11 w-11 items-center justify-center rounded-full text-ink">
@@ -283,7 +283,7 @@ function BigQr({ link, title, gameTitle, onClose }: { link: string; title: strin
         </button>
       </div>
       <h2 className="line-clamp-2 max-w-full break-words font-display text-3xl leading-tight sm:text-5xl">{title}</h2>
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center [container-type:size]">
+      <div className="sr-invite-code flex min-h-0 w-full flex-1 items-center justify-center [container-type:size]">
         <div className="sticker-card p-3">
           <QrImage value={link} label={`QR code to join ${title}`} className="aspect-square w-[min(78vw,62dvh,calc(100cqh-2rem))]" />
         </div>

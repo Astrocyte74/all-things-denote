@@ -31,6 +31,13 @@ test('creation shows a scannable invite and queued photos reach the leader autom
     const code = jsQR(new Uint8ClampedArray(screen.data), screen.width, screen.height);
     expect(Boolean(code)).toBe(true);
     console.log('Full QR decoded from the first viewport ' + (Date.now() - createdAt) + ' ms after event creation.');
+    const portrait = page.viewportSize()!;
+    await page.setViewportSize({ width: portrait.height, height: portrait.width });
+    await expect(qr).toBeInViewport({ ratio: 1 });
+    expect((await qr.boundingBox())!.width).toBeGreaterThan(200);
+    const landscape = PNG.sync.read(await page.screenshot({ scale: 'css' }));
+    expect(jsQR(new Uint8ClampedArray(landscape.data), landscape.width, landscape.height)?.data === code?.data).toBe(true);
+    await page.setViewportSize(portrait);
     await qrDialog.getByRole('button', { name: 'Close QR code' }).click();
     await expect(page.getByRole('heading', { name: 'Photo release rehearsal', exact: true })).toBeInViewport();
     await page.getByText('View invite link', { exact: true }).click();
